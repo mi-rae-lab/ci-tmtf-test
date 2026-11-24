@@ -214,7 +214,7 @@ globalThis.__scope = (async () => {
   await tryOk('한 바퀴 끝: 측정 5개(주파수마다 하나) · 회기 끝 시각 · ‘한 번 더’ 제안 · 끝 질문 · 결과 표 5줄 · 그림', () => {
     const c = [r1.length === 5, r1.map(r => r.fm).sort((a, b) => a - b).join() === '10,50,100,150,200', !!sess.end && sess.endReason === '계획한 측정 모두 마침', S && S.offer && S.offer.kind === 'again',
       !$('#againBox').hidden && $('#againText').textContent.includes('한 번 더'), !!$('#focusPick') && $$('#focusPick .choice').length === 3, $('#endTable').querySelectorAll('tr').length === 6, $('#endChart').innerHTML.includes('<svg'),
-      $('#endTitle').textContent === '한 바퀴 끝! 수고하셨습니다', $('#endWho').textContent.startsWith('P02 · 오른쪽 · 선으로 처리기에 연결')];
+      $('#endTitle').textContent === '한 바퀴 끝! 수고하셨습니다', $('#endWho').textContent.startsWith('P02 · 오른쪽 · 선으로 음성처리기(인공와우 외부기기)에 연결')];
     return [c.every(Boolean), bits(c)];
   });
   await tryOk('측정 기록: 계단 다시 돌리기 = 저장값 · 세 소리 세기 같음 · 시행마다 씨앗 3 · 반전 시행 수 = 반전 수 · 순서 · 바퀴', () => {
@@ -302,7 +302,7 @@ globalThis.__scope = (async () => {
   await wait(20);
   await tryOk('결과 글 복사: 번호 · 귀 · 주파수마다 값 · 앱 판 · 안내', () => {
     const t = H.clip.at(-1)?.text || '';
-    return [t.startsWith('소리 떨림 검사 결과 (TMTF)\nP02 · 오른쪽 · 선으로 처리기에 연결') && PLAN_FMS.every(f => t.includes(`\n${f} Hz: `)) && t.includes(`(앱 ${APP_VERSION})`) && $('#sendState').textContent.includes('복사했습니다') && sess.exports.some(x => x.how === 'copy-text'), t.slice(0, 200)];
+    return [t.startsWith('소리 떨림 검사 결과 (TMTF)\nP02 · 오른쪽 · 선으로 음성처리기(인공와우 외부기기)에 연결') && PLAN_FMS.every(f => t.includes(`\n${f} Hz: `)) && t.includes(`(앱 ${APP_VERSION})`) && $('#sendState').textContent.includes('복사했습니다') && sess.exports.some(x => x.how === 'copy-text'), t.slice(0, 200)];
   });
   await tryOk('바로 보내기 단추: 이 환경(navigator.share 없음)에서는 숨김', () => [$('#shareFile').hidden, '']);
 

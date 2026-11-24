@@ -8,7 +8,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
 <meta name="description" content="인공와우 사용자를 위한 소리 떨림 검사 (시간 변조 탐지, TMTF)">
 <title>소리 떨림 검사</title>
-<link rel="stylesheet" href="style.css?v=1.1.0">
+<link rel="stylesheet" href="style.css?v=1.1.1">
 </head>
 <body>
 <header class="top">
@@ -34,12 +34,12 @@
     <ul class="list">
       <li id="hPrep1">조용한 곳</li>
       <li id="homeTime">20분쯤 (중간에 쉴 수 있어요)</li>
-      <li id="hPrep3">평소 쓰는 처리기 프로그램과 볼륨</li>
+      <li id="hPrep3">평소 쓰는 음성처리기(인공와우 외부기기) 프로그램과 볼륨</li>
       <li id="hPrep4">컴퓨터를 권합니다. 휴대폰·태블릿도 됩니다.</li>
     </ul>
   </div>
   <div class="card soft">
-    <p id="hNotice1">이 검사는 <b>진단이 아닙니다.</b> 결과를 보고 처리기 설정을 바꾸려면 청능사와 상의하세요.</p>
+    <p id="hNotice1">이 검사는 <b>진단이 아닙니다.</b> 결과를 보고 음성처리기(인공와우 외부기기) 설정을 바꾸려면 청능사와 상의하세요.</p>
     <p id="hNotice2">이름이나 연락처는 묻지 않습니다. 결과는 이 기기의 브라우저에만 저장되고, <b>‘결과 파일 저장’을 직접 눌러야만</b> 밖으로 나갑니다.</p>
   </div>
   <div class="actions">
@@ -67,15 +67,15 @@
       <button class="choice" data-v="R" aria-pressed="false">오른쪽</button>
       <button class="choice" data-v="B" aria-pressed="false">양쪽</button>
     </div>
-    <p id="earHint" class="hint">한쪽만 할 때는 반대쪽 처리기나 보청기를 빼 주세요.</p>
+    <p id="earHint" class="hint">한쪽만 할 때는 반대쪽 음성처리기(인공와우 외부기기)나 보청기를 빼 주세요.</p>
   </div>
   <div class="card">
     <h2><span class="qnum">2</span> <span id="qPath">소리를 어떻게 듣나요?</span></h2>
     <div class="choices col" id="pathPick" role="group" aria-label="듣는 방법">
       <button class="choice" data-v="speaker" aria-pressed="false">컴퓨터·휴대폰 스피커</button>
       <button class="choice" data-v="headphone" aria-pressed="false">이어폰·헤드폰</button>
-      <button class="choice" data-v="wired" aria-pressed="false">선으로 처리기에 연결 (오디오 케이블·유선 스트리머)</button>
-      <button class="choice" data-v="bt" aria-pressed="false">블루투스로 처리기에 연결</button>
+      <button class="choice" data-v="wired" aria-pressed="false">선으로 음성처리기(인공와우 외부기기)에 연결 (오디오 케이블·유선 스트리머)</button>
+      <button class="choice" data-v="bt" aria-pressed="false">블루투스로 음성처리기(인공와우 외부기기)에 연결</button>
       <button class="choice" data-v="other" aria-pressed="false">그 밖의 방법</button>
     </div>
     <p id="btNote" class="hint warn" role="note" hidden>블루투스는 소리 앞부분이 잘릴 수 있어요. 할 수 있으면 선으로 연결하거나 스피커를 써 주세요. 그대로 해도 됩니다.</p>
@@ -93,7 +93,7 @@
           <select id="infoYears"><option value="">고르지 않음</option><option value="<1">1년이 안 됨</option><option value="1-5">1–5년</option><option value="5-10">5–10년</option><option value="10+">10년 넘음</option><option value="unknown">모름</option></select></label>
         <label><span id="lblOnset">잘 안 들리게 된 때</span>
           <select id="infoOnset"><option value="">고르지 않음</option><option value="pre">말을 배우기 전</option><option value="post">말을 배운 뒤</option><option value="unknown">모름</option></select></label>
-        <label><span id="lblMaker">처리기 회사</span>
+        <label><span id="lblMaker">음성처리기(인공와우 외부기기) 회사</span>
           <select id="infoMaker"><option value="">고르지 않음</option><option value="cochlear">코클리어</option><option value="medel">메드엘</option><option value="ab">어드밴스드 바이오닉스</option><option value="oticon">오티콘</option><option value="todoc">토닥</option><option value="other">그 밖</option><option value="unknown">모름</option></select></label>
       </div>
       <label class="mt"><span id="lblNote">하고 싶은 말 (짧게)</span>
@@ -233,9 +233,9 @@
 </main>
 
 <!-- ?v= 는 js/app.js 의 APP_VERSION 앞 번호와 같게 (판을 바꿀 때 함께 올려야 브라우저가 옛 파일을 쓰지 않음 — tools/app_check.js 가 확인) -->
-<script src="js/protocols.js?v=1.1.0"></script>
-<script src="js/stim.js?v=1.1.0"></script>
-<script src="js/track.js?v=1.1.0"></script>
-<script src="js/app.js?v=1.1.0"></script>
+<script src="js/protocols.js?v=1.1.1"></script>
+<script src="js/stim.js?v=1.1.1"></script>
+<script src="js/track.js?v=1.1.1"></script>
+<script src="js/app.js?v=1.1.1"></script>
 </body>
 </html>

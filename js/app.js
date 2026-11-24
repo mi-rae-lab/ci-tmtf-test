@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.1.0 (2026-11-24)';   // 1.1.0: 인앱 브라우저 안내 · 접근성 · 블루투스 안내 · 보고서 공유 · KEEPMON 절전 · 지연 저장/용량 경고 · 결과 보기 증분/비교 · 한/영 전환
+const APP_VERSION = '1.1.1 (2026-11-24)';   // 1.1.1: ‘처리기’ 표기를 ‘음성처리기(인공와우 외부기기)’로 변경
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const STORE_KEY = 'ciTmtf.v1';
@@ -56,8 +56,8 @@ const DEFAULT_FMS = [10, 50, 100, 150, 200];   // Won 2011 · Park 2015 의 변�
 const FM_OK = fmChoices(PR);                   // 링크(?hz=)로 고를 수 있는 변조 주파수 = 와우TMTF 직접 정하기의 칸
 const EAR = { L: '왼쪽', R: '오른쪽', B: '양쪽' };
 const EAR_EN = { L: 'Left', R: 'Right', B: 'Both' };
-const PATH = { speaker: '컴퓨터·휴대폰 스피커', headphone: '이어폰·헤드폰', wired: '선으로 처리기에 연결', bt: '블루투스로 처리기에 연결', other: '그 밖의 방법' };
-const PATH_EN = { speaker: 'Computer / phone speaker', headphone: 'Earphones / headphones', wired: 'Wired to processor (audio cable / wired streamer)', bt: 'Bluetooth to processor', other: 'Other' };
+const PATH = { speaker: '컴퓨터·휴대폰 스피커', headphone: '이어폰·헤드폰', wired: '선으로 음성처리기(인공와우 외부기기)에 연결', bt: '블루투스로 음성처리기(인공와우 외부기기)에 연결', other: '그 밖의 방법' };
+const PATH_EN = { speaker: 'Computer / phone speaker', headphone: 'Earphones / headphones', wired: 'Wired to sound processor (audio cable / wired streamer)', bt: 'Bluetooth to sound processor', other: 'Other' };
 const FOCUS = { good: '잘 됨', mid: '보통', bad: '잘 안 됨' };
 const FOCUS_EN = { good: 'Good', mid: 'Okay', bad: 'Hard to focus' };
 const AGE_LBL = { '-19': '10대 이하', '20s': '20대', '30s': '30대', '40s': '40대', '50s': '50대', '60s': '60대', '70+': '70대 이상' };
@@ -899,7 +899,7 @@ function showEnd(sess, opt = {}) {
   if (single) notes.push(tx('한 번만 잰 값은 참고용입니다.', 'Values from a single run are for reference only.'));
   if ((sess.runs || []).some(r => r.ceiling || r.thr === null)) notes.push(tx('‘재지 못함’은 가장 큰 떨림에서도 자주 틀려 숫자를 내지 못했다는 뜻입니다.', '“Not measured” means even the strongest flutter was frequently missed.'));
   if ((sess.runs || []).some(r => r.atChance || r.incomplete)) notes.push(tx('‘참고 값’은 숫자는 나왔지만 믿기 어려운 값입니다.', '“Reference only” values are less reliable estimates.'));
-  notes.push(tx('이 결과는 진단이 아닙니다. 처리기 설정은 청능사와 상의하세요.', 'These results are not a medical diagnosis. Talk to your audiologist before changing any processor settings.'));
+  notes.push(tx('이 결과는 진단이 아닙니다. 음성처리기(인공와우 외부기기) 설정은 청능사와 상의하세요.', 'These results are not a medical diagnosis. Talk to your audiologist before changing any sound processor settings.'));
   $('#endNotes').innerHTML = notes.map(t => `<p>${esc(t)}</p>`).join('') + focusHtml(sess);
   $('#againBox').hidden = !offers;
   $('#againText').innerHTML = offers ? offerText(S.offer) : '';
@@ -1366,7 +1366,7 @@ function reportSessionHtml(s, src, idx, total) {
           <tr><th>나이대 (선택)</th><td>${esc(AGE_LBL[info.age] || info.age || '미입력')}</td></tr>
           <tr><th>해당 귀 인공와우 사용 기간</th><td>${esc(YEARS_LBL[info.ciYears] || info.ciYears || '미입력')}</td></tr>
           <tr><th>난청 시작 시기</th><td>${esc(ONSET_LBL[info.onset] || info.onset || '미입력')}</td></tr>
-          <tr><th>처리기 제조사</th><td>${esc(MAKER_LBL[info.maker] || info.maker || '미입력')}</td></tr>
+          <tr><th>음성처리기(인공와우 외부기기) 제조사</th><td>${esc(MAKER_LBL[info.maker] || info.maker || '미입력')}</td></tr>
           <tr><th>참가자 메모</th><td>${esc(info.note || '없음')}</td></tr>
           <tr><th>오디오 환경</th><td>표본화 ${s.env?.audio?.sampleRate ?? '?'} Hz · baseLatency ${s.env?.audio?.baseLatencyMs ?? '?'} ms · outputLatency ${s.env?.audio?.outputLatencyMs ?? '?'} ms</td></tr>
           <tr><th>준비 · 연습 기록</th><td>기준 잡음 ${esc(noiseTxt)} · 데모 ${esc(demoTxt)} · 연습 ${prTr.length}시행 (직접 맞힘 ${prRight}, 모르겠음 ${prDunno}, ${s.practiceRounds || 0}회차)</td></tr>
@@ -1553,7 +1553,7 @@ details.raw .tw{margin-top:8px}
     <strong>참고용 고지 — 진단 도구가 아닙니다</strong>
     <ul>
       <li>본 보고서는 <b>임상·연구 참고용</b>이며 의학적 진단 도구가 아닙니다. 인공와우 맵(MAP) 변경 및 임상 결정은 청능사의 표준 검사와 종합 평가로 판단해야 합니다.</li>
-      <li>결과는 <b>청취자 + 인공와우 처리기(프로그램·볼륨·전처리) + 소리 전달 경로 + 재생 기기</b>가 합쳐진 값이며, 제시 음압(dB SPL/dBA)은 보정되지 않은 자가 조절 볼륨 기준입니다.</li>
+      <li>결과는 <b>청취자 + 음성처리기(인공와우 외부기기: 프로그램·볼륨·전처리) + 소리 전달 경로 + 재생 기기</b>가 합쳐진 값이며, 제시 음압(dB SPL/dBA)은 보정되지 않은 자가 조절 볼륨 기준입니다.</li>
       <li>본 절차(3AFC, 광대역 잡음, 0.5 s + ISI 0.5 s, 10 ms 직선 경사, 무작위 위상, Won 규칙 14반전/마지막 10반전, 0 dB 4오답 중단)는 Won et al. (2011), Park et al. (2015), De Ruiter et al. (2015)의 원절차와 다르므로 문헌 수치와 직접 순위 비교하지 마세요.</li>
       <li>‘재지 못함’은 숫자가 아니므로 평균에 포함하지 않으며, 1회 측정값·‘우연 수준’·‘미완’은 참고 값입니다.</li>
     </ul>
@@ -1636,15 +1636,15 @@ const UI_TEXT = {
     txt: {
       appTitle: '소리 떨림 검사', appSub: '인공와우 사용자를 위한 검사',
       hWhat: '어떤 검사인가요?', hPrep: '준비할 것', hPrep1: '조용한 곳',
-      hPrep3: '평소 쓰는 처리기 프로그램과 볼륨', hPrep4: '컴퓨터를 권합니다. 휴대폰·태블릿도 됩니다.',
+      hPrep3: '평소 쓰는 음성처리기(인공와우 외부기기) 프로그램과 볼륨', hPrep4: '컴퓨터를 권합니다. 휴대폰·태블릿도 됩니다.',
       goSetup: '시작하기', hSaved: '이 기기에 저장된 검사', homeSaveAll: '모두 파일로 저장',
       goViewer: '받은 결과 파일 보기 (검사를 보낸 분용)',
-      qEar: '어느 쪽 귀로 듣나요?', earHint: '한쪽만 할 때는 반대쪽 처리기나 보청기를 빼 주세요.',
+      qEar: '어느 쪽 귀로 듣나요?', earHint: '한쪽만 할 때는 반대쪽 음성처리기(인공와우 외부기기)나 보청기를 빼 주세요.',
       qPath: '소리를 어떻게 듣나요?',
       btNote: '블루투스는 소리 앞부분이 잘릴 수 있어요. 할 수 있으면 선으로 연결하거나 스피커를 써 주세요. 그대로 해도 됩니다.',
       qCode: '참가 번호', qCodeOpt: '(받은 번호가 있을 때만)', codeHint: '이름은 적지 마세요.',
       moreSum: '더 알려 주기 (안 해도 됩니다)', lblAge: '나이', lblYears: '이 귀로 인공와우를 쓴 지',
-      lblOnset: '잘 안 들리게 된 때', lblMaker: '처리기 회사', lblNote: '하고 싶은 말 (짧게)',
+      lblOnset: '잘 안 들리게 된 때', lblMaker: '음성처리기(인공와우 외부기기) 회사', lblNote: '하고 싶은 말 (짧게)',
       setupBack: '뒤로', setupNext: '다음', setupNeed: '1번과 2번을 골라 주세요.',
       hSound: '소리 크기 맞추기', snd1: '‘잡음 틀기’를 누르세요. 10초 동안 잡음이 나옵니다.',
       snd3: '맞춘 뒤에는 검사가 끝날 때까지 볼륨을 바꾸지 마세요.',
@@ -1666,13 +1666,13 @@ const UI_TEXT = {
       hWhat1: '잡음 소리 <b>세 개</b>를 차례로 들려 드립니다. 그중 <b>하나만 떨립니다.</b>',
       hWhat2: '떨리는 소리가 <b>몇 번째</b>인지 고르면 됩니다.',
       hWhat3: '처음에는 쉽고, 맞힐수록 떨림이 약해져 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 누르세요.',
-      hNotice1: '이 검사는 <b>진단이 아닙니다.</b> 결과를 보고 처리기 설정을 바꾸려면 청능사와 상의하세요.',
+      hNotice1: '이 검사는 <b>진단이 아닙니다.</b> 결과를 보고 음성처리기(인공와우 외부기기) 설정을 바꾸려면 청능사와 상의하세요.',
       hNotice2: '이름이나 연락처는 묻지 않습니다. 결과는 이 기기의 브라우저에만 저장되고, <b>‘결과 파일 저장’을 직접 눌러야만</b> 밖으로 나갑니다.',
       snd2: '컴퓨터(휴대폰) 볼륨을 움직여 <b>편하게 잘 들리는 크기</b>로 맞추세요. 너무 크게 하지 마세요.',
       askText: '세 소리 중 <b>떨리는 소리</b>는 몇 번째인가요?',
     },
     steps: ['준비', '소리 맞추기', '연습 · 검사'],
-    ear: EAR, path: { ...PATH, wired: '선으로 처리기에 연결 (오디오 케이블·유선 스트리머)' }, age: AGE_LBL, years: YEARS_LBL, onset: ONSET_LBL, maker: MAKER_LBL, none: '고르지 않음',
+    ear: EAR, path: { ...PATH, wired: '선으로 음성처리기(인공와우 외부기기)에 연결 (오디오 케이블·유선 스트리머)' }, age: AGE_LBL, years: YEARS_LBL, onset: ONSET_LBL, maker: MAKER_LBL, none: '고르지 않음',
     codePh: '예: P02', ivAria: ['1번', '2번', '3번'], progAria: '진행률',
   },
   en: {
@@ -1680,15 +1680,15 @@ const UI_TEXT = {
     txt: {
       appTitle: 'Sound Flutter Test', appSub: 'A listening test for cochlear implant users',
       hWhat: 'How does it work?', hPrep: 'Before you start', hPrep1: 'A quiet room',
-      hPrep3: 'Your everyday processor program and volume', hPrep4: 'A computer works best. Phones and tablets also work.',
+      hPrep3: 'Your everyday sound processor program and volume', hPrep4: 'A computer works best. Phones and tablets also work.',
       goSetup: 'Start', hSaved: 'Saved tests on this device', homeSaveAll: 'Save all to file',
       goViewer: 'View received result files (for clinicians / researchers)',
-      qEar: 'Which ear are you testing?', earHint: 'If testing one ear, please take off the processor or hearing aid on the other side.',
+      qEar: 'Which ear are you testing?', earHint: 'If testing one ear, please take off the sound processor or hearing aid on the other side.',
       qPath: 'How are you listening?',
       btNote: 'Bluetooth may clip the start of sounds. Use a wired connection or speaker if you can, though Bluetooth still works.',
       qCode: 'Participant ID', qCodeOpt: '(only if you were given one)', codeHint: 'Please do not enter your name.',
       moreSum: 'Optional info (you can skip this)', lblAge: 'Age group', lblYears: 'Years using CI in this ear',
-      lblOnset: 'When hearing loss started', lblMaker: 'Processor brand', lblNote: 'Short note (optional)',
+      lblOnset: 'When hearing loss started', lblMaker: 'Sound processor brand', lblNote: 'Short note (optional)',
       setupBack: 'Back', setupNext: 'Next', setupNeed: 'Please choose answers for 1 and 2.',
       hSound: 'Set a comfortable volume', snd1: 'Tap “Play noise”. A steady noise plays for 10 seconds.',
       snd3: 'Once set, please keep the volume the same until the test finishes.',
@@ -1710,7 +1710,7 @@ const UI_TEXT = {
       hWhat1: 'You will hear <b>three</b> noise sounds in a row. Only <b>one of them flutters.</b>',
       hWhat2: 'Pick <b>which one</b> was the fluttering sound.',
       hWhat3: 'It starts easy and gets harder as you get answers right. <b>If you notice even a tiny flutter, pick that number.</b> Only press “Not sure” when all three sounds feel completely identical.',
-      hNotice1: 'This test is <b>not a medical diagnosis.</b> Talk to your audiologist before changing any processor settings.',
+      hNotice1: 'This test is <b>not a medical diagnosis.</b> Talk to your audiologist before changing any sound processor settings.',
       hNotice2: 'We never ask for your name or contact details. Results stay only in this browser and leave <b>only when you tap “Save result file”.</b>',
       snd2: 'Adjust your device volume to a <b>comfortable, clearly audible level</b>. Do not make it too loud.',
       askText: 'Which of the three sounds was <b>fluttering</b>?',
