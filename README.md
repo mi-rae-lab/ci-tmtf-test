@@ -96,8 +96,8 @@
 | 소리 | 광대역 가우스 잡음, 정현 진폭 변조. 변조 시작 위상은 구간마다 무작위. 세 소리의 평균 세기(RMS)는 정확히 같게 맞춤 |
 | 켜짐·꺼짐 | 10 ms 직선 경사, 첫 소리 앞 무음 0.25초 |
 | 계단 | 2-down 1-up(70.7% 지점). 변조 100%(0 dB)에서 시작해 반전 4번까지 4 dB, 그 뒤 2 dB. 반전 14번 중 마지막 10번 평균 |
-| 끝 규칙 | 0 dB에서 4번 틀리면 ‘재지 못함’으로 멈춤 |
-| 반복 | 한 바퀴(주파수마다 1번), 원하면 한 바퀴 더. 두 값이 3 dB 넘게 다르면 그것만 한 번 더 (Park 등 2015) |
+| 끝 규칙 | 0 dB에서 4번 틀리면 ‘재지 못함’으로 멈춤 (앱 자체 안전 규칙 · 평균 제외) |
+| 반복 | 한 바퀴(주파수마다 1번), 원하면 한 바퀴 더. 두 값이 3 dB 넘게 다르면 그것만 한 번 더 (Won 등 2011 · Park 등 2015) |
 | 피드백 | 답할 때마다 맞음 · 틀림을 보여 줌 |
 
 ## 검증
@@ -122,6 +122,18 @@ tools\전수검산.bat        (또는 python -I -X utf8 tools/run_checks.py)
 | `index.html` · `style.css` · `js/app.js` | 참가자 화면, 기록, 검사 흐름, 결과, 받은 결과 보기 |
 | `js/protocols.js` · `js/stim.js` · `js/track.js` | 절차, 자극(씨앗으로 되풀이되는 잡음), 적응 계단 |
 | `tools/` | 전수 검산 (`run_checks.py`, `cross_check.*`, `tmtf_ref.py`, `app_check*.js`, `verify_result.py`, `lean/`) |
+
+## 참고 문헌
+
+자극·계단 절차의 원문 대조와 차이점은 [방법.md](방법.md)에 정리되어 있습니다.
+
+1. Levitt, H. (1971). Transformed up-down methods in psychoacoustics. *The Journal of the Acoustical Society of America*, 49(2B), 467–477. https://doi.org/10.1121/1.1912375
+2. Viemeister, N. F. (1979). Temporal modulation transfer functions based upon modulation thresholds. *The Journal of the Acoustical Society of America*, 66(5), 1364–1380. https://doi.org/10.1121/1.383531
+3. Won, J. H., Drennan, W. R., Nie, K., Jameyson, E. M., & Rubinstein, J. T. (2011). Acoustic temporal modulation detection and speech perception in cochlear implant listeners. *The Journal of the Acoustical Society of America*, 130(1), 376–388. https://doi.org/10.1121/1.3592521
+4. Shen, Y., & Richards, V. M. (2013). Temporal modulation transfer function for efficient assessment of auditory temporal resolution. *The Journal of the Acoustical Society of America*, 133(2), 1031–1042. https://doi.org/10.1121/1.4773271
+5. Park, M.-H., Won, J. H., Horn, D. L., & Rubinstein, J. T. (2015). Acoustic temporal modulation detection in normal-hearing and cochlear implanted listeners: Effects of hearing mechanism and development. *Journal of the Association for Research in Otolaryngology*, 16(3), 389–399. https://doi.org/10.1007/s10162-014-0499-z
+6. De Ruiter, A. M., Debruyne, J. A., Chenault, M. N., Francart, T., & Brokx, J. P. L. (2015). Amplitude modulation detection and speech recognition in late-implanted prelingually and postlingually deafened cochlear implant users. *Ear and Hearing*, 36(5), 557–566. https://doi.org/10.1097/AUD.0000000000000162
+7. Goehring, T., & Carlyon, R. P. (2026). A web-based listening test system for cochlear implant research and its validation for remote testing. *Trends in Hearing*, 30, 23312165261416179. https://doi.org/10.1177/23312165261416179
 
 ## 라이선스
 

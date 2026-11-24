@@ -324,6 +324,7 @@ globalThis.__scope = (async () => {
       && h.includes(PROC_KEY) && h.includes('자리별 맞힘 1·2·3 (모르겠음 제외)') && h.includes('계단 사후 재계산 (replayCheck)')
       && h.includes('HTTPS 보안 연결') && h.includes("connect-src 'none'") && h.includes('name="referrer" content="no-referrer"')
       && h.includes(H.expectBuild) && h.includes('<svg class="chart"') && h.includes('<details class="raw">')
+      && ['10.1121/1.1912375', '10.1121/1.383531', '10.1121/1.3592521', '10.1121/1.4773271', '10.1007/s10162-014-0499-z', '10.1097/AUD.0000000000000162', '10.1177/23312165261416179'].every(d => h.includes(d))
       && !/\b(?:src|href)\s*=\s*["']https?:/i.test(h) && !/url\(\s*['"]?https?:/i.test(h);
     const logged = sess.exports.some(x => x.how === 'report-html' && x.name === repDl[0]?.name) && $('#sendState').textContent.includes(repDl[0]?.name);
     return [okName && hasCore && logged, `${repDl[0]?.name} len=${h.length}`];

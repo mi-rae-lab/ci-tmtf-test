@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.0 (2026-11-24)';   // 1.2.0: 18 Hz 연결 유지 신호(tone18all)·실제 출력 18 Hz 감시·네 번 소리 점검(3초×2회)·formatVersion 2
+const APP_VERSION = '1.2.1 (2026-11-24)';   // 1.2.1: 7편 원문 대조 검증 반영 및 완전한 참고문헌(저자·제목·학술지·DOI) 수록
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;
@@ -1620,7 +1620,7 @@ function reportSessionHtml(s, src, idx, total) {
   const bandTxt = P.band?.type === 'wide' ? '광대역 가우스 잡음 (20 Hz – fs/2, 구간마다 독립 재추출)' : `대역 제한 잡음 (${esc(JSON.stringify(P.band))})`;
   const rampTxt = `${P.rampMs ?? 10} ms ${P.rampShape === 'cos2' ? '코사인²(cos²)' : '직선(linear)'} 경사`;
   const phaseTxt = P.phase === 'random' ? '구간마다 [0, 2π) 균등 무작위 (Shen & Richards 2013)' : esc(P.phase || '0');
-  const ceilTxt = P.ceiling === 'stop4' ? '0 dB에서 4회 오답 시 즉시 중단(재지 못함, 숫자 아님 · De Ruiter et al. 2015)' : esc(P.ceiling || '없음');
+  const ceilTxt = P.ceiling === 'stop4' ? '0 dB에서 4회 오답 시 즉시 중단(재지 못함, 숫자 아님 · 앱 자체 규칙; 미탐지 0 dB 처리는 De Ruiter et al. 2015 참고)' : esc(P.ceiling || '없음');
   const pathTxt = (PATH[s.path] || s.path || '미입력') + (s.path === 'bt' ? ' (주의: 블루투스 스트리밍 특성상 자극 앞부분 잘림 가능)' : '');
 
   // 1. 주파수별 요약 표 (재지 못함은 절대 0 dB로 평균 내지 않음)
@@ -1801,7 +1801,7 @@ function reportSessionHtml(s, src, idx, total) {
           <tr><th>천장(재지 못함) 규칙</th><td>${ceilTxt}</td></tr>
           <tr><th>우연 수준 검정</th><td>0 dB 시행 수 n0 ≥ 6일 때 단측 이항검정 P(X ≥ k0 | n0, 1/${P.nAFC ?? 3}) &gt; 0.05이면 참고값(우연 수준) 표시</td></tr>
           <tr><th>‘모르겠음’ 처리</th><td>3구간 중 균등 무작위 1개 선택(치우침 없는 찍기, p = 1/3) · 시행별 u=1 기록 · 자리별 맞힘 분석 제외</td></tr>
-          <tr><th>반복 · 3차 추가 규칙</th><td>전 주파수 무작위 1바퀴 → 선택 2바퀴 → 정상 두 값 차 &gt; 3 dB 주파수만 3차 추가 제안 (Park et al. 2015)</td></tr>
+          <tr><th>반복 · 3차 추가 규칙</th><td>전 주파수 무작위 1바퀴 → 선택 2바퀴 → 정상 두 값 차 &gt; 3 dB 주파수만 3차 추가 제안 (Won et al. 2011 Fig. 9 · Park et al. 2015)</td></tr>
           <tr><th>피드백</th><td>${P.feedback === false ? '없음' : '시행마다 시각 피드백 제공 (맞음 · 틀림 · 모르겠음 구분 표시)'}</td></tr>
         </tbody></table>
       </div>
@@ -1949,7 +1949,14 @@ details.raw .tw{margin-top:8px}
   </aside>
   ${body}
   <footer class="foot">
-    참고 문헌: Levitt (1971) JASA 49:467 · Viemeister (1979) JASA 66:1364 · Won et al. (2011) JASA 130:376 · Park et al. (2015) JARO 16:389 · De Ruiter et al. (2015) Ear Hear 36:557 · Shen &amp; Richards (2013) JASA · Goehring &amp; Carlyon (2026) AUDITO.<br>
+    <b>참고 문헌</b><br>
+    1. Levitt, H. (1971). Transformed up-down methods in psychoacoustics. <i>J. Acoust. Soc. Am.</i>, 49(2B), 467–477. doi:10.1121/1.1912375<br>
+    2. Viemeister, N. F. (1979). Temporal modulation transfer functions based upon modulation thresholds. <i>J. Acoust. Soc. Am.</i>, 66(5), 1364–1380. doi:10.1121/1.383531<br>
+    3. Won, J. H., Drennan, W. R., Nie, K., Jameyson, E. M., &amp; Rubinstein, J. T. (2011). Acoustic temporal modulation detection and speech perception in cochlear implant listeners. <i>J. Acoust. Soc. Am.</i>, 130(1), 376–388. doi:10.1121/1.3592521<br>
+    4. Shen, Y., &amp; Richards, V. M. (2013). Temporal modulation transfer function for efficient assessment of auditory temporal resolution. <i>J. Acoust. Soc. Am.</i>, 133(2), 1031–1042. doi:10.1121/1.4773271<br>
+    5. Park, M.-H., Won, J. H., Horn, D. L., &amp; Rubinstein, J. T. (2015). Acoustic temporal modulation detection in normal-hearing and cochlear implanted listeners: Effects of hearing mechanism and development. <i>J. Assoc. Res. Otolaryngol.</i>, 16(3), 389–399. doi:10.1007/s10162-014-0499-z<br>
+    6. De Ruiter, A. M., Debruyne, J. A., Chenault, M. N., Francart, T., &amp; Brokx, J. P. L. (2015). Amplitude modulation detection and speech recognition in late-implanted prelingually and postlingually deafened cochlear implant users. <i>Ear Hear.</i>, 36(5), 557–566. doi:10.1097/AUD.0000000000000162<br>
+    7. Goehring, T., &amp; Carlyon, R. P. (2026). A web-based listening test system for cochlear implant research and its validation for remote testing. <i>Trends Hear.</i>, 30, 23312165261416179. doi:10.1177/23312165261416179<br>
     이 파일은 참가자 기기에서 로컬로 생성된 독립 HTML 문서이며 외부 네트워크 요청을 포함하지 않습니다. 원시 데이터 재검증(계단·자극 파형 재생성)에는 함께 저장된 .json 결과 파일과 tools/verify_result.py 를 사용하세요.
   </footer>
 </main>
