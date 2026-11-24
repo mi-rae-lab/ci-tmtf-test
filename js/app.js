@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.2 (2026-11-24)';   // 1.2.2: 웹페이지 하단·README·보고서에 연구/교육용 비의료기기 면책 조항 추가
+const APP_VERSION = '1.2.3 (2026-11-24)';   // 1.2.3: URL 해시(#id=) 서버 미전송·fetch 무인증·개인정보 입력 경고·로컬 기록 즉시 삭제
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;
@@ -74,8 +74,18 @@ function snapP(P) {
     bigUntil: P.bigUntil, big: P.big, small: P.small, totalRev: P.totalRev, avgLast: P.avgLast, ceiling: P.ceiling, rove: P.rove || 0, leadS: LEAD_S, feedback: !!P.feedback };
 }
 
-/* ───────────── 링크로 받는 값 (?id=P02&hz=10,50,100&lang=en) ───────────── */
-const QS = (() => { try { return new URLSearchParams(location.search || ''); } catch { return new URLSearchParams(''); } })();
+/* ───────────── 링크로 받는 값 (#id=P02&hz=10,50,100&lang=en 권장 · ?id= 하위 호환) ─────────────
+   # 해시 파라미터는 HTTP 요청에 포함되지 않아 GitHub Pages 등 정적 서버 로그에도 남지 않음. */
+function parseLinkParams(hashStr = location.hash || '', searchStr = location.search || '') {
+  const out = new URLSearchParams();
+  try { for (const [k, v] of new URLSearchParams(searchStr || '')) out.set(k, v); } catch { }
+  const h = String(hashStr || '').replace(/^#/, '');
+  if (h && h.includes('=')) {
+    try { for (const [k, v] of new URLSearchParams(h)) out.set(k, v); } catch { }
+  }
+  return out;
+}
+const QS = parseLinkParams();
 let LANG = /^en\b/i.test(QS.get('lang') || '') ? 'en' : 'ko';
 const tx = (ko, en) => LANG === 'en' ? en : ko;
 const earName = k => (LANG === 'en' ? EAR_EN[k] : EAR[k]) || k || '';
@@ -93,6 +103,14 @@ function inAppBrowser(ua = navigator.userAgent) {
   return null;
 }
 const cleanCode = s => String(s || '').normalize('NFC').replace(/[^0-9A-Za-z가-힣_-]/g, '').slice(0, 20);
+// 메모 칸에 연락처·이메일·주민등록번호 패턴이 들어가면 브라우저 안에서 즉시 경고 (서버 전송 없음)
+const hasPiiLike = s => {
+  const t = String(s || '');
+  return /\b01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}\b/.test(t)
+    || /\b0\d{1,2}[-\s.]\d{3,4}[-\s.]\d{4}\b/.test(t)
+    || /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/.test(t)
+    || /\b\d{6}[-\s]?[1-4]\d{6}\b/.test(t);
+};
 // 하나라도 못 읽으면 통째로 버리고 기본값 (일부만 읽어 엉뚱한 주파수로 재는 일이 없게)
 function parseFms(s) {
   if (s === null || s === undefined || String(s).trim() === '') return null;
@@ -171,7 +189,11 @@ function logDecision(what, answer, detail = {}) { DB.decisions.push({ id: uid(),
 let BUILD_LOAD = null;
 async function sha256Hex(buf) { const h = await crypto.subtle.digest('SHA-256', buf); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join(''); }
 function assetUrl(f, mode) {
-  if (f === 'index.html') return mode === 'force-cache' ? location.href.split('#')[0] : 'index.html';
+  if (f === 'index.html') {
+    // 쿼리(?id=)를 재전송하지 않도록 origin + pathname 만 사용
+    if (mode === 'force-cache') return (location.origin && location.origin !== 'null' ? location.origin : '') + (location.pathname || 'index.html');
+    return 'index.html';
+  }
   const el = $$('script, link').find(x => String(x.getAttribute('src') || x.getAttribute('href') || '').split('?')[0] === f);
   return el ? (el.getAttribute('src') || el.getAttribute('href')) : f;
 }
@@ -179,11 +201,12 @@ async function computeBuild(mode = 'no-store') {
   try {
     if (location.protocol === 'file:') return { ok: false, error: 'file', mode };
     if (!(window.crypto && crypto.subtle)) return { ok: false, error: 'no-subtle', mode };
-    const recP = fetch('검증_통과.json', { cache: 'no-store' })
+    const fetchOpt = c => ({ cache: c, credentials: 'omit', referrerPolicy: 'no-referrer' });
+    const recP = fetch('검증_통과.json', fetchOpt('no-store'))
       .then(async r => r.ok ? { rec: await r.json(), err: null } : { rec: null, err: 'http ' + r.status })
       .catch(e => ({ rec: null, err: String(e && e.message || e) }));
     const fileRes = await Promise.all(APP_FILES.map(async f => {
-      const r = await fetch(assetUrl(f, mode), { cache: mode });
+      const r = await fetch(assetUrl(f, mode), fetchOpt(mode));
       if (!r.ok) return { f, err: `${f}: ${r.status}` };
       const buf = await r.arrayBuffer();
       const sha = await sha256Hex(buf);
@@ -471,6 +494,17 @@ function renderHome() {
 }
 $('#homeSavedList').addEventListener('click', e => { const id = e.target?.dataset?.open; if (!id) return; const s = DB.sessions.find(x => x.id === id); if (s) showEnd(s, { offers: false }); });
 $('#homeSaveAll').onclick = () => saveFile(DB.sessions.filter(s => (s.runs || []).length || (s.events || []).length), 'all');
+$('#homeClearAll').onclick = () => {
+  const msg = tx('이 기기 브라우저에 저장된 검사 기록을 모두 삭제할까요?\n파일로 저장하지 않은 기록은 복구할 수 없습니다.',
+    'Delete all saved test records from this browser?\nRecords not saved to a file cannot be recovered.');
+  if (!confirm(msg)) return;
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  saveDirty = false;
+  DB.sessions = []; DB.decisions = [];
+  STORE.bytes = 0; STORE.error = null;
+  try { localStorage.removeItem(STORE_KEY); if (STORE.moved) { localStorage.removeItem(STORE.moved); STORE.moved = null; } } catch { }
+  renderHome();
+};
 $('#goSetup').onclick = () => { PRE.setupAt = PRE.setupAt || iso(); showPage('pgSetup'); };
 $('#goViewer').onclick = () => { showPage('pgViewer'); };
 
@@ -527,6 +561,11 @@ function syncSetup() {
 $('#setupBack').onclick = () => showPage('pgHome');
 $('#setupNext').onclick = () => { if (PRE.ear && PRE.path) { syncSetup(); showPage('pgSound'); } };
 const optVal = id => { const v = $(id).value; return v === '' ? null : v; };
+function checkNotePrivacy() {
+  const w = $('#notePrivWarn'); if (!w) return;
+  w.hidden = !hasPiiLike($('#infoNote').value);
+}
+$('#infoNote').addEventListener('input', checkNotePrivacy);
 function infoNow() {
   const note = $('#infoNote').value.trim();
   return { age: optVal('#infoAge'), ciYears: optVal('#infoYears'), onset: optVal('#infoOnset'), maker: optVal('#infoMaker'), note: note || null, shown: !!$('#moreBox').open };
@@ -2035,7 +2074,7 @@ const UI_TEXT = {
       appTitle: '소리 떨림 검사', appSub: '인공와우 사용자를 위한 소리 듣기 검사',
       hWhat: '어떤 검사인가요?', hLearn: '이 검사를 하면 알 수 있는 것', hPrep: '준비할 것', hPrep1: '조용한 장소',
       hPrep3: '평소 사용하는 음성처리기 프로그램과 볼륨', hPrep4: '컴퓨터 사용을 권장합니다 (휴대폰·태블릿도 가능)',
-      goSetup: '시작하기', hSaved: '이 기기에 저장된 검사', homeSaveAll: '모두 파일로 저장',
+      goSetup: '시작하기', hSaved: '이 기기에 저장된 검사', homeSaveAll: '모두 파일로 저장', homeClearAll: '이 기기 기록 지우기',
       goViewer: '결과 파일 열기 (청능사·연구자용)',
       qEar: '어느 쪽 귀로 검사하시나요?', earHint: '한쪽 귀만 검사할 때는 반대쪽 음성처리기(인공와우 외부기기)나 보청기를 잠시 빼 주세요.',
       qPath: '소리를 듣는 방법을 선택해 주세요.',
@@ -2043,6 +2082,7 @@ const UI_TEXT = {
       qCode: '참가 번호', qCodeOpt: '(안내받은 번호가 있을 때만 입력)', codeHint: '개인정보 보호를 위해 이름은 적지 마세요.',
       moreSum: '추가 정보 입력 (선택 사항)', lblAge: '나이', lblYears: '인공와우 사용 기간 (이쪽 귀)',
       lblOnset: '청력이 떨어진 시기', lblMaker: '음성처리기 제조사', lblNote: '메모 (짧게)',
+      notePrivWarn: '전화번호·이메일·주민등록번호 같은 개인정보는 입력하지 마세요.',
       setupBack: '뒤로', setupNext: '다음', setupNeed: '1번과 2번 항목을 선택해 주세요.',
       hSound: '소리 크기 맞추기',
       snd3: '볼륨을 맞춘 뒤에는 검사가 끝날 때까지 바꾸지 말아 주세요.',
@@ -2092,7 +2132,7 @@ const UI_TEXT = {
       appTitle: 'Sound Flutter Test', appSub: 'A listening test for cochlear implant users',
       hWhat: 'How does it work?', hLearn: 'What you can learn from this test', hPrep: 'Before you start', hPrep1: 'A quiet room',
       hPrep3: 'Your everyday sound processor program and volume', hPrep4: 'A computer works best. Phones and tablets also work.',
-      goSetup: 'Start', hSaved: 'Saved tests on this device', homeSaveAll: 'Save all to file',
+      goSetup: 'Start', hSaved: 'Saved tests on this device', homeSaveAll: 'Save all to file', homeClearAll: 'Delete local records',
       goViewer: 'Open result files (for clinicians / researchers)',
       qEar: 'Which ear are you testing?', earHint: 'If testing one ear, please take off the sound processor or hearing aid on the other side.',
       qPath: 'How are you listening?',
@@ -2100,6 +2140,7 @@ const UI_TEXT = {
       qCode: 'Participant ID', qCodeOpt: '(only if you were given one)', codeHint: 'Please do not enter your name.',
       moreSum: 'Optional info (you can skip this)', lblAge: 'Age group', lblYears: 'Years using CI in this ear',
       lblOnset: 'When hearing loss started', lblMaker: 'Sound processor brand', lblNote: 'Short note (optional)',
+      notePrivWarn: 'Please do not enter personal details such as phone numbers, email addresses, or ID numbers.',
       setupBack: 'Back', setupNext: 'Next', setupNeed: 'Please choose answers for 1 and 2.',
       hSound: 'Set a comfortable volume',
       snd3: 'Once set, please keep the volume the same until the test finishes.',

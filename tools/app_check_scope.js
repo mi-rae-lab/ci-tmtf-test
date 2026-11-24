@@ -530,7 +530,8 @@ globalThis.__scope = (async () => {
     const html0 = new TextDecoder().decode(H.fileBytes('index.html'));
     const cspOk = html0.includes('http-equiv="Content-Security-Policy"') && html0.includes("default-src 'none'")
       && html0.includes("script-src 'self'") && html0.includes("style-src 'self'") && html0.includes("connect-src 'self'")
-      && !html0.includes('unsafe-inline') && html0.includes('name="referrer" content="no-referrer"');
+      && html0.includes("font-src 'none'") && html0.includes("media-src 'none'") && html0.includes("frame-src 'none'") && html0.includes("worker-src 'none'")
+      && html0.includes('spellcheck="false"') && !html0.includes('unsafe-inline') && html0.includes('name="referrer" content="no-referrer"');
     const rRemote = httpsRedirectUrl({ protocol: 'http:', host: 'mi-rae-lab.github.io', pathname: '/ci-tmtf-test/', search: '?id=P02', hash: '' });
     const rLocal = httpsRedirectUrl({ protocol: 'http:', host: 'localhost:8820', pathname: '/', search: '', hash: '' });
     const rLoop = httpsRedirectUrl({ protocol: 'http:', host: '127.0.0.1:8820', pathname: '/', search: '', hash: '' });
@@ -712,5 +713,18 @@ globalThis.__scope = (async () => {
     return [enOk && koOk, `en=${enOk} ko=${koOk}`];
   });
   ok('경고창은 새 판 하나뿐(지문만 다른 것은 경고 없음) · 확인 창은 멈춤 둘뿐', H.dialogs.filter(d => d[0] === 'alert').length === 1 && H.dialogs.filter(d => d[0] === 'confirm').length === 2, JSON.stringify(H.dialogs).slice(0, 200));
+  await tryOk('1.2.3 개인정보 · 브라우저 내부 전용: # 해시 링크 우선(서버 미전송) · fetch 쿼리 제거 · PII 입력 경고 · 로컬 기록 즉시 삭제(#homeClearAll)', () => {
+    const pHash = parseLinkParams('#id=P99&hz=10,100&lang=en', '?id=P02');
+    const hashOk = pHash.get('id') === 'P99' && pHash.get('hz') === '10,100' && pHash.get('lang') === 'en';
+    const noQueryFetch = !assetUrl('index.html', 'force-cache').includes('?');
+    $('#infoNote').value = '연락처 010-1234-5678'; $('#infoNote').dispatchEvent({ type: 'input' });
+    const piiWarnOn = !$('#notePrivWarn').hidden && hasPiiLike('test@example.com') && hasPiiLike('900101-1234567');
+    $('#infoNote').value = '조용한 방'; $('#infoNote').dispatchEvent({ type: 'input' });
+    const piiWarnOff = $('#notePrivWarn').hidden;
+    H.confirmAnswer = true;
+    $('#homeClearAll').click();
+    const cleared = !H.store.has('ciTmtf.v1') && DB.sessions.length === 0 && $('#homeSaved').hidden;
+    return [hashOk && noQueryFetch && piiWarnOn && piiWarnOff && cleared, `hash=${hashOk} noQ=${noQueryFetch} pii=${piiWarnOn}/${piiWarnOff} clr=${cleared}`];
+  });
   clearInterval(KEEPMON_TIMER);
 })();
