@@ -1,4 +1,4 @@
-/* 소리 떨림 검사 — 미니멀 · 큰 글씨 · 큰 단추 · 지금 나는 소리가 눈에 보이게 */
+/* TMTF 검사 — 미니멀 · 큰 글씨 · 큰 단추 · 지금 나는 소리가 눈에 보이게 */
 :root{
   --bg:#f7f8fa;
   --panel:#ffffff;
@@ -992,6 +992,15 @@ details.more[open] summary::before{transform:rotate(90deg)}
 .fb.mid{color:var(--tx)}
 .keys{margin-top:6px; font-size:14.5px}
 @media (hover: none){ .keys{display:none} }   /* 터치 기기에는 키보드 안내를 숨김 */
+.test-guide{
+  margin:14px 0 0;
+  padding-top:12px;
+  border-top:1px solid var(--line);
+  color:var(--dim);
+  font-size:13.5px;
+  line-height:1.58;
+  text-align:center;
+}
 
 /* 결과 */
 .tablewrap{
@@ -1101,6 +1110,7 @@ svg.chart{width:100%; height:auto; display:block; margin-top:18px}
   .ivs{gap:10px}
   .ask{font-size:19.5px; margin:18px 0 16px}
   .fb{font-size:19.5px}
+  .test-guide{font-size:13px; margin-top:12px; padding-top:10px}
   .btn{font-size:17px; padding:12px 18px; min-height:50px}
   .btn.big{padding:14px 24px; font-size:19px; min-height:56px}
   .choices.three{gap:8px}

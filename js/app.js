@@ -1,11 +1,11 @@
-// 소리 떨림 검사 (TMTF) — 참가자용 화면 · 기록 · 검사 흐름 (Claude, 2026-11-24)
+// TMTF 검사 — 참가자용 화면 · 기록 · 검사 흐름 (Claude, 2026-11-24)
 // 자극 · 계단은 js/protocols.js · js/stim.js · js/track.js 를 그대로 씀 (Lean 4 · 따로 짠 파이썬과 대조한 코드 — tools/ · 방법.md).
 // 절차는 하나로 고정: protocols.js ‘직접 정하기’ 의 3구간 · 광대역 잡음 · 0.5 s · 쉼 0.5 s · 무작위 변조 위상 · 10 ms 직선 경사 · 흔들기 없음 ·
 //   Won 규칙(0 dB 에서 시작, 반전 4번까지 4 dB, 그 뒤 2 dB, 반전 14번 중 마지막 10번 평균) · 0 dB 에서 4번 틀리면 멈춤 · 맞음/틀림 바로 보임.
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.3 (2026-11-24)';   // 1.2.3: URL 해시(#id=) 서버 미전송·fetch 무인증·개인정보 입력 경고·로컬 기록 즉시 삭제
+const APP_VERSION = '1.2.4 (2026-11-24)';   // 1.2.4: 검사명 ‘TMTF 검사’로 통일·검사 진행 화면 하단 안내 문구 추가
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;
@@ -1342,7 +1342,7 @@ function canShareFile(name = 'TMTF.json', type = 'application/json') {
   try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [new File(['{}'], name, { type })] })); } catch { return false; }
 }
 function summaryText(sess) {
-  const lines = [tx('소리 떨림 검사 결과 (TMTF)', 'Sound Flutter Test Results (TMTF)'), [sess.code || tx('번호 없음', 'No ID'), earName(sess.ear), pathName(sess.path), localTime(sess.start)].filter(Boolean).join(' · ')];
+  const lines = [tx('TMTF 검사 결과', 'TMTF Test Results'), [sess.code || tx('번호 없음', 'No ID'), earName(sess.ear), pathName(sess.path), localTime(sess.start)].filter(Boolean).join(' · ')];
   for (const { fm, rs } of byFm(sess.runs || [])) lines.push(`${fm} Hz: ` + rs.map(r => { const v = verdict(r); return v.kind === 'num' ? `${v.main} (${v.sub})` : v.main; }).join(' / '));
   lines.push(`(${tx('앱', 'App')} ${APP_VERSION})`);
   return lines.join('\n');
@@ -1357,7 +1357,7 @@ $('#shareFile').onclick = async () => {
   if (!SHOWN) return;
   const name = fileNameFor([SHOWN], 'one'), file = new File([JSON.stringify(exportObj([SHOWN]), null, 1)], name, { type: 'application/json' });
   try {
-    await navigator.share({ files: [file], title: tx('소리 떨림 검사 결과', 'Sound Flutter Test Results'), text: summaryText(SHOWN) });
+    await navigator.share({ files: [file], title: tx('TMTF 검사 결과', 'TMTF Test Results'), text: summaryText(SHOWN) });
     (SHOWN.exports ||= []).push({ at: iso(), how: 'share', name }); saveStore();
     $('#sendState').textContent = tx('공유했습니다.', 'Shared.');
   } catch (e) { $('#sendState').textContent = e && e.name === 'AbortError' ? '' : tx('공유 기능을 사용할 수 없습니다. ‘결과 파일 저장’을 눌러 주세요.', 'Direct sharing is unavailable. Please tap “Save result file”.'); }
@@ -1366,7 +1366,7 @@ $('#shareReport').onclick = async () => {
   if (!SHOWN) return;
   const name = reportFileNameFor([SHOWN], 'one'), file = new File([specialistReportHtml([SHOWN])], name, { type: 'text/html' });
   try {
-    await navigator.share({ files: [file], title: tx('소리 떨림 검사 전문가 참고 보고서', 'Sound Flutter Test Specialist Reference Report'), text: summaryText(SHOWN) });
+    await navigator.share({ files: [file], title: tx('TMTF 검사 전문가 참고 보고서', 'TMTF Test Specialist Reference Report'), text: summaryText(SHOWN) });
     (SHOWN.exports ||= []).push({ at: iso(), how: 'share-report', name }); saveStore();
     $('#sendState').textContent = tx('전문가용 보고서를 공유했습니다.', 'Specialist report shared.');
   } catch (e) { $('#sendState').textContent = e && e.name === 'AbortError' ? '' : tx('공유 기능을 사용할 수 없습니다. ‘전문가용 보고서 저장’을 눌러 주세요.', 'Direct sharing is unavailable. Please tap “Save specialist report”.'); }
@@ -1884,7 +1884,7 @@ function specialistReportHtml(sessions, srcs = null) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
-<title>소리 떨림 검사 (TMTF) 전문가 참고 보고서 — ${esc(titleCode)}</title>
+<title>TMTF 검사 전문가 참고 보고서 — ${esc(titleCode)}</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f5f7fa;color:#111827;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.55;word-break:keep-all}
@@ -1972,7 +1972,7 @@ details.raw .tw{margin-top:8px}
 <main class="sheet">
   <header class="head">
     <div>
-      <h1>소리 떨림 검사 (TMTF) 전문가 참고 보고서</h1>
+      <h1>TMTF 검사 전문가 참고 보고서</h1>
       <p class="sub">Temporal Modulation Transfer Function · 청능사 · 인공와우 엔지니어 참고용</p>
     </div>
     <div class="stamp">문서 생성: ${esc(localTime(iso()))}<br>앱 판: ${esc(APP_VERSION)}</div>
@@ -2069,9 +2069,9 @@ $('#vCsvTrials').onclick = () => {
 /* ───────────── 한/영 언어 전환 (?lang=en 또는 상단 단추) ───────────── */
 const UI_TEXT = {
   ko: {
-    title: '소리 떨림 검사',
+    title: 'TMTF 검사',
     txt: {
-      appTitle: '소리 떨림 검사', appSub: '인공와우 사용자를 위한 소리 듣기 검사',
+      appTitle: 'TMTF 검사', appSub: '인공와우 사용자를 위한 소리 듣기 검사',
       hWhat: '어떤 검사인가요?', hLearn: '이 검사를 하면 알 수 있는 것', hPrep: '준비할 것', hPrep1: '조용한 장소',
       hPrep3: '평소 사용하는 음성처리기 프로그램과 볼륨', hPrep4: '컴퓨터 사용을 권장합니다 (휴대폰·태블릿도 가능)',
       goSetup: '시작하기', hSaved: '이 기기에 저장된 검사', homeSaveAll: '모두 파일로 저장', homeClearAll: '이 기기 기록 지우기',
@@ -2096,6 +2096,7 @@ const UI_TEXT = {
       onTrialNext: '다음', onKeysHint: '키보드: 숫자 0–4, 다음은 Enter', hOnRes: '소리 점검 결과',
       onsetBack: '소리 맞추기로', onsetAgain: '점검 다시 하기', onsetStart: '연습 시작하기',
       stopBtn: '잠시 멈춤', dunno: '모르겠음', keysHint: '키보드: 1 · 2 · 3, 모르겠음은 0',
+      tGuide: '처음에는 쉽지만, 맞힐수록 떨림이 미세해져 점점 어려워집니다. 떨림이 아주 조금이라도 느껴지면 그 번호를 선택해 주세요. 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 눌러 주세요.',
       bEnd: '여기까지만 하기', bPractice: '연습 한 번 더',
       againBtn: '한 번 더 하기', finishBtn: '여기서 마치기',
       hSend: '결과 저장 및 공유', sendDesc: '‘결과 파일 저장’은 전체 기록 파일(.json), ‘전문가용 보고서 저장’은 청능사·엔지니어께 보여드릴 참고 문서(.html, 인쇄·PDF 가능)입니다.',
@@ -2127,9 +2128,9 @@ const UI_TEXT = {
     codePh: '예: P02', ivAria: ['1번', '2번', '3번'], progAria: '진행률', onProgAria: '점검 진행률',
   },
   en: {
-    title: 'Sound Flutter Test',
+    title: 'TMTF Test',
     txt: {
-      appTitle: 'Sound Flutter Test', appSub: 'A listening test for cochlear implant users',
+      appTitle: 'TMTF Test', appSub: 'A listening test for cochlear implant users',
       hWhat: 'How does it work?', hLearn: 'What you can learn from this test', hPrep: 'Before you start', hPrep1: 'A quiet room',
       hPrep3: 'Your everyday sound processor program and volume', hPrep4: 'A computer works best. Phones and tablets also work.',
       goSetup: 'Start', hSaved: 'Saved tests on this device', homeSaveAll: 'Save all to file', homeClearAll: 'Delete local records',
@@ -2154,6 +2155,7 @@ const UI_TEXT = {
       onTrialNext: 'Next', onKeysHint: 'Keyboard: 0–4, Enter for Next', hOnRes: 'Sound check result',
       onsetBack: 'Back to volume', onsetAgain: 'Check again', onsetStart: 'Start practice',
       stopBtn: 'Pause', dunno: 'Not sure', keysHint: 'Keyboard: 1 · 2 · 3, Not sure: 0',
+      tGuide: 'It starts easy and gets harder as you get answers right. If you notice even a tiny flutter, pick that number. Only press “Not sure” when all three sounds feel completely identical.',
       bEnd: 'Finish here', bPractice: 'Practice again',
       againBtn: 'Do one more round', finishBtn: 'Finish here',
       hSend: 'Save & share results', sendDesc: '“Save result file” downloads the full data (.json). “Save specialist report” saves a printable/PDF reference report (.html) for your audiologist or CI engineer.',
