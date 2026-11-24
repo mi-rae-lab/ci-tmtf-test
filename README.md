@@ -145,6 +145,10 @@ tools\전수검산.bat        (또는 python -I -X utf8 tools/run_checks.py)
 6. De Ruiter, A. M., Debruyne, J. A., Chenault, M. N., Francart, T., & Brokx, J. P. L. (2015). Amplitude modulation detection and speech recognition in late-implanted prelingually and postlingually deafened cochlear implant users. *Ear and Hearing*, 36(5), 557–566. https://doi.org/10.1097/AUD.0000000000000162
 7. Goehring, T., & Carlyon, R. P. (2026). A web-based listening test system for cochlear implant research and its validation for remote testing. *Trends in Hearing*, 30, 23312165261416179. https://doi.org/10.1177/23312165261416179
 
+## 제작
+
+이 도구는 Claude Opus 5.5, Fable 5.2, Gemini 4 Neon, GPT Astra 6.2의 도움으로 제작되었습니다.
+
 ## 라이선스
 
 MIT — [LICENSE](LICENSE)
