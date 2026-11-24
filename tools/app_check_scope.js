@@ -26,8 +26,8 @@ globalThis.__scope = (async () => {
   // 통과 기록(검증_통과.json 꼴): 마지막 통과의 파일 해시 + history — 처음 열 때는 기록이 없었고(no-record), 회기를 시작할 때 다시 읽어 맞댐
   H.passRecord = { last: { ok: true, at: '2026-11-24T00:00:00+09:00', appVersion: APP_VERSION, buildSha256: BUILD_LOAD.buildSha256, files: { ...BUILD_LOAD.files } },
     history: [{ at: '2026-11-24T00:00:00+09:00', buildSha256: BUILD_LOAD.buildSha256, appVersion: APP_VERSION }] };
-  await tryOk('처음 화면: 기본 떨림 빠르기 10 · 50 · 100 · 150 · 200 Hz · 20분쯤 · 링크 번호(?id=P02) · 경고 없음 · 경고창 없음', () => [
-    vis('#pgHome') && $('#fmInfo').textContent === '검사할 떨림 빠르기: 10 · 50 · 100 · 150 · 200 Hz' && $('#homeTime').textContent.startsWith('20분쯤') && $('#codeIn').value === 'P02' && $('#envWarn').hidden && $('#homeSaved').hidden && !H.dialogs.length,
+  await tryOk('처음 화면: 기본 떨림 속도 10 · 50 · 100 · 150 · 200 Hz · 약 20분 · 링크 번호(?id=P02) · 경고 없음 · 경고창 없음', () => [
+    vis('#pgHome') && $('#fmInfo').textContent === '검사할 떨림 속도: 10 · 50 · 100 · 150 · 200 Hz' && $('#homeTime').textContent.startsWith('약 20분') && $('#codeIn').value === 'P02' && $('#envWarn').hidden && $('#homeSaved').hidden && !H.dialogs.length,
     `${$('#fmInfo').textContent} | ${$('#homeTime').textContent} | ${$('#codeIn').value}`]);
   await tryOk('절차 고정: 조건 이름 · 스냅숏 (3구간 · 0.5 s · 쉼 0.5 s · 10 ms 직선 · 광대역 · 무작위 위상 · 0 dB 시작 · Won 규칙 · 0 dB 4번 멈춤 · 맞음/틀림 · 앞 무음 0.25 s · 3 dB 규칙)', () => {
     const want = { id: 'custom', nAFC: 3, dur: 0.5, isi: 0.5, rampMs: 10, rampShape: 'linear', band: { type: 'wide' }, phase: 'random', startDb: 0, bigUntil: 4, big: 4, small: 2, totalRev: 14, avgLast: 10, ceiling: 'stop4', rove: 0, leadS: 0.25, feedback: true };
@@ -101,31 +101,31 @@ globalThis.__scope = (async () => {
     return [c.every(Boolean), bits(c) + ' 깊이 ' + dep.map(x => x.toFixed(2)).join(',') + ' 정답 ' + a.tg + ' 앞 ' + lead.toFixed(3)];
   });
   H.key(String(awaiting.tg + 1));
-  await tryOk('연습 답(키 · 맞음): ‘맞았어요’ · 정답 칸 초록 · 기록(깊이 0 · 맞음 · key · 반응 ms · 씨앗 3 · 연습 차례 1)', () => {
+  await tryOk('연습 답(키 · 맞음): ‘맞았습니다’ · 정답 칸 초록 · 기록(깊이 0 · 맞음 · key · 반응 ms · 씨앗 3 · 연습 차례 1)', () => {
     const t = sess.practiceTrials[0];
-    return [t && t.d === 0 && t.c === 1 && t.inp === 'key' && t.u === 0 && t.round === 1 && t.seeds.length === 3 && t.rt >= 0 && t.fm === 10 && $('#fb').textContent === '맞았어요' && $$('.iv')[t.tg].classList.contains('right'), JSON.stringify(t).slice(0, 200)];
+    return [t && t.d === 0 && t.c === 1 && t.inp === 'key' && t.u === 0 && t.round === 1 && t.seeds.length === 3 && t.rt >= 0 && t.fm === 10 && $('#fb').textContent === '맞았습니다' && $$('.iv')[t.tg].classList.contains('right'), JSON.stringify(t).slice(0, 200)];
   });
   await until(() => S.cur.phase === 'playing' && sess.practiceTrials.length === 1, 10000, '연습 2 소리');
   H.key('2');
   await until(() => awaiting, 10000, '연습 2 답 기다림');
   await tryOk('소리 나는 동안 누른 키 = 그 시행의 이른 입력 (답으로 안 침)', () => [S.cur.tm.early === 1 && S.cur.tm.ev[0].type === 'early-input' && S.cur.tm.ev[0].key === 2 && sess.practiceTrials.length === 1, JSON.stringify(S.cur.tm.ev)]);
   $$('.iv')[(awaiting.tg + 1) % 3].click();
-  await tryOk('연습 답(클릭 · 틀림): ‘아니에요’ · 고른 칸 빨강 · 기록에 이른 입력 1', () => { const t = sess.practiceTrials[1]; return [t.c === 0 && t.inp === 'click' && t.early === 1 && $('#fb').textContent.startsWith('아니에요') && $$('.iv')[t.a].classList.contains('wrong'), JSON.stringify(t).slice(0, 160)]; });
+  await tryOk('연습 답(클릭 · 틀림): ‘아쉽습니다’ · 고른 칸 빨강 · 기록에 이른 입력 1', () => { const t = sess.practiceTrials[1]; return [t.c === 0 && t.inp === 'click' && t.early === 1 && $('#fb').textContent.startsWith('아쉽습니다') && $$('.iv')[t.a].classList.contains('wrong'), JSON.stringify(t).slice(0, 160)]; });
   await until(() => awaiting && sess.practiceTrials.length === 2, 10000, '연습 3');
   H.key('0');
-  await tryOk('모르겠음(0): 무작위 자리로 침(u 1) · ‘떨리는 소리는 n번이었어요’ · 고른 칸 표시 없음', () => { const t = sess.practiceTrials[2]; return [t.u === 1 && t.inp === 'key' && t.a >= 0 && t.a < 3 && $('#fb').textContent === `떨리는 소리는 ${t.tg + 1}번이었어요` && !$$('.iv').some(b => b.classList.contains('wrong')), JSON.stringify(t).slice(0, 120)]; });
+  await tryOk('모르겠음(0): 무작위 자리로 침(u 1) · ‘떨리는 소리는 n번이었습니다’ · 고른 칸 표시 없음', () => { const t = sess.practiceTrials[2]; return [t.u === 1 && t.inp === 'key' && t.a >= 0 && t.a < 3 && $('#fb').textContent === `떨리는 소리는 ${t.tg + 1}번이었습니다` && !$$('.iv').some(b => b.classList.contains('wrong')), JSON.stringify(t).slice(0, 120)]; });
   await until(() => vis('#pgBreak'), 10000, '연습 끝 화면');
-  await tryOk('연습 끝: 3번 가운데 1번(모르겠음은 셈에서 뺌) · 도움말 · 연습 한 번 더 · 검사 시작 · 모르겠음 안내 문구', () => [
-    $('#bBody').textContent.includes('3번 가운데 1번') && !$('#bPractice').hidden && $('#bNext').textContent === '검사 시작' && $('#bBody').textContent.includes('볼륨을 조금 키우거나')
-      && $('#bBody').textContent.includes('떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요') && $('#bBody').textContent.includes('세 소리가 완전히 똑같이 들릴 때만')
-      && $('#pgHome').textContent.includes('떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요'), $('#bBody').textContent.slice(0, 160)]);
+  await tryOk('연습 끝: 3번 중 1번(모르겠음은 셈에서 뺌) · 도움말 · 연습 한 번 더 · 검사 시작 · 모르겠음 안내 문구', () => [
+    $('#bBody').textContent.includes('3번 중 1번') && !$('#bPractice').hidden && $('#bNext').textContent === '검사 시작' && $('#bBody').textContent.includes('볼륨을 조금 키우거나')
+      && $('#bBody').textContent.includes('떨림이 아주 조금이라도 느껴지면 그 번호를 선택해 주세요') && $('#bBody').textContent.includes('세 소리가 완전히 똑같이 들릴 때만')
+      && $('#pgHome').textContent.includes('떨림이 아주 조금이라도 느껴지면 그 번호를 선택해 주세요'), $('#bBody').textContent.slice(0, 160)]);
   $('#bPractice').click();
   await until(() => awaiting && S.cur?.practice && S.practiceRound === 2, 10000, '연습 한 번 더');
   ok('연습 한 번 더: 연습 차례 2 · 제목 ‘연습 1 / 3’', $('#tTitle').textContent === '연습 1 / 3' && sess.practiceRounds === 2, $('#tTitle').textContent);
   $('#stopBtn').click();
   await tryOk('연습 그만: 확인 창 없이 연습 끝 화면(‘건너뛰었어요’) · 회기 사건 practice-stopped(몇 번째 · 답하기 전 시행)', () => {
     const ev = sess.events.filter(e => e.type === 'practice-stopped').at(-1);
-    return [vis('#pgBreak') && ev && ev.done === 0 && ev.of === 3 && ev.phase === 'awaiting' && ev.pending && ev.pending.seeds.length === 3 && $('#bBody').textContent.includes('연습을 건너뛰었어요') && !H.dialogs.length, JSON.stringify(ev).slice(0, 200)];
+    return [vis('#pgBreak') && ev && ev.done === 0 && ev.of === 3 && ev.phase === 'awaiting' && ev.pending && ev.pending.seeds.length === 3 && $('#bBody').textContent.includes('연습을 건너뛰었습니다') && !H.dialogs.length, JSON.stringify(ev).slice(0, 200)];
   });
   H.key('Enter');
   await until(() => S.cur && !S.cur.practice, 10000, 'Enter 로 검사 시작');
@@ -158,7 +158,7 @@ globalThis.__scope = (async () => {
   // 첫 측정: 그대로
   await runTrack(THR1);
   await until(() => vis('#pgBreak'), 10000, '쉬는 화면 1');
-  await tryOk('측정 끝 → 쉬는 화면(1 / 5 끝 · 남은 4) · 기록 1개 · 하던 측정(current) 비움', () => [$('#bBody').textContent.includes('1 / 5개 끝났어요') && sess.runs.length === 1 && sess.current === null && $('#bPractice').hidden, $('#bBody').textContent]);
+  await tryOk('측정 끝 → 쉬는 화면(5개 중 1개 완료 · 남은 4) · 기록 1개 · 하던 측정(current) 비움', () => [$('#bBody').textContent.includes('5개 중 1개를 마쳤습니다') && sess.runs.length === 1 && sess.current === null && $('#bPractice').hidden, $('#bBody').textContent]);
   // 둘째: 소리 나는 중 화면 가려짐 → 그 시행 버리고, 돌아오면 같은 깊이로 다시
   $('#bNext').click();
   // 가려짐 · 멈춤 시험 자리는 늘 ‘잘 듣는 사람’ 모형 — 무작위 순서로 늘 찍기(200 Hz)가 걸리면 시험 시행 전에 측정이 끝나 버림
@@ -187,7 +187,7 @@ globalThis.__scope = (async () => {
       H.confirmAnswer = false; $('#stopBtn').click(); H.confirmAnswer = true;
       await tryOk('멈춤 창 ‘계속’: 문구 그대로 · 답하기 전 시행에 stop-dialog · 회기 사건 · 측정은 그대로', () => {
         const ev = sess.events.filter(e => e.type === 'stop-dialog').at(-1);
-        return [ev && ev.answer === 'keep' && ev.text === '지금 하던 것은 버리고 멈출까요?\n끝난 것은 저장되어 있어요.' && C0.tm.ev.some(x => x.type === 'stop-dialog' && x.answer === 'keep') && S.cur === C0 && awaiting, JSON.stringify(ev).slice(0, 160)];
+        return [ev && ev.answer === 'keep' && ev.text === '진행 중이던 구간은 취소하고 잠시 멈출까요?\n이미 마친 구간은 저장되어 있습니다.' && C0.tm.ev.some(x => x.type === 'stop-dialog' && x.answer === 'keep') && S.cur === C0 && awaiting, JSON.stringify(ev).slice(0, 160)];
       });
     }
     if (n === 5) {
@@ -199,7 +199,7 @@ globalThis.__scope = (async () => {
   await tryOk('멈춤 창 ‘그만’: 버린 측정(시행 전부 · 반전 · 지금 깊이 · 답하기 전 시행 · 절차) · 쉬는 화면 ‘멈췄어요’ · 같은 주파수 다시 · 결과엔 안 들어감', () => {
     const ev = sess.events.filter(e => e.type === 'track-abandoned').at(-1);
     return [ev && ev.stopVia === 'stop-button' && ev.trialList.length === abandonedN && abandonedN === 5 && ev.pending && ev.pending.seeds.length === 3 && ev.P.totalRev === 14 && ev.fm === fm3
-      && vis('#pgBreak') && $('#bTitle').textContent === '멈췄어요' && $('#bNext').textContent === '다시 시작' && nextFm() === fm3 && sess.runs.length === 2 && sess.current === null, JSON.stringify(ev).slice(0, 200)];
+      && vis('#pgBreak') && $('#bTitle').textContent === '잠시 멈췄습니다' && $('#bNext').textContent === '다시 시작' && nextFm() === fm3 && sess.runs.length === 2 && sess.current === null, JSON.stringify(ev).slice(0, 200)];
   });
   $('#bNext').click();
   await runTrack(THR1);
@@ -214,7 +214,7 @@ globalThis.__scope = (async () => {
   await tryOk('한 바퀴 끝: 측정 5개(주파수마다 하나) · 회기 끝 시각 · ‘한 번 더’ 제안 · 끝 질문 · 결과 표 5줄 · 그림', () => {
     const c = [r1.length === 5, r1.map(r => r.fm).sort((a, b) => a - b).join() === '10,50,100,150,200', !!sess.end && sess.endReason === '계획한 측정 모두 마침', S && S.offer && S.offer.kind === 'again',
       !$('#againBox').hidden && $('#againText').textContent.includes('한 번 더'), !!$('#focusPick') && $$('#focusPick .choice').length === 3, $('#endTable').querySelectorAll('tr').length === 6, $('#endChart').innerHTML.includes('<svg'),
-      $('#endTitle').textContent === '한 바퀴 끝! 수고하셨습니다', $('#endWho').textContent.startsWith('P02 · 오른쪽 · 선으로 음성처리기(인공와우 외부기기)에 연결')];
+      $('#endTitle').textContent === '1차 검사 완료! 수고하셨습니다', $('#endWho').textContent.startsWith('P02 · 오른쪽 · 유선 연결')];
     return [c.every(Boolean), bits(c)];
   });
   await tryOk('측정 기록: 계단 다시 돌리기 = 저장값 · 세 소리 세기 같음 · 시행마다 씨앗 3 · 반전 시행 수 = 반전 수 · 순서 · 바퀴', () => {
@@ -240,14 +240,14 @@ globalThis.__scope = (async () => {
   $('#againBtn').click();
   await tryOk('‘한 번 더’ → 회기를 다시 엶(끝 지움) · 2바퀴 계획 5개(새 순서) · 쉬는 화면 ‘2번째 바퀴’ · 답 기록', () => {
     const p2 = S.plan.filter(x => x.round === 2);
-    return [sess.end === null && sess.endReason === null && p2.length === 5 && sess.rounds.length === 2 && vis('#pgBreak') && $('#bTitle').textContent === '2번째 바퀴'
+    return [sess.end === null && sess.endReason === null && p2.length === 5 && sess.rounds.length === 2 && vis('#pgBreak') && $('#bTitle').textContent === '2차 검사'
       && sess.decisions.at(-1).what === 'again-offer' && sess.decisions.at(-1).answer === 'yes' && sess.events.some(e => e.type === 'round-added'), `${p2.length} ${$('#bTitle').textContent}`];
   });
   const THR2 = { ...THR1, 50: -4 };
   for (let k = 0; k < 5; k++) {
     $('#bNext').click();
     if (k === 0) await until(() => S.cur && awaiting, 10000, '2바퀴 첫 시행');
-    if (k === 0) ok('2바퀴 첫 측정 제목 ‘2번째 바퀴 1 / 5’', $('#tTitle').textContent === '2번째 바퀴 1 / 5', $('#tTitle').textContent);
+    if (k === 0) ok('2차 첫 측정 제목 ‘2차 검사 1 / 5’', $('#tTitle').textContent === '2차 검사 1 / 5', $('#tTitle').textContent);
     await runTrack(THR2);
     await until(() => vis('#pgBreak') || vis('#pgEnd'), 10000, '2바퀴 쉬는 화면');
   }
@@ -258,7 +258,7 @@ globalThis.__scope = (async () => {
   });
   const extraFms = S.offer.fms.slice();
   $('#againBtn').click();
-  await tryOk('차이 큰 것만 한 번 더 → 3바퀴(더) 계획 · 쉬는 화면 제목', () => [S.plan.filter(x => x.round === 3 && x.extra).length === extraFms.length && $('#bTitle').textContent === '차이가 큰 것만 한 번 더', $('#bTitle').textContent]);
+  await tryOk('차이 큰 항목만 한 번 더 → 3차(더) 계획 · 쉬는 화면 제목', () => [S.plan.filter(x => x.round === 3 && x.extra).length === extraFms.length && $('#bTitle').textContent === '차이가 큰 항목만 한 번 더', $('#bTitle').textContent]);
   for (let k = 0; k < extraFms.length; k++) {
     $('#bNext').click();
     if (k === 0) { await until(() => S.cur && awaiting, 10000, '더 첫 시행'); ok('더 측정 제목 ‘한 번 더 1 / n’', $('#tTitle').textContent === `한 번 더 1 / ${extraFms.length}`, $('#tTitle').textContent); }
@@ -268,7 +268,7 @@ globalThis.__scope = (async () => {
   await until(() => vis('#pgEnd'), 20000, '모두 끝');
   await tryOk('모두 끝: 더 제안 없음 → 회기 닫음(S 없음) · 제목 ‘수고하셨습니다’ · 제안 상자 숨김 · 끝 질문은 그대로 보임 · 표에 1·2·3번째 칸', () => {
     const c = [S === null, $('#endTitle').textContent === '수고하셨습니다', $('#againBox').hidden, !!$('#focusPick'), sess.runs.length === 10 + extraFms.length, !!sess.end,
-      sess.runs.filter(r => r.extra).length === extraFms.length && sess.runs.filter(r => r.extra).every(r => r.round === 3), $('#endTable').innerHTML.includes('3번째'), sess.events.some(e => e.type === 'session-close')];
+      sess.runs.filter(r => r.extra).length === extraFms.length && sess.runs.filter(r => r.extra).every(r => r.round === 3), $('#endTable').innerHTML.includes('3차'), sess.events.some(e => e.type === 'session-close')];
     return [c.every(Boolean), bits(c)];
   });
 
@@ -302,7 +302,7 @@ globalThis.__scope = (async () => {
   await wait(20);
   await tryOk('결과 글 복사: 번호 · 귀 · 주파수마다 값 · 앱 판 · 안내', () => {
     const t = H.clip.at(-1)?.text || '';
-    return [t.startsWith('소리 떨림 검사 결과 (TMTF)\nP02 · 오른쪽 · 선으로 음성처리기(인공와우 외부기기)에 연결') && PLAN_FMS.every(f => t.includes(`\n${f} Hz: `)) && t.includes(`(앱 ${APP_VERSION})`) && $('#sendState').textContent.includes('복사했습니다') && sess.exports.some(x => x.how === 'copy-text'), t.slice(0, 200)];
+    return [t.startsWith('소리 떨림 검사 결과 (TMTF)\nP02 · 오른쪽 · 유선 연결') && PLAN_FMS.every(f => t.includes(`\n${f} Hz: `)) && t.includes(`(앱 ${APP_VERSION})`) && $('#sendState').textContent.includes('복사했습니다') && sess.exports.some(x => x.how === 'copy-text'), t.slice(0, 200)];
   });
   await tryOk('바로 보내기 단추: 이 환경(navigator.share 없음)에서는 숨김', () => [$('#shareFile').hidden, '']);
 
@@ -442,7 +442,7 @@ globalThis.__scope = (async () => {
   }
   for (let k = 0; k < 3; k++) { await until(() => awaiting && S.cur?.practice, 10000, '연습 답'); H.key(String(awaiting.tg + 1)); await until(() => !awaiting, 5000); }
   await until(() => vis('#pgBreak'), 10000, '연습 끝');
-  ok('연습 3번 모두 맞음 → 도움말 없음', $('#bBody').textContent.includes('3번 가운데 3번') && !$('#bBody').textContent.includes('볼륨을 조금 키우거나'), $('#bBody').textContent.slice(0, 80));
+  ok('연습 3번 모두 맞음 → 도움말 없음', $('#bBody').textContent.includes('3번 중 3번') && !$('#bBody').textContent.includes('볼륨을 조금 키우거나'), $('#bBody').textContent.slice(0, 80));
   await wait(60);
   await tryOk('출력 확인: 회기 중 1초마다 — 오디오가 돌고 시계가 흐르면 ‘나오는 중’', () => [KEEPMON.polls > 0 && (KEEPMON.ok > 0 || KEEPMON.buffer > 0) && !KEEPMON.open && KEEPMON.last && KEEPMON.last.cls !== 'gap', JSON.stringify(KEEPMON.last)]);
   await H.ctxs[0].suspend();
@@ -452,7 +452,7 @@ globalThis.__scope = (async () => {
   await wait(60);
   await tryOk('다시 돎 → 끊김 닫힘 · keep-gap-end(길이)', () => [!KEEPMON.open && s3.events.some(e => e.type === 'keep-gap-end' && typeof e.durS === 'number'), '']);
   $('#bEnd').click();
-  await tryOk('‘오늘은 여기까지’ → 중간에 끝냄(남은 측정 5개) · 회기 닫음 · 결과 화면(측정 없음) · 끝 질문 보임 · 출력 확인 요약', () => [S === null && s3.endReason === '중간에 끝냄 (남은 측정 5개)' && !!s3.end && vis('#pgEnd') && $('#endTable').textContent.includes('끝난 측정이 없습니다') && !!$('#focusPick') && s3.keepMonitor && s3.keepMonitor.gaps.length === 1, s3.endReason]);
+  await tryOk('‘여기까지만 하기’ → 중간에 끝냄(남은 측정 5개) · 회기 닫음 · 결과 화면(측정 없음) · 끝 질문 보임 · 출력 확인 요약', () => [S === null && s3.endReason === '중간에 끝냄 (남은 측정 5개)' && !!s3.end && vis('#pgEnd') && $('#endTable').textContent.includes('완료된 측정이 없습니다') && !!$('#focusPick') && s3.keepMonitor && s3.keepMonitor.gaps.length === 1, s3.endReason]);
   {
     let prevented = false;
     H.wins.beforeunload.forEach(f => f({ preventDefault() { prevented = true; } }));
@@ -613,7 +613,8 @@ globalThis.__scope = (async () => {
       && $('#hLearn').textContent.includes('What you can learn') && $('#dunno').textContent === 'Not sure' && $('#langToggle').textContent === 'KO' && $('#fmInfo').textContent.includes('Flutter rates');
     $('#langToggle').click();
     const koOk = LANG === 'ko' && document.documentElement.getAttribute('lang') === 'ko' && $('#goSetup').textContent === '시작하기'
-      && $('#hLearn').textContent === '이 검사를 하면 알 수 있는 것' && $('#dunno').textContent === '모르겠음' && $('#langToggle').textContent === 'EN' && $('#fmInfo').textContent.includes('검사할 떨림 빠르기');
+      && $('#hLearn').textContent === '이 검사를 하면 알 수 있는 것' && $('#dunno').textContent === '모르겠음' && $('#langToggle').textContent === 'EN' && $('#fmInfo').textContent.includes('검사할 떨림 속도')
+      && $('#snd1').textContent.includes('소리 재생') && $('#goViewer').textContent === '결과 파일 열기 (청능사·연구자용)';
     return [enOk && koOk, `en=${enOk} ko=${koOk}`];
   });
   ok('경고창은 새 판 하나뿐(지문만 다른 것은 경고 없음) · 확인 창은 멈춤 둘뿐', H.dialogs.filter(d => d[0] === 'alert').length === 1 && H.dialogs.filter(d => d[0] === 'confirm').length === 2, JSON.stringify(H.dialogs).slice(0, 200));

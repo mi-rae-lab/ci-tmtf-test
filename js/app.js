@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.1.2 (2026-11-24)';   // 1.1.2: 처음 화면 및 안내에 ‘이 검사를 하면 알 수 있는 것’ 추가 (한/영)
+const APP_VERSION = '1.1.3 (2026-11-24)';   // 1.1.3: 참가자 화면 한국어 문체(~합니다/해 주세요) 통일 및 어휘 첨삭
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const STORE_KEY = 'ciTmtf.v1';
@@ -56,17 +56,17 @@ const DEFAULT_FMS = [10, 50, 100, 150, 200];   // Won 2011 · Park 2015 의 변�
 const FM_OK = fmChoices(PR);                   // 링크(?hz=)로 고를 수 있는 변조 주파수 = 와우TMTF 직접 정하기의 칸
 const EAR = { L: '왼쪽', R: '오른쪽', B: '양쪽' };
 const EAR_EN = { L: 'Left', R: 'Right', B: 'Both' };
-const PATH = { speaker: '컴퓨터·휴대폰 스피커', headphone: '이어폰·헤드폰', wired: '선으로 음성처리기(인공와우 외부기기)에 연결', bt: '블루투스로 음성처리기(인공와우 외부기기)에 연결', other: '그 밖의 방법' };
+const PATH = { speaker: '컴퓨터·휴대폰 스피커', headphone: '이어폰·헤드폰', wired: '유선 연결 (오디오 케이블·유선 스트리머)', bt: '블루투스 연결 (음성처리기 무선 연결)', other: '기타 방법' };
 const PATH_EN = { speaker: 'Computer / phone speaker', headphone: 'Earphones / headphones', wired: 'Wired to sound processor (audio cable / wired streamer)', bt: 'Bluetooth to sound processor', other: 'Other' };
 const FOCUS = { good: '잘 됨', mid: '보통', bad: '잘 안 됨' };
 const FOCUS_EN = { good: 'Good', mid: 'Okay', bad: 'Hard to focus' };
 const AGE_LBL = { '-19': '10대 이하', '20s': '20대', '30s': '30대', '40s': '40대', '50s': '50대', '60s': '60대', '70+': '70대 이상' };
 const AGE_EN = { '-19': 'Under 20', '20s': '20s', '30s': '30s', '40s': '40s', '50s': '50s', '60s': '60s', '70+': '70+' };
-const YEARS_LBL = { '<1': '1년이 안 됨', '1-5': '1–5년', '5-10': '5–10년', '10+': '10년 넘음', unknown: '모름' };
+const YEARS_LBL = { '<1': '1년 미만', '1-5': '1–5년', '5-10': '5–10년', '10+': '10년 이상', unknown: '모름' };
 const YEARS_EN = { '<1': 'Under 1 year', '1-5': '1–5 years', '5-10': '5–10 years', '10+': 'Over 10 years', unknown: 'Not sure' };
 const ONSET_LBL = { pre: '말을 배우기 전', post: '말을 배운 뒤', unknown: '모름' };
 const ONSET_EN = { pre: 'Before learning speech', post: 'After learning speech', unknown: 'Not sure' };
-const MAKER_LBL = { cochlear: '코클리어', medel: '메드엘', ab: '어드밴스드 바이오닉스', oticon: '오티콘', todoc: '토닥', other: '그 밖', unknown: '모름' };
+const MAKER_LBL = { cochlear: '코클리어', medel: '메드엘', ab: '어드밴스드 바이오닉스', oticon: '오티콘', todoc: '토닥', other: '기타', unknown: '모름' };
 const MAKER_EN = { cochlear: 'Cochlear', medel: 'MED-EL', ab: 'Advanced Bionics', oticon: 'Oticon', todoc: 'TODOC', other: 'Other', unknown: 'Not sure' };
 function snapP(P) {
   return { id: P.id, nAFC: P.nAFC, dur: P.dur, isi: P.isi, rampMs: P.rampMs, rampShape: P.rampShape, band: P.band, phase: P.phase, startDb: P.startDb,
@@ -216,7 +216,7 @@ function verifyBuild(rec, whole, files) {
   return { status: 'not-checked', differ, lastPass: hist.length ? hist[hist.length - 1].buildSha256 : null };
 }
 const VERIFIED_TXT = { pass: '검산 통과 코드', 'pass-code': '검산 통과 코드 (index.html 만 다름 — 오는 길에 바뀐 것으로 보임)', 'not-checked': '검산 기록과 다른 코드', 'no-record': '검산 기록을 못 읽음' };
-const STALE_MSG = '프로그램이 새로 바뀌었습니다.\n화면을 새로 고침 한 뒤 다시 시작해 주세요.';
+const STALE_MSG = '프로그램이 새 버전으로 업데이트되었습니다.\n화면을 새로고침한 뒤 다시 시작해 주세요.';
 
 /* ───────────── 소리 ───────────── */
 let ctx = null, master = null, live = [], mon = null, AUDIO_ERR = null;
@@ -234,7 +234,7 @@ function audio() {
 }
 function audioOk() {
   try { audio(); return true; }
-  catch (e) { AUDIO_ERR = String(e && e.message || e); renderEnvWarn(); alert('소리를 낼 수 없습니다. 크롬이나 엣지, 사파리 최신판으로 열어 주세요.'); return false; }
+  catch (e) { AUDIO_ERR = String(e && e.message || e); renderEnvWarn(); alert('이 브라우저에서는 소리를 재생할 수 없습니다. 최신 버전의 크롬·엣지·사파리로 열어 주세요.'); return false; }
 }
 function play(data, when) {
   const b = ctx.createBuffer(1, data.length, ctx.sampleRate);
@@ -353,13 +353,13 @@ function showPage(id, opt = {}) {
 function renderEnvWarn() {
   const m = [];
   const inApp = inAppBrowser();
-  if (inApp) m.push(tx(`${inApp} 안에서 열면 결과 파일 저장이 안 될 수 있어요. 메뉴에서 Safari(아이폰)나 Chrome(안드로이드)으로 열어 주세요.`, `Opening inside ${inApp} may block saving result files. Please open this link in Safari (iPhone) or Chrome (Android).`));
+  if (inApp) m.push(tx(`${inApp} 앱 내 브라우저에서는 결과 파일 저장이 되지 않을 수 있습니다. 메뉴에서 Safari(아이폰)나 Chrome(안드로이드)으로 열어 주세요.`, `Opening inside ${inApp} may block saving result files. Please open this link in Safari (iPhone) or Chrome (Android).`));
   if (isInsecureHttp()) m.push(tx('보안 연결(HTTPS)이 아닙니다. 주소가 https:// 로 시작하는지 확인해 주세요.', 'This connection is not HTTPS. Please make sure the address starts with https://.'));
-  if (AUDIO_ERR) m.push(tx('이 브라우저에서는 소리를 낼 수 없습니다. 크롬이나 엣지, 사파리 최신판으로 열어 주세요.', 'This browser cannot play sound. Please open in the latest Chrome, Edge, or Safari.'));
-  if (STORE.blocked || !STORE.ok) m.push(tx('이 브라우저는 결과를 저장하지 못합니다. 검사가 끝나면 꼭 ‘결과 파일 저장’을 눌러 주세요.', 'This browser cannot save records locally. Please be sure to tap “Save result file” when done.'));
-  if (STORE.error && STORE.moved) m.push(tx('전에 저장된 기록 하나를 읽지 못해 따로 보관했습니다.', 'An earlier saved record could not be read and was kept separately.'));
-  if (STORE.bytes >= STORE_WARN_BYTES) m.push(tx('이 브라우저에 저장된 검사 기록이 많습니다. 먼저 ‘모두 파일로 저장’으로 백업해 두세요.', 'Many test records are stored in this browser. Please back them up using “Save all to file”.'));
-  if (LINK.hz && String(LINK.hz).trim() && !LINK.fms) m.push(tx('링크에 적힌 떨림 빠르기를 읽지 못해 기본값으로 검사합니다.', 'Could not read the test rates in the link; using the default rates instead.'));
+  if (AUDIO_ERR) m.push(tx('이 브라우저에서는 소리를 재생할 수 없습니다. 최신 버전의 크롬·엣지·사파리로 열어 주세요.', 'This browser cannot play sound. Please open in the latest Chrome, Edge, or Safari.'));
+  if (STORE.blocked || !STORE.ok) m.push(tx('이 브라우저는 결과를 저장하지 못합니다. 검사가 끝나면 반드시 ‘결과 파일 저장’을 눌러 주세요.', 'This browser cannot save records locally. Please be sure to tap “Save result file” when done.'));
+  if (STORE.error && STORE.moved) m.push(tx('이전에 저장된 기록 하나를 읽지 못해 따로 보관했습니다.', 'An earlier saved record could not be read and was kept separately.'));
+  if (STORE.bytes >= STORE_WARN_BYTES) m.push(tx('이 브라우저에 저장된 검사 기록이 많습니다. 먼저 ‘모두 파일로 저장’으로 백업해 주세요.', 'Many test records are stored in this browser. Please back them up using “Save all to file”.'));
+  if (LINK.hz && String(LINK.hz).trim() && !LINK.fms) m.push(tx('링크에 적힌 떨림 속도를 읽지 못해 기본값으로 검사합니다.', 'Could not read the test rates in the link; using the default rates instead.'));
   const el = $('#envWarn'); if (!el) return;
   el.hidden = !m.length; el.innerHTML = m.map(esc).join('<br>');
 }
@@ -367,18 +367,18 @@ function renderEnvWarn() {
 /* ── 처음 화면 ── */
 function renderFmInfo() {
   $('#fmInfo').textContent = tx(
-    `검사할 떨림 빠르기: ${PLAN_FMS.join(' · ')} Hz${LINK.fms ? ' (받은 링크에 적힌 값)' : ''}`,
+    `검사할 떨림 속도: ${PLAN_FMS.join(' · ')} Hz${LINK.fms ? ' (안내 링크 지정)' : ''}`,
     `Flutter rates to test: ${PLAN_FMS.join(' · ')} Hz${LINK.fms ? ' (from link)' : ''}`
   );
 }
 function renderHome() {
-  $('#homeTime').textContent = tx(`${estMin(PLAN_FMS.length)}분쯤 (중간에 쉴 수 있어요)`, `About ${estMin(PLAN_FMS.length)} min (you can take breaks)`);
+  $('#homeTime').textContent = tx(`약 ${estMin(PLAN_FMS.length)}분 (중간에 쉴 수 있습니다)`, `About ${estMin(PLAN_FMS.length)} min (you can take breaks)`);
   const ss = DB.sessions.filter(s => (s.runs || []).length).slice().sort((a, b) => String(b.start).localeCompare(String(a.start)));
   $('#homeSaved').hidden = !ss.length;
   $('#homeSavedList').innerHTML = ss.slice(0, 12).map(s => `<div class="row wrap gap saved">
     <span>${esc(localTime(s.start))} · ${esc(earName(s.ear))} · ${tx(`측정 ${s.runs.length}개`, `${s.runs.length} runs`)}${s.code ? ' · ' + esc(s.code) : ''}</span>
     <button class="btn small" data-open="${esc(s.id)}">${tx('결과 보기', 'View results')}</button></div>`).join('')
-    + (ss.length > 12 ? `<p class="hint">${tx(`그 전 검사 ${ss.length - 12}개는 ‘모두 파일로 저장’에 들어 있습니다.`, `${ss.length - 12} older sessions are included in “Save all to file”.`)}</p>` : '');
+    + (ss.length > 12 ? `<p class="hint">${tx(`이전 검사 ${ss.length - 12}개는 ‘모두 파일로 저장’에 포함되어 있습니다.`, `${ss.length - 12} older sessions are included in “Save all to file”.`)}</p>` : '');
   renderEnvWarn();
 }
 $('#homeSavedList').addEventListener('click', e => { const id = e.target?.dataset?.open; if (!id) return; const s = DB.sessions.find(x => x.id === id); if (s) showEnd(s, { offers: false }); });
@@ -421,7 +421,7 @@ $('#noisePlay').onclick = () => {
   const m = stim(PRACTICE_FM, null, 10);
   play(m.data, ctx.currentTime + 0.05);
   PRE.noise.push({ at: iso(), seed: m.seed, durS: 10, rmsDb: +m.rmsDb.toFixed(3), sampleRate: ctx.sampleRate });
-  $('#noiseState').textContent = tx('잡음이 나오는 중 (10초)', 'Playing noise (10 s)');
+  $('#noiseState').textContent = tx('소리가 재생되는 중입니다 (10초)', 'Playing sound (10 s)');
   noiseTimer = setTimeout(() => { $('#noiseState').textContent = ''; }, 10200);
 };
 $('#noiseStop').onclick = () => { stopAll(); clearTimeout(noiseTimer); $('#noiseState').textContent = ''; const L = PRE.noise[PRE.noise.length - 1]; if (L && !L.stoppedAt) L.stoppedAt = iso(); };
@@ -510,12 +510,12 @@ function startPractice() {
   S.cur = { practice: true, fm: PRACTICE_FM, left: PRACTICE_N, k: 0, u: 0, startIso: iso(), startPt: performance.now(), replays: 0, phase: 'idle', keepMonAtStart: keepMonSnap() };
   logEv('practice-start', { fm: PRACTICE_FM, n: PRACTICE_N, round: S.practiceRound });
   showPage('pgTest'); setTitle(tx(`연습 1 / ${PRACTICE_N}`, `Practice 1 / ${PRACTICE_N}`)); setProg(0);
-  $('#tNote').textContent = tx('연습은 결과에 들어가지 않습니다.', 'Practice trials are not counted in your results.');
+  $('#tNote').textContent = tx('연습 결과는 최종 기록에 포함되지 않습니다.', 'Practice trials are not counted in your results.');
   nextTrial();
 }
 function trackTitle() {
   const item = S.plan[S.idx], inRound = S.plan.filter(x => x.round === item.round), k = inRound.indexOf(item) + 1;
-  const head = item.extra ? tx('한 번 더', 'Extra check') : item.round > 1 ? tx(`${item.round}번째 바퀴`, `Round ${item.round}`) : tx('검사', 'Test');
+  const head = item.extra ? tx('한 번 더', 'Extra check') : item.round > 1 ? tx(`${item.round}차 검사`, `Round ${item.round}`) : tx('검사', 'Test');
   return `${head} ${k} / ${inRound.length}`;
 }
 function startTrack() {
@@ -548,7 +548,7 @@ function nextTrial() {
   const tg = randInt(n);
   let made;
   try { made = btns.map((_, i) => stim(C.fm, i === tg ? depth : null)); }
-  catch (e) { logEv('stim-error', { fm: C.fm, d: depth, msg: String(e && e.message || e) }); setFb('no', tx('소리를 만들지 못했습니다. 화면을 새로 고침 해 주세요.', 'Could not generate sound. Please refresh the page.')); return; }
+  catch (e) { logEv('stim-error', { fm: C.fm, d: depth, msg: String(e && e.message || e) }); setFb('no', tx('소리를 생성하지 못했습니다. 화면을 새로고침해 주세요.', 'Could not generate sound. Please refresh the page.')); return; }
   const t0 = ctx.currentTime + LEAD_S, step = PR.dur + PR.isi;
   made.forEach((m, i) => play(m.data, t0 + i * step));
   const h0 = heardTime(), p0 = performance.now();
@@ -609,9 +609,9 @@ function answer(i, dunno, inp) {
   $('#dunno').disabled = true;
   if (PR.feedback) {
     btns[a.tg].classList.add('right');
-    if (dunno) setFb('mid', tx(`떨리는 소리는 ${a.tg + 1}번이었어요`, `The fluttering sound was #${a.tg + 1}`));
-    else if (correct) setFb('ok', tx('맞았어요', 'Correct'));
-    else { btns[i].classList.add('wrong'); setFb('no', tx(`아니에요. ${a.tg + 1}번이었어요`, `Not quite. It was #${a.tg + 1}`)); }
+    if (dunno) setFb('mid', tx(`떨리는 소리는 ${a.tg + 1}번이었습니다`, `The fluttering sound was #${a.tg + 1}`));
+    else if (correct) setFb('ok', tx('맞았습니다', 'Correct'));
+    else { btns[i].classList.add('wrong'); setFb('no', tx(`아쉽습니다. ${a.tg + 1}번이었습니다`, `Not quite. It was #${a.tg + 1}`)); }
   }
   const C = S.cur; C.phase = 'feedback';
   const meta = { a: i, tg: a.tg, u: dunno ? 1 : 0, rt, inp, ...C.tm };
@@ -665,8 +665,8 @@ document.addEventListener('visibilitychange', () => {
     } else if (C.phase === 'awaiting' && C.tm) C.tm.hid = true;
   } else if (C.needReplay) {
     C.needReplay = false;
-    $('#tNote').textContent = tx('다른 화면으로 가 있어서 소리를 다시 들려 드립니다.', 'You switched away, so we will play that sound again.');
-    setTimeout(() => { if (S?.cur === C && !document.hidden) { $('#tNote').textContent = C.practice ? tx('연습은 결과에 들어가지 않습니다.', 'Practice trials are not counted in your results.') : ''; nextTrial(); } }, 700);
+    $('#tNote').textContent = tx('다른 화면으로 이동하여 소리를 다시 들려드립니다.', 'You switched away, so we will play that sound again.');
+    setTimeout(() => { if (S?.cur === C && !document.hidden) { $('#tNote').textContent = C.practice ? tx('연습 결과는 최종 기록에 포함되지 않습니다.', 'Practice trials are not counted in your results.') : ''; nextTrial(); } }, 700);
   }
 });
 window.addEventListener('pagehide', () => flushSave());
@@ -701,34 +701,34 @@ function showBreak(kind, info = {}) {
   $('#bPractice').hidden = kind !== 'practice';
   $('#bNext').hidden = false;
   if (kind === 'practice') {
-    title = tx('연습 끝', 'Practice complete');
+    title = tx('연습 완료', 'Practice complete');
     h = info.n
-      ? tx(`<p>${info.n}번 가운데 <b>${info.k}번</b> 맞았어요.</p>`, `<p>You got <b>${info.k}</b> out of ${info.n} right.</p>`)
-      : tx('<p>연습을 건너뛰었어요.</p>', '<p>Practice skipped.</p>');
+      ? tx(`<p>${info.n}번 중 <b>${info.k}번</b> 맞았습니다.</p>`, `<p>You got <b>${info.k}</b> out of ${info.n} right.</p>`)
+      : tx('<p>연습을 건너뛰었습니다.</p>', '<p>Practice skipped.</p>');
     if (info.n && info.k < 2) {
-      h += tx('<p class="hint">떨리는 소리가 잘 구별되지 않으면 볼륨을 조금 키우거나 ‘연습 한 번 더’를 눌러 보세요. 그래도 어려우면 그대로 시작해도 됩니다.</p>',
+      h += tx('<p class="hint">떨리는 소리가 잘 구별되지 않으면 볼륨을 조금 키우거나 ‘연습 한 번 더’를 눌러 주세요. 그래도 어려우면 그대로 시작하셔도 됩니다.</p>',
         '<p class="hint">If the fluttering sound was hard to tell apart, try raising the volume slightly or tap “Practice again”. You can also start as is.</p>');
       if (S.session.path === 'bt') {
-        h += tx('<p class="hint warn">블루투스 때문에 소리 앞부분이 잘렸다면 가능하면 선으로 연결하거나 스피커를 써 보세요.</p>',
+        h += tx('<p class="hint warn">블루투스 연결로 소리 앞부분이 끊긴다면 가능하면 유선 연결이나 스피커를 사용해 주세요.</p>',
           '<p class="hint warn">If Bluetooth clipped the start of the sound, try using a wired connection or speaker if possible.</p>');
       }
     }
-    h += tx('<p>이제 검사를 시작합니다. 맞힐수록 떨림이 약해져 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 누르세요.</p>',
+    h += tx('<p>이제 본 검사를 시작합니다. 맞힐수록 떨림이 미세해져 점점 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 선택해 주세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 눌러 주세요.</p>',
       '<p>Now the test begins. The flutter gets softer as you get answers right. <b>If you notice even a tiny flutter, pick that number.</b> Only press “Not sure” when all three sounds feel completely identical.</p>');
-    h += tx('<p class="hint">검사가 끝날 때까지 볼륨은 바꾸지 마세요.</p>', '<p class="hint">Please do not change your volume until the test finishes.</p>');
+    h += tx('<p class="hint">검사가 끝날 때까지 볼륨은 바꾸지 말아 주세요.</p>', '<p class="hint">Please do not change your volume until the test finishes.</p>');
     $('#bNext').textContent = tx('검사 시작', 'Start test');
   } else if (kind === 'stopped') {
-    title = tx('멈췄어요', 'Paused');
-    h = tx('<p>하던 것은 처음부터 다시 합니다. 끝난 것은 저장되어 있어요.</p>', '<p>This part will restart from the beginning. Finished parts are saved.</p>');
+    title = tx('잠시 멈췄습니다', 'Paused');
+    h = tx('<p>진행 중이던 구간은 처음부터 다시 시작합니다. 이미 마친 구간은 안전하게 저장되어 있습니다.</p>', '<p>This part will restart from the beginning. Finished parts are saved.</p>');
     $('#bNext').textContent = tx('다시 시작', 'Restart');
   } else if (kind === 'round') {
-    title = info.extra ? tx('차이가 큰 것만 한 번 더', 'Extra check for larger differences') : tx(`${info.round}번째 바퀴`, `Round ${info.round}`);
-    h = tx(`<p>${info.extra ? '두 번 잰 값이 많이 다른 소리만 한 번 더 합니다.' : '같은 소리들을 다른 순서로 한 번 더 합니다.'} ${left}개, ${estMin(left)}분쯤 걸립니다.</p><p class="hint">준비되면 ‘다음’을 누르세요.</p>`,
+    title = info.extra ? tx('차이가 큰 항목만 한 번 더', 'Extra check for larger differences') : tx(`${info.round}차 검사`, `Round ${info.round}`);
+    h = tx(`<p>${info.extra ? '1·2차 결과 차이가 큰 항목만 한 번 더 확인합니다.' : '같은 소리들을 다른 순서로 한 번 더 검사합니다.'} ${left}개 항목, 약 ${estMin(left)}분 걸립니다.</p><p class="hint">준비되시면 ‘다음’을 눌러 주세요.</p>`,
       `<p>${info.extra ? 'We will repeat only the rates where your two runs differed most.' : 'We will test the same sounds again in a new order.'} ${left} left, about ${estMin(left)} min.</p><p class="hint">Press “Next” when ready.</p>`);
     $('#bNext').textContent = tx('다음', 'Next');
   } else {
-    title = tx('잘하셨어요', 'Nice work');
-    h = tx(`<p>${total - left} / ${total}개 끝났어요. 남은 것 ${left}개.</p><p class="hint">잠시 쉬었다가 준비되면 ‘다음’을 누르세요.</p>`,
+    title = tx('잘하셨습니다', 'Nice work');
+    h = tx(`<p>${total}개 중 ${total - left}개를 마쳤습니다. (남은 검사: ${left}개)</p><p class="hint">잠시 쉬신 뒤 준비되시면 ‘다음’을 눌러 주세요.</p>`,
       `<p>${total - left} / ${total} done. ${left} left.</p><p class="hint">Take a short break and press “Next” when ready.</p>`);
     $('#bNext').textContent = tx('다음', 'Next');
   }
@@ -751,7 +751,7 @@ $('#stopBtn').onclick = () => {
     S.token = null; S.cur = null; stopAll(); awaiting = null;
     showBreak('practice', { k: C.k, u: C.u, n: PRACTICE_N - C.left }); return;
   }
-  const at = iso(), msg = '지금 하던 것은 버리고 멈출까요?\n끝난 것은 저장되어 있어요.';
+  const at = iso(), msg = '진행 중이던 구간은 취소하고 잠시 멈출까요?\n이미 마친 구간은 저장되어 있습니다.';
   const go = confirm(msg);
   if (C.tm && ['playing', 'awaiting'].includes(phase)) C.tm.ev.push({ t: at, type: 'stop-dialog', phase, answer: go ? 'stop' : 'keep', closedAt: iso() });
   logEv('stop-dialog', { phase, text: msg, answer: go ? 'stop' : 'keep', openedAt: at, fm: C.fm, trials: C.track.trials.length });
@@ -790,10 +790,10 @@ function makeOffer() {
 }
 function offerText(o) {
   if (!o) return '';
-  const tail = tx('<p class="hint">한 번 더 하면, 다 끝난 뒤에 결과 파일을 저장해 주세요.</p>', '<p class="hint">If you do another round, please save your result file after finishing.</p>');
-  if (o.kind === 'again') return tx(`<p><b>시간이 되시면 한 번 더 해 주세요.</b> 같은 소리들을 다른 순서로 다시 합니다 (${estMin(o.fms.length)}분쯤). 두 번 하면 결과가 더 정확해집니다.</p>`,
+  const tail = tx('<p class="hint">한 번 더 진행하시면, 모두 끝난 뒤에 결과 파일을 저장해 주세요.</p>', '<p class="hint">If you do another round, please save your result file after finishing.</p>');
+  if (o.kind === 'again') return tx(`<p><b>시간이 되시면 한 번 더 진행해 주세요.</b> 같은 소리들을 다른 순서로 다시 검사합니다 (약 ${estMin(o.fms.length)}분). 두 번 측정하면 결과가 더 정확해집니다.</p>`,
     `<p><b>If you have time, please do one more round.</b> We will test the same sounds in a new order (about ${estMin(o.fms.length)} min). Two rounds give more reliable results.</p>`) + tail;
-  return tx(`<p><b>두 번 잰 값이 많이 다른 소리가 ${o.fms.length}개 있습니다.</b> 그것만 한 번 더 하면 더 정확해집니다 (${estMin(o.fms.length)}분쯤).</p>`,
+  return tx(`<p><b>1·2차 결과 차이가 큰 항목이 ${o.fms.length}개 있습니다.</b> 해당 항목만 한 번 더 확인하면 더 정확해집니다 (약 ${estMin(o.fms.length)}분).</p>`,
     `<p><b>${o.fms.length} sound rate(s) differed noticeably between your two rounds.</b> Repeating just those will improve accuracy (about ${estMin(o.fms.length)} min).</p>`) + tail;
 }
 $('#againBtn').onclick = () => {
@@ -835,9 +835,9 @@ $('#toHome').onclick = () => {
 /* ───────────── 결과 (참가자) ───────────── */
 function verdict(r) {
   if (r.ceiling) return { kind: 'ceil', main: tx('재지 못함', 'Not measured'), sub: r.n0 >= 6 && !r.atChance
-    ? tx('가장 큰 떨림은 알아챘지만 그보다 약한 떨림은 어려웠어요', 'Detected the strongest flutter, but softer flutter was too hard')
-    : tx('가장 큰 떨림에서도 자주 틀렸어요', 'Frequently missed even the strongest flutter') };
-  if (r.thr === null || r.thr === undefined) return { kind: 'none', main: tx('재지 못함', 'Not measured'), sub: tx('숫자를 낼 만큼 진행되지 않았어요', 'Not enough responses to estimate a value') };
+    ? tx('가장 큰 떨림은 구별했지만, 그보다 약한 떨림은 어려웠습니다', 'Detected the strongest flutter, but softer flutter was too hard')
+    : tx('가장 큰 떨림에서도 자주 틀렸습니다', 'Frequently missed even the strongest flutter') };
+  if (r.thr === null || r.thr === undefined) return { kind: 'none', main: tx('재지 못함', 'Not measured'), sub: tx('수치를 산출할 만큼 진행되지 않았습니다', 'Not enough responses to estimate a value') };
   const ref = !!(r.atChance || r.incomplete);
   return { kind: 'num', main: fmtPct(pct(r.thr)), sub: `${r.thr.toFixed(1)} dB${ref ? tx(' · 참고 값', ' · reference only') : ''}`, ref };
 }
@@ -849,9 +849,9 @@ function byFm(runs) {
 const meanOf = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
 function endTableHtml(sess) {
   const rows = byFm(sess.runs || []);
-  if (!rows.length) return `<p>${tx('끝난 측정이 없습니다.', 'No completed runs.')}</p>`;
+  if (!rows.length) return `<p>${tx('완료된 측정이 없습니다.', 'No completed runs.')}</p>`;
   const maxN = Math.max(...rows.map(x => x.rs.length));
-  const head = `<tr><th>${tx('떨림 빠르기', 'Flutter rate')}</th>${Array.from({ length: maxN }, (_, i) => `<th>${maxN > 1 ? tx(`${i + 1}번째`, `Run ${i + 1}`) : tx('알아챈 가장 약한 떨림', 'Softest flutter detected')}</th>`).join('')}${maxN > 1 ? `<th>${tx('평균', 'Average')}</th>` : ''}</tr>`;
+  const head = `<tr><th>${tx('떨림 속도', 'Flutter rate')}</th>${Array.from({ length: maxN }, (_, i) => `<th>${maxN > 1 ? tx(`${i + 1}차`, `Run ${i + 1}`) : tx('구별한 최소 떨림', 'Softest flutter detected')}</th>`).join('')}${maxN > 1 ? `<th>${tx('평균', 'Average')}</th>` : ''}</tr>`;
   const body = rows.map(({ fm, rs }) => {
     const cells = Array.from({ length: maxN }, (_, i) => { const r = rs[i]; if (!r) return '<td></td>'; const v = verdict(r); return `<td>${esc(v.main)}<small>${esc(v.sub)}</small></td>`; }).join('');
     const nums = rs.filter(r => !r.ceiling && r.thr !== null && !r.atChance && !r.incomplete).map(r => r.thr);
@@ -874,7 +874,7 @@ function chartHtml(sess) {
   let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${tx('떨림 빠르기에 따른 결과 그림', 'Results chart by flutter rate')}">`;
   for (let d = 0; d >= minDb; d -= 6) s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}"/><text class="tick" x="${L - 8}" y="${y(d) + 4}" text-anchor="end">${esc(fmtPct(pct(d)))}</text>`;
   for (const f of fms) s += `<line class="grid" x1="${x(f)}" x2="${x(f)}" y1="${T}" y2="${H - B}"/><text class="tick" x="${x(f)}" y="${H - B + 18}" text-anchor="middle">${f}</text>`;
-  s += `<text class="axl" x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle">${tx('떨림 빠르기 (Hz)', 'Flutter rate (Hz)')}</text>`;
+  s += `<text class="axl" x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle">${tx('떨림 속도 (Hz)', 'Flutter rate (Hz)')}</text>`;
   const pts = [];
   for (const { fm, rs } of rows) {
     const nums = rs.filter(r => !r.ceiling && r.thr !== null).map(r => r.thr);
@@ -884,22 +884,22 @@ function chartHtml(sess) {
   }
   if (pts.length > 1) s += `<polyline class="ln" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
   for (const p of pts) s += `<circle class="pt" cx="${p[0]}" cy="${p[1]}" r="6.5"/>`;
-  return s + `</svg><p class="hint">${tx('위로 갈수록 약한 떨림까지 알아챈 것입니다. 빈 동그라미 = 한 번 잰 값, 채운 동그라미 = 평균, ▽ = 재지 못함.', 'Higher means detecting softer flutter. Open circle = single run, filled circle = average, ▽ = not measured.')}</p>`;
+  return s + `</svg><p class="hint">${tx('위로 갈수록 더 약한 떨림까지 구별한 것입니다. 빈 원 = 1회 측정값, 채운 원 = 평균, ▽ = 재지 못함.', 'Higher means detecting softer flutter. Open circle = single run, filled circle = average, ▽ = not measured.')}</p>`;
 }
 let SHOWN = null;
 function showEnd(sess, opt = {}) {
   SHOWN = sess;
   const offers = !!(opt.offers && S && S.session === sess && S.offer);
-  $('#endTitle').textContent = offers ? tx('한 바퀴 끝! 수고하셨습니다', 'Round 1 complete! Well done') : tx('수고하셨습니다', 'All done! Thank you');
+  $('#endTitle').textContent = offers ? tx('1차 검사 완료! 수고하셨습니다', 'Round 1 complete! Well done') : tx('수고하셨습니다', 'All done! Thank you');
   $('#endWho').textContent = [sess.code || tx('번호 없음', 'No ID'), earName(sess.ear), pathName(sess.path), localTime(sess.start)].filter(Boolean).join(' · ');
   $('#endTable').innerHTML = endTableHtml(sess);
   $('#endChart').innerHTML = chartHtml(sess);
   const single = byFm(sess.runs || []).some(x => x.rs.length < 2);
-  const notes = [tx('% 가 작을수록 약한 떨림까지 알아챈 것입니다.', 'A smaller % means you detected softer flutter.')];
-  if (single) notes.push(tx('한 번만 잰 값은 참고용입니다.', 'Values from a single run are for reference only.'));
-  if ((sess.runs || []).some(r => r.ceiling || r.thr === null)) notes.push(tx('‘재지 못함’은 가장 큰 떨림에서도 자주 틀려 숫자를 내지 못했다는 뜻입니다.', '“Not measured” means even the strongest flutter was frequently missed.'));
-  if ((sess.runs || []).some(r => r.atChance || r.incomplete)) notes.push(tx('‘참고 값’은 숫자는 나왔지만 믿기 어려운 값입니다.', '“Reference only” values are less reliable estimates.'));
-  notes.push(tx('이 결과는 진단이 아닙니다. 음성처리기(인공와우 외부기기) 설정은 청능사와 상의하세요.', 'These results are not a medical diagnosis. Talk to your audiologist before changing any sound processor settings.'));
+  const notes = [tx('% 수치가 작을수록 더 약한 떨림까지 구별한 것입니다.', 'A smaller % means you detected softer flutter.')];
+  if (single) notes.push(tx('한 번만 측정한 값은 참고용입니다.', 'Values from a single run are for reference only.'));
+  if ((sess.runs || []).some(r => r.ceiling || r.thr === null)) notes.push(tx('‘재지 못함’은 가장 큰 떨림에서도 자주 틀려 수치를 내지 못했다는 뜻입니다.', '“Not measured” means even the strongest flutter was frequently missed.'));
+  if ((sess.runs || []).some(r => r.atChance || r.incomplete)) notes.push(tx('‘참고 값’은 수치는 나왔으나 변동이 커서 참고용으로만 보아야 하는 결과입니다.', '“Reference only” values are less reliable estimates.'));
+  notes.push(tx('이 결과는 의학적 진단이 아닙니다. 음성처리기 설정 변경은 반드시 청능사와 상의해 주세요.', 'These results are not a medical diagnosis. Talk to your audiologist before changing any sound processor settings.'));
   $('#endNotes').innerHTML = notes.map(t => `<p>${esc(t)}</p>`).join('') + focusHtml(sess);
   $('#againBox').hidden = !offers;
   $('#againText').innerHTML = offers ? offerText(S.offer) : '';
@@ -914,7 +914,7 @@ const evTo = (sess, type, detail = {}) => { sess.events.push({ t: iso(), s: null
 function focusHtml(sess) {
   if (JUST !== sess) return '';
   sess.focusEndShown = true;
-  return `<div class="mt"><p><b>${tx('오늘 집중은 어땠나요?', 'How was your focus today?')}</b> <span class="opt">${tx('(안 골라도 됩니다)', '(optional)')}</span></p><div class="choices three" id="focusPick" role="group" aria-label="${tx('집중도', 'Focus')}">${Object.keys(FOCUS).map(k => `<button class="choice${sess.focusEnd === k ? ' on' : ''}" data-v="${k}" aria-pressed="${sess.focusEnd === k ? 'true' : 'false'}">${esc(focusName(k))}</button>`).join('')}</div></div>`;
+  return `<div class="mt"><p><b>${tx('오늘 검사할 때 집중은 잘 되셨나요?', 'How was your focus today?')}</b> <span class="opt">${tx('(선택 사항)', '(optional)')}</span></p><div class="choices three" id="focusPick" role="group" aria-label="${tx('집중도', 'Focus')}">${Object.keys(FOCUS).map(k => `<button class="choice${sess.focusEnd === k ? ' on' : ''}" data-v="${k}" aria-pressed="${sess.focusEnd === k ? 'true' : 'false'}">${esc(focusName(k))}</button>`).join('')}</div></div>`;
 }
 $('#endNotes').addEventListener('click', e => {
   const b = e.target.closest ? e.target.closest('.choice') : e.target;
@@ -961,7 +961,7 @@ $('#saveFile').onclick = () => { if (!SHOWN) return; const name = saveFile([SHOW
 $('#saveReport').onclick = () => {
   if (!SHOWN) return;
   const name = saveSpecialistReport([SHOWN], 'one', null, true);
-  if (name) $('#sendState').textContent = tx(`저장했습니다: ${name} (브라우저에서 열어 인쇄·PDF로 저장해 전문가께 전달할 수 있습니다)`, `Saved: ${name} (open in a browser to print or save as PDF for your audiologist or CI engineer)`);
+  if (name) $('#sendState').textContent = tx(`저장했습니다: ${name} (브라우저에서 열어 인쇄·PDF로 저장해 전문가께 전달하실 수 있습니다)`, `Saved: ${name} (open in a browser to print or save as PDF for your audiologist or CI engineer)`);
 };
 $('#shareFile').onclick = async () => {
   if (!SHOWN) return;
@@ -969,8 +969,8 @@ $('#shareFile').onclick = async () => {
   try {
     await navigator.share({ files: [file], title: tx('소리 떨림 검사 결과', 'Sound Flutter Test Results'), text: summaryText(SHOWN) });
     (SHOWN.exports ||= []).push({ at: iso(), how: 'share', name }); saveStore();
-    $('#sendState').textContent = tx('보냈습니다.', 'Shared.');
-  } catch (e) { $('#sendState').textContent = e && e.name === 'AbortError' ? '' : tx('바로 보내기가 되지 않습니다. ‘결과 파일 저장’을 눌러 주세요.', 'Direct sharing is unavailable. Please tap “Save result file”.'); }
+    $('#sendState').textContent = tx('공유했습니다.', 'Shared.');
+  } catch (e) { $('#sendState').textContent = e && e.name === 'AbortError' ? '' : tx('공유 기능을 사용할 수 없습니다. ‘결과 파일 저장’을 눌러 주세요.', 'Direct sharing is unavailable. Please tap “Save result file”.'); }
 };
 $('#shareReport').onclick = async () => {
   if (!SHOWN) return;
@@ -978,8 +978,8 @@ $('#shareReport').onclick = async () => {
   try {
     await navigator.share({ files: [file], title: tx('소리 떨림 검사 전문가 참고 보고서', 'Sound Flutter Test Specialist Reference Report'), text: summaryText(SHOWN) });
     (SHOWN.exports ||= []).push({ at: iso(), how: 'share-report', name }); saveStore();
-    $('#sendState').textContent = tx('전문가용 보고서를 보냈습니다.', 'Specialist report shared.');
-  } catch (e) { $('#sendState').textContent = e && e.name === 'AbortError' ? '' : tx('바로 보내기가 되지 않습니다. ‘전문가용 보고서 저장’을 눌러 주세요.', 'Direct sharing is unavailable. Please tap “Save specialist report”.'); }
+    $('#sendState').textContent = tx('전문가용 보고서를 공유했습니다.', 'Specialist report shared.');
+  } catch (e) { $('#sendState').textContent = e && e.name === 'AbortError' ? '' : tx('공유 기능을 사용할 수 없습니다. ‘전문가용 보고서 저장’을 눌러 주세요.', 'Direct sharing is unavailable. Please tap “Save specialist report”.'); }
 };
 $('#copyText').onclick = async () => {
   if (!SHOWN) return;
@@ -990,7 +990,7 @@ $('#copyText').onclick = async () => {
     try { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch { }
   }
   if (ok) { (SHOWN.exports ||= []).push({ at: iso(), how: 'copy-text' }); saveStore(); }
-  $('#sendState').textContent = ok ? tx('결과 글을 복사했습니다. 카톡 창에 붙여 넣으세요. (자세한 기록은 파일에만 있습니다)', 'Summary copied. Paste it into a message. (Full trial data is only in the saved file.)') : tx('복사가 되지 않습니다. ‘결과 파일 저장’을 눌러 주세요.', 'Copy failed. Please tap “Save result file”.');
+  $('#sendState').textContent = ok ? tx('요약을 복사했습니다. 메신저나 메모장에 붙여 넣어 사용하세요. (자세한 기록은 결과 파일에만 들어 있습니다)', 'Summary copied. Paste it into a message. (Full trial data is only in the saved file.)') : tx('복사하지 못했습니다. ‘결과 파일 저장’을 눌러 주세요.', 'Copy failed. Please tap “Save result file”.');
 };
 
 /* ───────────── 받은 결과 보기 (검사를 보낸 분용) ───────────── */
@@ -1085,7 +1085,7 @@ function compareChartSvg(items, fms) {
   let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${tx('같은 참가 번호 회기 비교 그림', 'Session comparison chart')}">`;
   for (let d = 0; d >= minDb; d -= 6) s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}"/><text class="tick" x="${L - 8}" y="${y(d) + 4}" text-anchor="end">${d} dB</text>`;
   for (const f of fms) s += `<line class="grid" x1="${x(f)}" x2="${x(f)}" y1="${T}" y2="${H - B}"/><text class="tick" x="${x(f)}" y="${H - B + 18}" text-anchor="middle">${f}</text>`;
-  s += `<text class="axl" x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle">${tx('떨림 빠르기 (Hz)', 'Flutter rate (Hz)')}</text>`;
+  s += `<text class="axl" x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle">${tx('떨림 속도 (Hz)', 'Flutter rate (Hz)')}</text>`;
   items.forEach((it, idx) => {
     const st = COMP_STYLES[idx % COMP_STYLES.length], map = new Map(byFm(it.s.runs || []).map(x => [x.fm, x.rs])), pts = [];
     for (const fm of fms) {
@@ -1634,49 +1634,50 @@ const UI_TEXT = {
   ko: {
     title: '소리 떨림 검사',
     txt: {
-      appTitle: '소리 떨림 검사', appSub: '인공와우 사용자를 위한 검사',
-      hWhat: '어떤 검사인가요?', hLearn: '이 검사를 하면 알 수 있는 것', hPrep: '준비할 것', hPrep1: '조용한 곳',
-      hPrep3: '평소 쓰는 음성처리기(인공와우 외부기기) 프로그램과 볼륨', hPrep4: '컴퓨터를 권합니다. 휴대폰·태블릿도 됩니다.',
+      appTitle: '소리 떨림 검사', appSub: '인공와우 사용자를 위한 소리 듣기 검사',
+      hWhat: '어떤 검사인가요?', hLearn: '이 검사를 하면 알 수 있는 것', hPrep: '준비할 것', hPrep1: '조용한 장소',
+      hPrep3: '평소 사용하는 음성처리기 프로그램과 볼륨', hPrep4: '컴퓨터 사용을 권장합니다 (휴대폰·태블릿도 가능)',
       goSetup: '시작하기', hSaved: '이 기기에 저장된 검사', homeSaveAll: '모두 파일로 저장',
-      goViewer: '받은 결과 파일 보기 (검사를 보낸 분용)',
-      qEar: '어느 쪽 귀로 듣나요?', earHint: '한쪽만 할 때는 반대쪽 음성처리기(인공와우 외부기기)나 보청기를 빼 주세요.',
-      qPath: '소리를 어떻게 듣나요?',
-      btNote: '블루투스는 소리 앞부분이 잘릴 수 있어요. 할 수 있으면 선으로 연결하거나 스피커를 써 주세요. 그대로 해도 됩니다.',
-      qCode: '참가 번호', qCodeOpt: '(받은 번호가 있을 때만)', codeHint: '이름은 적지 마세요.',
-      moreSum: '더 알려 주기 (안 해도 됩니다)', lblAge: '나이', lblYears: '이 귀로 인공와우를 쓴 지',
-      lblOnset: '잘 안 들리게 된 때', lblMaker: '음성처리기(인공와우 외부기기) 회사', lblNote: '하고 싶은 말 (짧게)',
-      setupBack: '뒤로', setupNext: '다음', setupNeed: '1번과 2번을 골라 주세요.',
-      hSound: '소리 크기 맞추기', snd1: '‘잡음 틀기’를 누르세요. 10초 동안 잡음이 나옵니다.',
-      snd3: '맞춘 뒤에는 검사가 끝날 때까지 볼륨을 바꾸지 마세요.',
-      noisePlay: '잡음 틀기', noiseStop: '멈춤', lblOsVol: '지금 볼륨 숫자 (알면 적어 주세요)',
-      iphoneHint: '아이폰은 옆의 무음 스위치를 꺼야 소리가 납니다.',
-      hDemo: '떨리는 소리 들어 보기', demoMod: '떨리는 소리', demoFlat: '떨리지 않는 소리',
-      demoHint: '떨림이 빠르면 ‘거칠게’ 또는 ‘웅웅’ 하게 들리기도 합니다. 다른 두 소리와 다르게 들리는 것을 고르면 됩니다.',
-      soundBtNote: '블루투스로 연결되어 있어요. ‘떨리는 소리’를 눌렀을 때 소리 앞부분이 뚝 끊기거나 약하게 들리면, 가능하면 선으로 연결하거나 스피커를 써 주세요.',
-      volOkLbl: '편한 크기로 맞췄어요', soundBack: '뒤로', soundNext: '연습하러 가기',
-      stopBtn: '그만', dunno: '모르겠음', keysHint: '키보드: 1 · 2 · 3, 모르겠음은 0',
-      bEnd: '오늘은 여기까지', bPractice: '연습 한 번 더',
+      goViewer: '결과 파일 열기 (청능사·연구자용)',
+      qEar: '어느 쪽 귀로 검사하시나요?', earHint: '한쪽 귀만 검사할 때는 반대쪽 음성처리기(인공와우 외부기기)나 보청기를 잠시 빼 주세요.',
+      qPath: '소리를 듣는 방법을 선택해 주세요.',
+      btNote: '블루투스 연결은 소리 앞부분이 끊길 수 있습니다. 가능하면 유선 연결이나 스피커를 권장하지만, 그대로 진행하셔도 됩니다.',
+      qCode: '참가 번호', qCodeOpt: '(안내받은 번호가 있을 때만 입력)', codeHint: '개인정보 보호를 위해 이름은 적지 마세요.',
+      moreSum: '추가 정보 입력 (선택 사항)', lblAge: '나이', lblYears: '인공와우 사용 기간 (이쪽 귀)',
+      lblOnset: '청력이 떨어진 시기', lblMaker: '음성처리기 제조사', lblNote: '메모 (짧게)',
+      setupBack: '뒤로', setupNext: '다음', setupNeed: '1번과 2번 항목을 선택해 주세요.',
+      hSound: '소리 크기 맞추기',
+      snd3: '볼륨을 맞춘 뒤에는 검사가 끝날 때까지 바꾸지 말아 주세요.',
+      noisePlay: '소리 재생', noiseStop: '정지', lblOsVol: '현재 기기 볼륨 수치 (알고 있다면 입력)',
+      iphoneHint: '아이폰은 측면 무음 스위치를 해제해야 소리가 납니다.',
+      hDemo: '떨리는 소리 미리 들어보기', demoMod: '떨리는 소리', demoFlat: '떨리지 않는 소리',
+      soundBtNote: '블루투스로 연결되어 있습니다. ‘떨리는 소리’를 눌렀을 때 소리 앞부분이 끊기거나 약하게 들리면, 가능하면 유선 연결이나 스피커를 사용해 주세요.',
+      volOkLbl: '편안한 크기로 맞췄습니다', soundBack: '뒤로', soundNext: '연습 시작하기',
+      stopBtn: '잠시 멈춤', dunno: '모르겠음', keysHint: '키보드: 1 · 2 · 3, 모르겠음은 0',
+      bEnd: '여기까지만 하기', bPractice: '연습 한 번 더',
       againBtn: '한 번 더 하기', finishBtn: '여기서 마치기',
-      hSend: '결과 보내기', sendDesc: '‘결과 파일 저장’은 전체 기록 파일(.json), ‘전문가용 보고서 저장’은 청능사·엔지니어께 보여 드릴 참고 문서(.html, 인쇄·PDF 가능)입니다.',
-      saveFile: '결과 파일 저장', saveReport: '전문가용 보고서 저장', shareFile: '바로 보내기', shareReport: '보고서 바로 보내기', copyText: '결과 글 복사', toHome: '처음으로',
-      hViewer: '받은 결과 파일 보기', vDesc: '참가자가 보낸 결과 파일(.json)을 고르면 여기서 열어 봅니다. 파일은 이 화면 안에서만 읽고, 어디로도 보내지 않습니다.',
-      vFilesLbl: '파일 고르기', vLocal: '이 기기에 저장된 검사', vReport: '전문가용 보고서 저장', vCsvRuns: '측정 CSV 저장', vCsvTrials: '시행 CSV 저장', vHome: '처음으로',
+      hSend: '결과 저장 및 공유', sendDesc: '‘결과 파일 저장’은 전체 기록 파일(.json), ‘전문가용 보고서 저장’은 청능사·엔지니어께 보여드릴 참고 문서(.html, 인쇄·PDF 가능)입니다.',
+      saveFile: '결과 파일 저장', saveReport: '전문가용 보고서 저장', shareFile: '파일 공유하기', shareReport: '보고서 공유하기', copyText: '요약 복사', toHome: '처음으로',
+      hViewer: '결과 파일 열기', vDesc: '참가자가 보낸 결과 파일(.json)을 선택하면 이 화면에서 열립니다. 파일은 브라우저 안에서만 처리되며 외부로 전송되지 않습니다.',
+      vFilesLbl: '파일 선택', vLocal: '이 기기에 저장된 검사', vReport: '전문가용 보고서 저장', vCsvRuns: '측정 CSV 저장', vCsvTrials: '시행 CSV 저장', vHome: '처음으로',
     },
     html: {
-      hWhat1: '잡음 소리 <b>세 개</b>를 차례로 들려 드립니다. 그중 <b>하나만 떨립니다.</b>',
-      hWhat2: '떨리는 소리가 <b>몇 번째</b>인지 고르면 됩니다.',
-      hWhat3: '처음에는 쉽고, 맞힐수록 떨림이 약해져 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 누르세요.',
-      hLearn1: '<b>느린 떨림부터 빠른 떨림까지</b> 소리가 얼마나 약하게 떨릴 때 알아채는지 그래프로 볼 수 있습니다.',
-      hLearn2: '말소리는 크기가 빠르게 오르내리는 떨림으로 이루어져 있어, 내 귀와 음성처리기(인공와우 외부기기)가 <b>소리의 빠른 변화와 리듬</b>을 어떻게 따라가는지 참고할 수 있습니다.',
-      hLearn3: '<b>왼쪽·오른쪽 귀</b>나 음성처리기(인공와우 외부기기) <b>설정·프로그램을 바꾼 전후</b>를 같은 방법으로 다시 해 보면 변화를 비교해 볼 수 있습니다.',
-      hLearn4: '끝나면 <b>전문가용 보고서</b>로 저장해 청능사나 인공와우 엔지니어와 상담할 때 참고 자료로 보여 줄 수 있습니다.',
-      hNotice1: '이 검사는 <b>진단이 아닙니다.</b> 결과를 보고 음성처리기(인공와우 외부기기) 설정을 바꾸려면 청능사와 상의하세요.',
-      hNotice2: '이름이나 연락처는 묻지 않습니다. 결과는 이 기기의 브라우저에만 저장되고, <b>‘결과 파일 저장’을 직접 눌러야만</b> 밖으로 나갑니다.',
-      snd2: '컴퓨터(휴대폰) 볼륨을 움직여 <b>편하게 잘 들리는 크기</b>로 맞추세요. 너무 크게 하지 마세요.',
+      hWhat1: '‘쉬—’ 하는 소리 <b>세 개</b>를 차례로 들려드립니다. 그중 <b>하나만 떨리게 들립니다.</b>',
+      hWhat2: '떨리는 소리가 <b>몇 번째</b>였는지 고르시면 됩니다.',
+      hWhat3: '처음에는 쉽지만, 맞힐수록 떨림이 미세해져 점점 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 선택해 주세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 눌러 주세요.',
+      hLearn1: '<b>미세한 소리 떨림 감지 수준</b>: 느린 떨림부터 빠른 떨림까지 얼마나 약한 떨림을 구별할 수 있는지 그래프로 확인할 수 있습니다.',
+      hLearn2: '<b>말소리 리듬·변화 파악 참고</b>: 말소리는 크기가 빠르게 변하며 이어집니다. 내 귀와 음성처리기(인공와우 외부기기)가 이런 빠른 소리 변화를 얼마나 잘 따라가는지 참고할 수 있습니다.',
+      hLearn3: '<b>양쪽 귀 및 설정 전후 비교</b>: 왼쪽·오른쪽 귀를 따로 해보거나, 음성처리기 설정·프로그램을 바꾸기 전과 후를 같은 조건으로 비교해 볼 수 있습니다.',
+      hLearn4: '<b>상담용 보고서 저장</b>: 검사가 끝나면 <b>전문가용 보고서</b>로 저장해 청능사나 인공와우 엔지니어와 상담할 때 참고 자료로 활용할 수 있습니다.',
+      hNotice1: '이 검사는 <b>의학적 진단이 아닙니다.</b> 음성처리기 설정 변경은 반드시 청능사와 상의해 주세요.',
+      hNotice2: '이름이나 연락처는 묻지 않습니다. 결과는 이 기기에만 저장되며, 직접 <b>‘결과 파일 저장’</b>을 누르지 않으면 외부로 전송되지 않습니다.',
+      snd1: '<b>‘소리 재생’</b>을 누르면 10초 동안 ‘쉬—’ 하는 소리가 나옵니다.',
+      snd2: '기기 볼륨을 조절해 <b>편안하게 잘 들리는 크기</b>로 맞춰 주세요. 너무 크게 올리지 마세요.',
+      demoHint: '떨림이 빠를 때는 ‘거칠게’ 또는 ‘웅웅’ 울리듯 들릴 수 있습니다. 나머지 두 소리와 <b>다르게 들리는 소리</b>를 고르시면 됩니다.',
       askText: '세 소리 중 <b>떨리는 소리</b>는 몇 번째인가요?',
     },
     steps: ['준비', '소리 맞추기', '연습 · 검사'],
-    ear: EAR, path: { ...PATH, wired: '선으로 음성처리기(인공와우 외부기기)에 연결 (오디오 케이블·유선 스트리머)' }, age: AGE_LBL, years: YEARS_LBL, onset: ONSET_LBL, maker: MAKER_LBL, none: '고르지 않음',
+    ear: EAR, path: PATH, age: AGE_LBL, years: YEARS_LBL, onset: ONSET_LBL, maker: MAKER_LBL, none: '선택 안 함',
     codePh: '예: P02', ivAria: ['1번', '2번', '3번'], progAria: '진행률',
   },
   en: {
@@ -1686,7 +1687,7 @@ const UI_TEXT = {
       hWhat: 'How does it work?', hLearn: 'What you can learn from this test', hPrep: 'Before you start', hPrep1: 'A quiet room',
       hPrep3: 'Your everyday sound processor program and volume', hPrep4: 'A computer works best. Phones and tablets also work.',
       goSetup: 'Start', hSaved: 'Saved tests on this device', homeSaveAll: 'Save all to file',
-      goViewer: 'View received result files (for clinicians / researchers)',
+      goViewer: 'Open result files (for clinicians / researchers)',
       qEar: 'Which ear are you testing?', earHint: 'If testing one ear, please take off the sound processor or hearing aid on the other side.',
       qPath: 'How are you listening?',
       btNote: 'Bluetooth may clip the start of sounds. Use a wired connection or speaker if you can, though Bluetooth still works.',
@@ -1694,33 +1695,34 @@ const UI_TEXT = {
       moreSum: 'Optional info (you can skip this)', lblAge: 'Age group', lblYears: 'Years using CI in this ear',
       lblOnset: 'When hearing loss started', lblMaker: 'Sound processor brand', lblNote: 'Short note (optional)',
       setupBack: 'Back', setupNext: 'Next', setupNeed: 'Please choose answers for 1 and 2.',
-      hSound: 'Set a comfortable volume', snd1: 'Tap “Play noise”. A steady noise plays for 10 seconds.',
+      hSound: 'Set a comfortable volume',
       snd3: 'Once set, please keep the volume the same until the test finishes.',
-      noisePlay: 'Play noise', noiseStop: 'Stop', lblOsVol: 'Current device volume number (if known)',
+      noisePlay: 'Play sound', noiseStop: 'Stop', lblOsVol: 'Current device volume number (if known)',
       iphoneHint: 'On iPhone, switch off the side silent toggle so sound can play.',
       hDemo: 'Hear an example', demoMod: 'Fluttering sound', demoFlat: 'Steady sound',
-      demoHint: 'Faster flutter can sound rough or buzzing. Just pick whichever sound feels different from the other two.',
       soundBtNote: 'You selected Bluetooth. If the beginning of “Fluttering sound” feels cut off or quiet, please try a wired connection or speaker if possible.',
-      volOkLbl: 'Volume is comfortable', soundBack: 'Back', soundNext: 'Go to practice',
-      stopBtn: 'Stop', dunno: 'Not sure', keysHint: 'Keyboard: 1 · 2 · 3, Not sure: 0',
-      bEnd: 'Finish for today', bPractice: 'Practice again',
+      volOkLbl: 'Volume is comfortable', soundBack: 'Back', soundNext: 'Start practice',
+      stopBtn: 'Pause', dunno: 'Not sure', keysHint: 'Keyboard: 1 · 2 · 3, Not sure: 0',
+      bEnd: 'Finish here', bPractice: 'Practice again',
       againBtn: 'Do one more round', finishBtn: 'Finish here',
-      hSend: 'Share your results', sendDesc: '“Save result file” downloads the full data (.json). “Save specialist report” saves a printable/PDF reference report (.html) for your audiologist or CI engineer.',
-      saveFile: 'Save result file', saveReport: 'Save specialist report', shareFile: 'Share file', shareReport: 'Share report', copyText: 'Copy summary text', toHome: 'Home',
-      hViewer: 'View received result files', vDesc: 'Open participant .json result files here. Everything stays in your browser and is never uploaded.',
+      hSend: 'Save & share results', sendDesc: '“Save result file” downloads the full data (.json). “Save specialist report” saves a printable/PDF reference report (.html) for your audiologist or CI engineer.',
+      saveFile: 'Save result file', saveReport: 'Save specialist report', shareFile: 'Share file', shareReport: 'Share report', copyText: 'Copy summary', toHome: 'Home',
+      hViewer: 'Open result files', vDesc: 'Open participant .json result files here. Everything stays in your browser and is never uploaded.',
       vFilesLbl: 'Choose files', vLocal: 'Saved on this device', vReport: 'Save specialist report', vCsvRuns: 'Export runs CSV', vCsvTrials: 'Export trials CSV', vHome: 'Home',
     },
     html: {
-      hWhat1: 'You will hear <b>three</b> noise sounds in a row. Only <b>one of them flutters.</b>',
+      hWhat1: 'You will hear <b>three</b> steady “shh” sounds in a row. Only <b>one of them flutters.</b>',
       hWhat2: 'Pick <b>which one</b> was the fluttering sound.',
       hWhat3: 'It starts easy and gets harder as you get answers right. <b>If you notice even a tiny flutter, pick that number.</b> Only press “Not sure” when all three sounds feel completely identical.',
-      hLearn1: 'See on a chart how soft a flutter you can hear, from <b>slow to fast flutter</b>.',
-      hLearn2: 'Speech is full of rapid loudness changes, so this gives a reference for how your ear and sound processor follow <b>quick sound changes and rhythm</b>.',
-      hLearn3: 'Repeat under the same setup to compare your <b>left vs. right ear</b>, or <b>before and after</b> changing a sound processor program or setting.',
-      hLearn4: 'Save a <b>specialist report</b> at the end to share as a reference with your audiologist or CI engineer.',
+      hLearn1: '<b>Flutter detection level</b>: See on a chart how soft a flutter you can hear, from slow to fast flutter.',
+      hLearn2: '<b>Speech rhythm &amp; change reference</b>: Speech relies on rapid loudness changes, so this gives a reference for how your ear and sound processor follow quick sound changes.',
+      hLearn3: '<b>Left/right &amp; before/after comparison</b>: Repeat under the same setup to compare left vs. right ear, or before and after changing a sound processor program or setting.',
+      hLearn4: '<b>Consultation report</b>: Save a <b>specialist report</b> at the end to share as a reference with your audiologist or CI engineer.',
       hNotice1: 'This test is <b>not a medical diagnosis.</b> Talk to your audiologist before changing any sound processor settings.',
       hNotice2: 'We never ask for your name or contact details. Results stay only in this browser and leave <b>only when you tap “Save result file”.</b>',
+      snd1: 'Tap <b>“Play sound”</b> to hear a steady “shh” sound for 10 seconds.',
       snd2: 'Adjust your device volume to a <b>comfortable, clearly audible level</b>. Do not make it too loud.',
+      demoHint: 'Faster flutter can sound rough or buzzing. Just pick whichever sound feels <b>different from the other two</b>.',
       askText: 'Which of the three sounds was <b>fluttering</b>?',
     },
     steps: ['Setup', 'Volume', 'Practice & test'],
