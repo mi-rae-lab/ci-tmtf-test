@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.4 (2026-11-24)';   // 1.2.4: 검사명 ‘TMTF 검사’로 통일·검사 진행 화면 하단 안내 문구 추가
+const APP_VERSION = '1.2.5 (2026-11-24)';   // 1.2.5: 55–70 Hz 1 Hz 예외 목록 제거(5–300 Hz 5 Hz 간격 + 옥타브 유지)
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;

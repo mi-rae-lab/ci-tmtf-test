@@ -35,7 +35,7 @@ globalThis.__scope = (async () => {
   });
   await tryOk('링크 떨림 빠르기(?hz=): 고를 수 있는 칸만 · 하나라도 틀리면 통째로 버림 · 12개까지 · 정렬 · 겹침 없앰', () => {
     const c = [['10,50,100', '10,50,100'], ['100 10 50', '10,50,100'], ['10,10,50', '10,50'], ['10,51', null], ['', null], ['abc', null], ['10.5', null],
-      [Array.from({ length: 13 }, (_, i) => (i + 1) * 5).join(','), null], ['56,57,58,59,61', '56,57,58,59,61'], ['2,512', '2,512'], ['1', null], ['600', null], [null, null]];
+      [Array.from({ length: 13 }, (_, i) => (i + 1) * 5).join(','), null], ['56,57,58,59,61', null], ['66,69', null], ['64', '64'], ['2,512', '2,512'], ['1', null], ['600', null], [null, null]];
     const bad = c.filter(([s, w]) => { const r = parseFms(s); return (r ? r.join(',') : null) !== w; });
     return [!bad.length, JSON.stringify(bad.map(([s]) => [s, parseFms(s)]))];
   });

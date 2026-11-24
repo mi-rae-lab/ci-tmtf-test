@@ -46,7 +46,7 @@ def gaussCalls (ty : String) (fs N : Nat) : Nat :=
 /-- 칸 k 의 주파수 k·fs/n 에서 G2 -/
 def g2At (fs N k : Nat) : Rat := G2 (((k * fs : Nat) : Rat) / ((nextPow2 N : Nat) : Rat))
 
-def customFms : List Nat := [2, 4, 5, 8, 10, 16, 32, 50, 56, 57, 58, 59, 61, 62, 63, 64, 66, 67, 68, 69, 75, 100, 128, 150, 200, 256, 300, 512]   -- 3.3.1: 66–69 Hz · 3.3.2: 61–63 Hz · 3.3.3: 56–59 Hz
+def customFms : List Nat := [2, 4, 5, 8, 10, 16, 32, 50, 64, 75, 100, 128, 150, 200, 256, 300, 512]
 def customPrFms : List Nat := [4, 8, 16, 32, 64, 128, 256]
 def sortDedup (l : List Nat) : List Nat := (l.mergeSort (fun a b => decide (a ≤ b))).eraseDups
 
