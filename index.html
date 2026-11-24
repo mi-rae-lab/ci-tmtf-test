@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="description" content="인공와우 사용자를 위한 소리 떨림 검사 (시간 변조 탐지, TMTF)">
 <title>소리 떨림 검사</title>
-<link rel="stylesheet" href="style.css?v=1.0.4">
+<link rel="stylesheet" href="style.css?v=1.0.5">
 </head>
 <body>
 <header class="top">
@@ -193,9 +193,10 @@
   </div>
   <div id="sendBox" class="card">
     <h2>결과 보내기</h2>
-    <p>‘결과 파일 저장’을 누른 뒤, 그 파일을 검사를 알려 준 분께 카톡이나 메일로 보내 주세요.</p>
+    <p>‘결과 파일 저장’은 전체 기록 파일(.json), ‘전문가용 보고서 저장’은 청능사·엔지니어께 보여 드릴 참고 문서(.html, 인쇄·PDF 가능)입니다.</p>
     <div class="row wrap gap">
       <button id="saveFile" class="btn primary big">결과 파일 저장</button>
+      <button id="saveReport" class="btn big">전문가용 보고서 저장</button>
       <button id="shareFile" class="btn big" hidden>바로 보내기</button>
       <button id="copyText" class="btn">결과 글 복사</button>
     </div>
@@ -212,6 +213,7 @@
     <div class="row wrap gap">
       <label class="btn primary filebtn">파일 고르기<input id="vFiles" type="file" accept=".json,application/json" multiple></label>
       <button id="vLocal" class="btn">이 기기에 저장된 검사</button>
+      <button id="vReport" class="btn" disabled>전문가용 보고서 저장</button>
       <button id="vCsvRuns" class="btn" disabled>측정 CSV 저장</button>
       <button id="vCsvTrials" class="btn" disabled>시행 CSV 저장</button>
     </div>
@@ -223,9 +225,9 @@
 </main>
 
 <!-- ?v= 는 js/app.js 의 APP_VERSION 앞 번호와 같게 (판을 바꿀 때 함께 올려야 브라우저가 옛 파일을 쓰지 않음 — tools/app_check.js 가 확인) -->
-<script src="js/protocols.js?v=1.0.4"></script>
-<script src="js/stim.js?v=1.0.4"></script>
-<script src="js/track.js?v=1.0.4"></script>
-<script src="js/app.js?v=1.0.4"></script>
+<script src="js/protocols.js?v=1.0.5"></script>
+<script src="js/stim.js?v=1.0.5"></script>
+<script src="js/track.js?v=1.0.5"></script>
+<script src="js/app.js?v=1.0.5"></script>
 </body>
 </html>

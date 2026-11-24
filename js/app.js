@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.0.4 (2026-11-24)';   // 1.0.4: 모르겠음 사용 기준 안내 다듬기 · 받은 결과 보기 자리별 맞힘에서 모르겠음 제외
+const APP_VERSION = '1.0.5 (2026-11-24)';   // 1.0.5: 청능사·인공와우 엔지니어 전달용 전문가 참고 보고서(.html, 인쇄·PDF 지원) 저장 기능 추가
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const STORE_KEY = 'ciTmtf.v1';
@@ -36,6 +36,10 @@ const FM_OK = fmChoices(PR);                   // 링크(?hz=)로 고를 수 있
 const EAR = { L: '왼쪽', R: '오른쪽', B: '양쪽' };
 const PATH = { speaker: '컴퓨터·휴대폰 스피커', headphone: '이어폰·헤드폰', wired: '선으로 처리기에 연결', bt: '블루투스로 처리기에 연결', other: '그 밖의 방법' };
 const FOCUS = { good: '잘 됨', mid: '보통', bad: '잘 안 됨' };
+const AGE_LBL = { '-19': '10대 이하', '20s': '20대', '30s': '30대', '40s': '40대', '50s': '50대', '60s': '60대', '70+': '70대 이상' };
+const YEARS_LBL = { '<1': '1년이 안 됨', '1-5': '1–5년', '5-10': '5–10년', '10+': '10년 넘음', unknown: '모름' };
+const ONSET_LBL = { pre: '말을 배우기 전', post: '말을 배운 뒤', unknown: '모름' };
+const MAKER_LBL = { cochlear: '코클리어', medel: '메드엘', ab: '어드밴스드 바이오닉스', oticon: '오티콘', todoc: '토닥', other: '그 밖', unknown: '모름' };
 function snapP(P) {
   return { id: P.id, nAFC: P.nAFC, dur: P.dur, isi: P.isi, rampMs: P.rampMs, rampShape: P.rampShape, band: P.band, phase: P.phase, startDb: P.startDb,
     bigUntil: P.bigUntil, big: P.big, small: P.small, totalRev: P.totalRev, avgLast: P.avgLast, ceiling: P.ceiling, rove: P.rove || 0, leadS: LEAD_S, feedback: !!P.feedback };
@@ -826,6 +830,11 @@ function summaryText(sess) {
   return lines.join('\n');
 }
 $('#saveFile').onclick = () => { if (!SHOWN) return; const name = saveFile([SHOWN], 'one'); if (name) $('#sendState').textContent = `저장했습니다: ${name} (다운로드 폴더)`; };
+$('#saveReport').onclick = () => {
+  if (!SHOWN) return;
+  const name = saveSpecialistReport([SHOWN], 'one', null, true);
+  if (name) $('#sendState').textContent = `저장했습니다: ${name} (브라우저에서 열어 인쇄·PDF로 저장해 전문가께 전달할 수 있습니다)`;
+};
 $('#shareFile').onclick = async () => {
   if (!SHOWN) return;
   const name = fileNameFor([SHOWN], 'one'), file = new File([JSON.stringify(exportObj([SHOWN]), null, 1)], name, { type: 'application/json' });
@@ -908,7 +917,411 @@ function viewSessHtml(s, src) {
 }
 function renderViewer() {
   $('#vList').innerHTML = VIEW.sessions.map(x => viewSessHtml(x.s, x.src)).join('');
-  $('#vCsvRuns').disabled = $('#vCsvTrials').disabled = !VIEW.sessions.length;
+  $('#vReport').disabled = $('#vCsvRuns').disabled = $('#vCsvTrials').disabled = !VIEW.sessions.length;
+}
+$('#vReport').onclick = () => {
+  if (!VIEW.sessions.length) return;
+  const name = saveSpecialistReport(VIEW.sessions.map(x => x.s), VIEW.sessions.length > 1 ? 'all' : 'one', VIEW.sessions.map(x => x.src), false);
+  if (name) $('#vState').textContent = `전문가용 보고서를 저장했습니다: ${name}`;
+};
+
+/* ───────────── 전문가용 참고 보고서 (.html, 청능사 · 인공와우 엔지니어 전달용 · 참고용) ───────────── */
+function medianOf(xs) {
+  if (!xs.length) return null;
+  const a = xs.slice().sort((x, y) => x - y), m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+function reportFileNameFor(sessions, kind) {
+  if (kind === 'all' || sessions.length > 1) return `TMTF_report_all_${stamp()}.html`;
+  const s = sessions[0];
+  return `TMTF_report_${asciiCode(s.code)}_${s.ear || 'X'}_${stamp(s.start)}.html`;
+}
+function reportChartSvg(sess) {
+  const rows = byFm(sess.runs || []);
+  if (!rows.length) return '';
+  const W = 680, H = 310, L = 66, R = 64, T = 20, B = 48;
+  const fms = rows.map(x => x.fm), lo = Math.log(Math.min(...fms) / 1.5), hi = Math.log(Math.max(...fms) * 1.5);
+  const allThr = (sess.runs || []).filter(r => r.thr !== null && r.thr !== undefined && !r.ceiling).map(r => r.thr);
+  const minDb = Math.min(-30, Math.floor(Math.min(0, ...allThr) / 6) * 6);
+  const x = f => L + (W - L - R) * (Math.log(f) - lo) / (hi - lo || 1);
+  const y = d => T + (H - T - B) * (1 - d / minDb);
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="주파수별 변조 탐지 역치(TMTF) 그래프">`;
+  for (let d = 0; d >= minDb; d -= 6) {
+    const yy = y(d);
+    s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/>`;
+    s += `<text class="tick" x="${L - 8}" y="${yy + 4}" text-anchor="end">${d} dB</text>`;
+    s += `<text class="tick" x="${W - R + 8}" y="${yy + 4}" text-anchor="start">${esc(fmtPct(pct(d)))}</text>`;
+  }
+  for (const f of fms) {
+    const xx = x(f);
+    s += `<line class="grid" x1="${xx}" x2="${xx}" y1="${T}" y2="${H - B}"/>`;
+    s += `<text class="tick" x="${xx}" y="${H - B + 18}" text-anchor="middle">${f}</text>`;
+  }
+  s += `<text class="axl" x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle">변조 주파수 (Hz, 로그 척도)</text>`;
+  s += `<text class="axl" x="14" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(-90 14 ${(T + H - B) / 2})">변조 깊이 (dB)</text>`;
+  s += `<text class="axl" x="${W - 12}" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(90 ${W - 12} ${(T + H - B) / 2})">변조 깊이 (%)</text>`;
+  const pts = [];
+  for (const { fm, rs } of rows) {
+    const norm = rs.filter(r => !r.ceiling && r.thr !== null && r.thr !== undefined && !r.atChance && !r.incomplete);
+    const prov = rs.filter(r => !r.ceiling && r.thr !== null && r.thr !== undefined && (r.atChance || r.incomplete));
+    for (const r of norm) s += `<circle class="pt2" cx="${x(fm)}" cy="${y(r.thr)}" r="5"/>`;
+    for (const r of prov) s += `<circle class="pt-ref" cx="${x(fm)}" cy="${y(r.thr)}" r="5"/>`;
+    if (norm.length && norm.length === rs.length) pts.push([x(fm), y(meanOf(norm.map(r => r.thr)))]);
+    if (rs.some(r => r.ceiling || r.thr === null || r.thr === undefined)) {
+      const cx = x(fm), cy = y(0) - 2;
+      s += `<path class="ceil" d="M${cx - 8},${cy - 12} L${cx + 8},${cy - 12} L${cx},${cy} Z"/>`;
+    }
+  }
+  if (pts.length > 1) s += `<polyline class="ln" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
+  for (const p of pts) s += `<circle class="pt" cx="${p[0]}" cy="${p[1]}" r="6"/>`;
+  return s + '</svg><p class="cap">위로 갈수록 약한 변조까지 탐지(높은 민감도). 빈 원(○): 정상 개별 측정 · 점선 원: 참고값(우연 수준/미완) · 채운 원(●) 및 연결선: 정상 측정 대표값(2회 이상 평균, 1회 측정은 잠정 참고값) · ▽: 재지 못함(평균 제외).</p>';
+}
+function reportRunBadge(r) {
+  if (r.ceiling || r.thr === null || r.thr === undefined) return '<span class="badge bad">재지 못함</span>';
+  if (r.atChance) return '<span class="badge warn">우연 수준 (참고값)</span>';
+  if (r.incomplete) return '<span class="badge warn">미완 (참고값)</span>';
+  return '<span class="badge ok">정상</span>';
+}
+function reportSessionHtml(s, src, idx, total) {
+  const runs = (s.runs || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+  const P = s.P || snapP(PR);
+  const rows = byFm(runs);
+  const evs = s.events || [];
+  const prTr = s.practiceTrials || [];
+  const prRight = prTr.filter(t => t.c && !t.u).length;
+  const prDunno = prTr.filter(t => t.u).length;
+  const durMin = s.start && s.end ? ((Date.parse(s.end) - Date.parse(s.start)) / 60000) : null;
+  const info = s.info || {};
+  const vs = s.build?.verified?.status, df = s.build?.differ;
+  const buildStatus = vs ? (VERIFIED_TXT[vs] || vs) : (s.build?.sha256 ? '검산 기록과 다른 코드' : '확인 불가(로컬 file:// 등)');
+  const bandTxt = P.band?.type === 'wide' ? '광대역 가우스 잡음 (20 Hz – fs/2, 구간마다 독립 재추출)' : `대역 제한 잡음 (${esc(JSON.stringify(P.band))})`;
+  const rampTxt = `${P.rampMs ?? 10} ms ${P.rampShape === 'cos2' ? '코사인²(cos²)' : '직선(linear)'} 경사`;
+  const phaseTxt = P.phase === 'random' ? '구간마다 [0, 2π) 균등 무작위 (Shen & Richards 2013)' : esc(P.phase || '0');
+  const ceilTxt = P.ceiling === 'stop4' ? '0 dB에서 4회 오답 시 즉시 중단(재지 못함, 숫자 아님 · De Ruiter et al. 2015)' : esc(P.ceiling || '없음');
+  const pathTxt = (PATH[s.path] || s.path || '미입력') + (s.path === 'bt' ? ' (주의: 블루투스 스트리밍 특성상 자극 앞부분 잘림 가능)' : '');
+
+  // 1. 주파수별 요약 표 (재지 못함은 절대 0 dB로 평균 내지 않음)
+  const maxN = rows.length ? Math.max(...rows.map(x => x.rs.length)) : 0;
+  const sumTable = !rows.length ? '<p class="muted">완료된 측정이 없습니다.</p>' : (() => {
+    const head = `<tr><th>변조 주파수</th>${Array.from({ length: maxN }, (_, i) => `<th>${i + 1}차 측정</th>`).join('')}<th>대표값 (평균)</th></tr>`;
+    const body = rows.map(({ fm, rs }) => {
+      const cells = Array.from({ length: maxN }, (_, i) => {
+        const r = rs[i];
+        if (!r) return '<td class="muted">—</td>';
+        if (r.ceiling || r.thr === null || r.thr === undefined) {
+          const reason = r.ceiling ? (r.n0 >= 6 && !r.atChance ? '0 dB 4오답 중단(100% 일부 탐지)' : '0 dB 4오답 중단') : '역치 미산출';
+          return `<td><b>재지 못함</b><small>${esc(reason)}</small></td>`;
+        }
+        const tag = r.atChance ? ' · 우연 수준(참고값)' : r.incomplete ? ' · 미완(참고값)' : '';
+        return `<td><b>${r.thr.toFixed(2)} dB</b> (${esc(fmtPct(pct(r.thr)))})<small>SD ${r.sd !== null && r.sd !== undefined ? r.sd.toFixed(2) + ' dB' : '—'}${tag}</small></td>`;
+      }).join('');
+      const norm = rs.filter(r => !r.ceiling && r.thr !== null && r.thr !== undefined && !r.atChance && !r.incomplete).map(r => r.thr);
+      let rep = '<span class="muted">산출 불가</span>';
+      if (norm.length >= 2 && norm.length === rs.length) {
+        const m = meanOf(norm), diff = Math.max(...norm) - Math.min(...norm);
+        rep = `<b>${m.toFixed(2)} dB</b> (${esc(fmtPct(pct(m)))})<small>${norm.length}회 평균 · 범위차 ${diff.toFixed(2)} dB</small>`;
+      } else if (norm.length === 1 && rs.length === 1) {
+        rep = `${norm[0].toFixed(2)} dB (${esc(fmtPct(pct(norm[0])))})<small>1회 측정 · 잠정 참고값</small>`;
+      } else if (rs.some(r => r.ceiling || r.thr === null || r.thr === undefined)) {
+        rep = '<span class="muted">평균 제외 (‘재지 못함’ 포함)</span>';
+      } else {
+        rep = '<span class="muted">참고값만 존재 (평균 제외)</span>';
+      }
+      return `<tr><td class="num"><b>${fm} Hz</b></td>${cells}<td>${rep}</td></tr>`;
+    }).join('');
+    return `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  })();
+
+  // 2. 측정(Run)별 상세 표 + 품질 지표 집계
+  let rpPass = 0, worstRms = 0, scaledN = 0, lateN = 0, earlySum = 0;
+  const drifts = [], rpBadList = [];
+  const runRows = runs.map(r => {
+    const rp = replayCheck(r, r.P || P), rm = rmsCheck(r);
+    if (rp.ok) rpPass++; else rpBadList.push(`#${r.order}(${r.fm}Hz): ${rp.why}`);
+    worstRms = Math.max(worstRms, rm.worst || 0);
+    scaledN += rm.scaled || 0;
+    const tr = r.trials || [];
+    const chosen = tr.filter(t => !t.u);
+    for (const t of tr) {
+      if (typeof t.drift === 'number' && isFinite(t.drift)) drifts.push(t.drift);
+      if (t.late) lateN++;
+      earlySum += t.early || 0;
+    }
+    const pos = [0, 1, 2].map(k => { const tt = chosen.filter(t => t.tg === k); return tt.length ? `${tt.filter(t => t.c).length}/${tt.length}` : '-'; }).join(' · ');
+    const rtMed = medianOf(chosen.map(t => t.rt).filter(v => typeof v === 'number' && isFinite(v)));
+    const dunnoPct = r.nTrials ? ((100 * (r.nDunno || 0)) / r.nTrials).toFixed(0) + '%' : '0%';
+    const thrCell = r.ceiling || r.thr === null || r.thr === undefined ? '재지 못함' : `${r.thr.toFixed(2)} dB (${esc(fmtPct(pct(r.thr)))})`;
+    const pTxt = r.pChance !== null && r.pChance !== undefined ? ` (p=${(+r.pChance).toFixed(3)})` : '';
+    return `<tr><td class="num">${r.order ?? ''}</td><td class="num">${r.round || 1}${r.extra ? '+' : ''}</td><td class="num"><b>${r.fm}</b></td>
+      <td class="num"><b>${thrCell}</b></td><td class="num">${r.sd !== null && r.sd !== undefined ? r.sd.toFixed(2) : '—'}</td>
+      <td>${reportRunBadge(r)}</td><td class="num">${r.k0 ?? 0}/${r.n0 ?? 0}${pTxt}</td><td class="num">${r.nTrials ?? tr.length}</td>
+      <td class="num">${r.nDunno ?? 0} (${dunnoPct})</td><td class="num">${rtMed !== null ? Math.round(rtMed) : '—'}</td>
+      <td class="num">${r.durS !== undefined ? (r.durS / 60).toFixed(1) : '—'}</td><td class="num">${r.breakBeforeS !== null && r.breakBeforeS !== undefined ? r.breakBeforeS.toFixed(0) : '—'}</td>
+      <td class="num">${pos}</td></tr>`;
+  }).join('');
+
+  // 3. 계단 궤적 그림 + 반전 깊이 목록
+  const stairFigs = runs.map(r => {
+    const rev = r.reversals || [], avgLast = (r.P || P).avgLast || 10;
+    const revTxt = rev.length ? rev.map((d, i) => i >= rev.length - avgLast && !r.ceiling ? `<b>${d}</b>` : String(d)).join(', ') : '없음';
+    const thrLbl = r.ceiling || r.thr === null || r.thr === undefined ? '재지 못함' : `${r.thr.toFixed(2)} dB (${fmtPct(pct(r.thr))})`;
+    return `<figure>${stairSvg(r)}<figcaption><b>#${r.order} · ${r.fm} Hz · ${r.round || 1}바퀴${r.extra ? '(추가)' : ''}</b> — ${esc(thrLbl)}${r.sd !== null && r.sd !== undefined ? ` · SD ${r.sd.toFixed(2)} dB` : ''}<br><span class="muted">반전(${rev.length}회, 굵은 값=평균 사용): ${revTxt}</span></figcaption></figure>`;
+  }).join('');
+
+  // 4. 품질 · 무결성 요약
+  const abEvs = evs.filter(e => e.type === 'track-abandoned');
+  const gapStarts = evs.filter(e => e.type === 'keep-gap-start');
+  const gapEnds = evs.filter(e => e.type === 'keep-gap-end');
+  const hidN = evs.filter(e => e.type === 'hidden').length;
+  const voidN = evs.filter(e => e.type === 'trial-void').length;
+  const driftMed = medianOf(drifts), driftMax = drifts.length ? Math.max(...drifts.map(x => Math.abs(x))) : null;
+  const gapDetail = gapStarts.length ? gapStarts.map((g, i) => `${localTime(g.from)} (${g.why || '원인 미상'}${gapEnds[i]?.durS !== undefined ? `, ${gapEnds[i].durS}s` : ''})`).join('; ') : '없음';
+  const abDetail = abEvs.length ? abEvs.map(a => `${a.fm} Hz (${a.stopVia || '중단'}, ${a.trialList?.length ?? 0}시행, 당시 깊이 ${a.depthNow ?? '?'} dB)`).join('; ') : '없음';
+  const noiseList = s.setup?.noise || [], demoList = s.setup?.demo || [];
+  const noiseTxt = noiseList.length ? `${noiseList.length}회 (RMS ${noiseList.map(x => x.rmsDb + ' dBFS').join(', ')})` : '0회';
+  const demoTxt = demoList.length ? `${demoList.length}회 (떨림 ${demoList.filter(x => x.kind === 'mod').length} · 비떨림 ${demoList.filter(x => x.kind === 'flat').length})` : '0회';
+
+  // 5. 시행별 원시 기록표 (접이식)
+  const rawDetails = runs.map(r => {
+    const tr = r.trials || [], revAt = r.revAt || [], nRev = revAt.length;
+    const nUse = r.ceiling || r.thr === null || r.thr === undefined ? 0 : Math.min((r.P || P).avgLast || 10, nRev);
+    const tRows = tr.map((t, i) => {
+      const ri = revAt.indexOf(i);
+      const revMark = ri < 0 ? '' : `${ri + 1}${ri + 1 > nRev - nUse ? ' (사용)' : ''}`;
+      const flags = [];
+      if (t.early) flags.push(`이른입력 ${t.early}`);
+      if (t.hid) flags.push('가려짐');
+      if (t.rep) flags.push(`재제시 ${t.rep}`);
+      if (t.late) flags.push('예약늦음');
+      if (t.kGap) flags.push('출력끊김중');
+      if (t.scaled) flags.push('피크감쇠');
+      const ansTxt = t.a !== undefined && t.a !== null ? `${t.a + 1}${t.u ? ' (난수)' : ''}` : '—';
+      return `<tr><td class="num">${i + 1}</td><td class="num">${t.d}</td><td class="num">${t.tg !== undefined ? t.tg + 1 : '—'}</td><td class="num">${ansTxt}</td>
+        <td>${t.c ? '<span class="good">맞음</span>' : '<span class="bad">틀림</span>'}</td><td class="num">${t.u ? '예' : ''}</td>
+        <td>${esc(t.inp || '')}</td><td class="num">${t.rt ?? '—'}</td><td class="num">${esc((t.rms || []).join(' / '))}</td>
+        <td class="num">${esc((t.pk || []).join(' / '))}</td><td class="num">${revMark}</td><td>${esc(flags.join(', '))}</td></tr>`;
+    }).join('');
+    return `<details class="raw"><summary>#${r.order} · ${r.fm} Hz (${r.round || 1}바퀴${r.extra ? ' 추가' : ''}) — 전체 시행 ${tr.length}건 펼쳐 보기</summary>
+      <div class="tw"><table class="dense"><thead><tr><th>#</th><th>깊이(dB)</th><th>정답</th><th>답</th><th>정오</th><th>모르겠음</th><th>입력</th><th>반응(ms)</th><th>구간 RMS(dBFS)</th><th>봉우리(dBFS)</th><th>반전</th><th>특이사항</th></tr></thead><tbody>${tRows}</tbody></table></div></details>`;
+  }).join('');
+
+  return `<article class="sess">
+    ${total > 1 ? `<div class="sess-tag">회기 ${idx + 1} / ${total}${src ? ` · 출처: ${esc(src)}` : ''}</div>` : ''}
+    <section class="sec">
+      <h2>1. 회기 · 대상자 · 청취 환경 정보</h2>
+      <div class="kv-grid">
+        <table class="kv"><tbody>
+          <tr><th>참가 번호</th><td>${esc(s.code || '미입력 (익명)')}</td></tr>
+          <tr><th>검사 귀</th><td>${esc(EAR[s.ear] || s.ear || '미입력')}</td></tr>
+          <tr><th>소리 전달 경로</th><td>${esc(pathTxt)}</td></tr>
+          <tr><th>기기 볼륨 기록값</th><td>${s.osVolume !== null && s.osVolume !== undefined ? esc(String(s.osVolume)) : '미기록'}</td></tr>
+          <tr><th>검사 일시</th><td>${esc(localTime(s.start))} – ${s.end ? esc(localTime(s.end)) : '종료 미기록'}${durMin !== null && isFinite(durMin) ? ` (약 ${durMin.toFixed(1)}분)` : ''}</td></tr>
+          <tr><th>종료 사유</th><td>${esc(s.endReason || '미기록')}</td></tr>
+          <tr><th>계획 변조 주파수</th><td>${esc((s.fmsPlan || []).join(' · '))} Hz (${(s.rounds || []).length}바퀴)</td></tr>
+          <tr><th>검사 후 집중도 자기보고</th><td>${s.focusEnd ? esc(FOCUS[s.focusEnd] || s.focusEnd) : '미선택'}</td></tr>
+        </tbody></table>
+        <table class="kv"><tbody>
+          <tr><th>나이대 (선택)</th><td>${esc(AGE_LBL[info.age] || info.age || '미입력')}</td></tr>
+          <tr><th>해당 귀 인공와우 사용 기간</th><td>${esc(YEARS_LBL[info.ciYears] || info.ciYears || '미입력')}</td></tr>
+          <tr><th>난청 시작 시기</th><td>${esc(ONSET_LBL[info.onset] || info.onset || '미입력')}</td></tr>
+          <tr><th>처리기 제조사</th><td>${esc(MAKER_LBL[info.maker] || info.maker || '미입력')}</td></tr>
+          <tr><th>참가자 메모</th><td>${esc(info.note || '없음')}</td></tr>
+          <tr><th>오디오 환경</th><td>표본화 ${s.env?.audio?.sampleRate ?? '?'} Hz · baseLatency ${s.env?.audio?.baseLatencyMs ?? '?'} ms · outputLatency ${s.env?.audio?.outputLatencyMs ?? '?'} ms</td></tr>
+          <tr><th>준비 · 연습 기록</th><td>기준 잡음 ${esc(noiseTxt)} · 데모 ${esc(demoTxt)} · 연습 ${prTr.length}시행 (직접 맞힘 ${prRight}, 모르겠음 ${prDunno}, ${s.practiceRounds || 0}회차)</td></tr>
+          <tr><th>브라우저 · 화면</th><td>${esc(s.env?.platform || '')} · 화면 ${esc(s.env?.screen || '')} · 창 ${esc(s.env?.window || '')}</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>2. 주파수별 종합 결과 (TMTF 요약 및 곡선)</h2>
+      <div class="tw">${sumTable}</div>
+      ${reportChartSvg(s)}
+    </section>
+
+    <section class="sec">
+      <h2>3. 측정(Run)별 상세 결과 및 계단 궤적</h2>
+      ${runs.length ? `<div class="tw"><table class="dense"><thead><tr><th>#</th><th>바퀴</th><th>Hz</th><th>역치 (dB / %)</th><th>SD</th><th>판정</th><th>0 dB 맞힘</th><th>시행</th><th>모르겠음</th><th>반응(ms)</th><th>분</th><th>휴식(s)</th><th>자리별 맞힘 1·2·3 (모르겠음 제외)</th></tr></thead><tbody>${runRows}</tbody></table></div>
+      <p class="cap">반응(ms): 직접 고른 답(모르겠음 제외) 반응시간 중앙값 · 자리별 맞힘 1·2·3: 모르겠음 시행을 제외한 구간별 정답/출현 수.</p>
+      <div class="stairs">${stairFigs}</div>` : '<p class="muted">완료된 측정이 없습니다.</p>'}
+    </section>
+
+    <section class="sec">
+      <h2>4. 자극(Stimulus) 및 적응 계단(Staircase) 기술 명세</h2>
+      <div class="kv-grid">
+        <table class="kv"><tbody>
+          <tr><th colspan="2" class="subh">자극 생성 명세 (Stimulus)</th></tr>
+          <tr><th>과제 구조</th><td>${P.nAFC ?? 3}구간 강제선택 (${P.nAFC ?? 3}AFC oddity)</td></tr>
+          <tr><th>구간 길이 · 쉼(ISI)</th><td>구간 ${P.dur ?? 0.5} s × ${P.nAFC ?? 3}, 구간 간 쉼 ${P.isi ?? 0.5} s, 첫 구간 앞 무음(lead) ${P.leadS ?? LEAD_S} s</td></tr>
+          <tr><th>반송파</th><td>${bandTxt}</td></tr>
+          <tr><th>변조 수식 (SAM)</th><td>s(t) = [1 + m·sin(2π·fm·t + φ)]·n(t), m = 10^(D/20) (D: dB, 0 dB = 100%)</td></tr>
+          <tr><th>변조 시작 위상 φ</th><td>${phaseTxt}</td></tr>
+          <tr><th>켜짐 · 꺼짐 경사</th><td>${rampTxt}</td></tr>
+          <tr><th>구간 음압(RMS) 맞춤</th><td>경사 적용 후 구간별 RMS = 0.05 (−26.02 dBFS) 정확 정규화 · 레벨 흔들기(roving) ±${P.rove ?? 0} dB</td></tr>
+          <tr><th>자극 재현성</th><td>구간별 32비트 잡음 씨앗(mulberry32) 및 위상 기록 → 파형 사후 재현 가능</td></tr>
+          <tr><th>조건 식별 키 (procKey)</th><td class="mono">${esc(s.procKey || PROC_KEY)}</td></tr>
+        </tbody></table>
+        <table class="kv"><tbody>
+          <tr><th colspan="2" class="subh">적응 계단 · 채점 · 반복 규칙 (Staircase)</th></tr>
+          <tr><th>적응 절차</th><td>2-down 1-up (70.7% 정답률 지점 추적 · Levitt 1971)</td></tr>
+          <tr><th>시작 깊이 · 범위</th><td>${P.startDb ?? 0} dB (100%) 시작 · 허용 범위 −40 ~ 0 dB</td></tr>
+          <tr><th>보폭 (Step size)</th><td>초기 ${P.bigUntil ?? 4}회 반전까지 ${P.big ?? 4} dB, 이후 ${P.small ?? 2} dB (Won et al. 2011)</td></tr>
+          <tr><th>종료 · 역치 산출</th><td>총 ${P.totalRev ?? 14}회 반전 완료 시 종료 · 마지막 ${P.avgLast ?? 10}회 반전 깊이 산술 평균(dB) 및 SD · 최대 160시행(초과 시 미완)</td></tr>
+          <tr><th>천장(재지 못함) 규칙</th><td>${ceilTxt}</td></tr>
+          <tr><th>우연 수준 검정</th><td>0 dB 시행 수 n0 ≥ 6일 때 단측 이항검정 P(X ≥ k0 | n0, 1/${P.nAFC ?? 3}) &gt; 0.05이면 참고값(우연 수준) 표시</td></tr>
+          <tr><th>‘모르겠음’ 처리</th><td>3구간 중 균등 무작위 1개 선택(치우침 없는 찍기, p = 1/3) · 시행별 u=1 기록 · 자리별 맞힘 분석 제외</td></tr>
+          <tr><th>반복 · 3차 추가 규칙</th><td>전 주파수 무작위 1바퀴 → 선택 2바퀴 → 정상 두 값 차 &gt; 3 dB 주파수만 3차 추가 제안 (Park et al. 2015)</td></tr>
+          <tr><th>피드백</th><td>${P.feedback === false ? '없음' : '시행마다 시각 피드백 제공 (맞음 · 틀림 · 모르겠음 구분 표시)'}</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>5. 데이터 품질 · 신뢰도 · 코드 무결성 점검</h2>
+      <table class="kv"><tbody>
+        <tr><th>계단 사후 재계산 (replayCheck)</th><td>${runs.length ? (rpPass === runs.length ? `<span class="good">전체 ${rpPass}/${runs.length}개 측정 일치</span> (기록된 정오열로 계단 깊이·반전·역치·중단 완전 재현)` : `<span class="bad">일치 ${rpPass}/${runs.length}</span> — 불일치: ${esc(rpBadList.join('; '))}`) : '측정 없음'}</td></tr>
+        <tr><th>구간 음압(RMS) 정합성</th><td>${runs.length ? (worstRms <= 0.1 && !scaledN ? `<span class="good">정상</span> (최대 구간 간 RMS 차 ${worstRms.toFixed(3)} dB, 피크 감쇠 0건)` : `<span class="bad">확인 필요</span> (최대 RMS 차 ${worstRms.toFixed(3)} dB, 피크 감쇠 ${scaledN}건)`) : '측정 없음'}</td></tr>
+        <tr><th>오디오 출력 연속성 (1초 감시)</th><td>${gapStarts.length ? `<span class="bad">출력 끊김/시계 이탈 ${gapStarts.length}건</span> — ${esc(gapDetail)}` : `<span class="good">끊김 없음</span> (폴링 ${s.keepMonitor?.polls ?? '—'}회 중 정상 ${s.keepMonitor?.ok ?? '—'} · 재생중 ${s.keepMonitor?.buffer ?? '—'})`}</td></tr>
+        <tr><th>타이밍 · 행동 품질</th><td>불빛-소리 어긋남(drift): ${driftMed !== null ? `중앙 ${Math.round(driftMed)} ms, 최대 |${Math.round(driftMax)}| ms` : '기록 없음'} · 예약 지연(late): ${lateN}건 · 이른 입력(early): ${earlySum}회 · 화면 가려짐: ${hidN}회 (재제시 ${voidN}시행)</td></tr>
+        <tr><th>중간 중단 · 버린 측정</th><td>${abEvs.length ? `${abEvs.length}건 — ${esc(abDetail)}` : '없음'}</td></tr>
+        <tr><th>앱 판 · 코드 무결성 (build)</th><td>앱 ${esc(s.app || '')} · <b>${esc(buildStatus)}</b>${df && df.length ? ` · 화면≠서버 파일: ${esc(df.join(', '))}` : ''}<br><span class="mono muted">SHA-256: ${esc(s.build?.sha256 || '미기록')} (자극·계단 코드는 독립 Python 기준 구현 및 Lean 4 형식 증명으로 6단계 검증됨)</span></td></tr>
+      </tbody></table>
+    </section>
+
+    <section class="sec">
+      <h2>6. 측정별 전체 시행 원시 기록 (상세 검토용)</h2>
+      ${runs.length ? rawDetails : '<p class="muted">시행 기록이 없습니다.</p>'}
+    </section>
+  </article>`;
+}
+function specialistReportHtml(sessions, srcs = null) {
+  const body = sessions.map((s, i) => reportSessionHtml(s, srcs ? srcs[i] : null, i, sessions.length)).join('');
+  const titleCode = sessions.length === 1 ? (sessions[0].code || '익명') : `${sessions.length}개 회기`;
+  return `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>소리 떨림 검사 (TMTF) 전문가 참고 보고서 — ${esc(titleCode)}</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f5f7fa;color:#111827;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.55;word-break:keep-all}
+.bar{position:sticky;top:0;z-index:10;background:#ffffff;border-bottom:1px solid #d9e0ea;padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.bar .meta{font-size:12.5px;color:#526072}
+.bar .btns{display:flex;gap:8px;flex-wrap:wrap}
+.bar button{font-family:inherit;font-size:13px;font-weight:700;padding:8px 14px;border-radius:8px;border:1px solid #cbd5e1;background:#ffffff;color:#111827;cursor:pointer}
+.bar button.pri{background:#1366d6;border-color:#1366d6;color:#ffffff}
+.sheet{max-width:960px;margin:20px auto 48px;background:#ffffff;border:1px solid #d9e0ea;border-radius:14px;padding:28px 32px;box-shadow:0 4px 16px rgba(15,23,42,.05)}
+.head{border-bottom:2px solid #111827;padding-bottom:14px;margin-bottom:16px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px}
+.head h1{margin:0;font-size:22px;letter-spacing:-.02em}
+.head .sub{margin:4px 0 0;font-size:13px;color:#526072}
+.head .stamp{font-size:12px;color:#526072;text-align:right;font-variant-numeric:tabular-nums}
+.notice{background:#fff8e6;border:1px solid #e6b85c;border-left:4px solid #c97a00;border-radius:8px;padding:12px 15px;margin-bottom:20px;font-size:13px;color:#4a2e00}
+.notice strong{display:block;font-size:14px;margin-bottom:4px;color:#7c4700}
+.notice ul{margin:4px 0 0;padding-left:18px}
+.notice li{margin:2px 0}
+.sess{margin-top:22px}
+.sess + .sess{border-top:3px solid #111827;padding-top:22px;page-break-before:always}
+.sess-tag{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:#eef2f7;color:#334155;margin-bottom:10px}
+.sec{margin-bottom:22px;break-inside:avoid-page}
+h2{margin:0 0 10px;font-size:15.5px;letter-spacing:-.015em;padding-bottom:5px;border-bottom:1px solid #e2e8f0;color:#0f172a}
+.kv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{border:1px solid #e2e8f0;padding:6px 8px;text-align:left;vertical-align:top}
+thead th{background:#f8fafc;color:#334155;font-weight:700;white-space:nowrap}
+table.kv th{width:34%;background:#f8fafc;color:#334155;font-weight:600}
+table.kv th.subh{width:auto;background:#eef2f7;color:#0f172a;font-weight:700}
+table.dense{font-size:11.5px}
+table.dense th,table.dense td{padding:5px 5px;white-space:nowrap}
+table.dense thead th{white-space:normal;line-height:1.25}
+td.num{text-align:right;white-space:nowrap}
+td small{display:block;color:#526072;font-size:11.5px;margin-top:2px}
+.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11.5px;word-break:break-all}
+.muted{color:#64748b}
+.good{color:#0e7a48;font-weight:700}
+.bad{color:#c92a2a;font-weight:700}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge.ok{background:#ecfdf3;color:#0e7a48;border:1px solid #a7f3d0}
+.badge.warn{background:#fff9eb;color:#92400e;border:1px solid #fcd34d}
+.badge.bad{background:#fff1f2;color:#b91c1c;border:1px solid #fecdd3}
+svg.chart{width:100%;height:auto;display:block;margin-top:12px;background:#ffffff}
+.chart .grid{stroke:#e2e8f0;stroke-width:1;stroke-dasharray:2 3}
+.chart .tick{fill:#475569;font-size:11.5px;font-variant-numeric:tabular-nums}
+.chart .axl{fill:#1e293b;font-size:12px;font-weight:700}
+.chart .ln{fill:none;stroke:#1366d6;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.chart .pt{fill:#1366d6;stroke:#ffffff;stroke-width:1.8}
+.chart .pt2{fill:#ffffff;stroke:#1366d6;stroke-width:2.2}
+.chart .pt-ref{fill:#ffffff;stroke:#b45309;stroke-width:2;stroke-dasharray:3 2}
+.chart .ceil{fill:none;stroke:#c92a2a;stroke-width:2.2;stroke-linejoin:round}
+.chart .stair{fill:none;stroke:#64748b;stroke-width:1.5;stroke-linejoin:round}
+.chart .c1{fill:#0e7a48}
+.chart .c0{fill:#ffffff;stroke:#c92a2a;stroke-width:1.5}
+.chart .rv{fill:none;stroke:#1366d6;stroke-width:1.5}
+.chart .thr{stroke:#1366d6;stroke-width:1.5;stroke-dasharray:5 4}
+.cap{margin:6px 0 0;font-size:12px;color:#526072}
+.stairs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.stairs figure{margin:0;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fafbfd;break-inside:avoid}
+.stairs svg.chart{margin-top:0;background:transparent}
+.stairs figcaption{font-size:11.5px;color:#334155;margin-top:4px;line-height:1.45;font-variant-numeric:tabular-nums}
+details.raw{border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;margin:8px 0;background:#fafbfd}
+details.raw summary{cursor:pointer;font-weight:700;font-size:12.5px;color:#1e293b;padding:2px 0}
+details.raw .tw{margin-top:8px}
+.foot{margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:11.5px;color:#64748b}
+@media (max-width:740px){.sheet{margin:0;border:none;border-radius:0;padding:18px 14px}.kv-grid,.stairs{grid-template-columns:1fr}}
+@media print{
+  @page{size:A4;margin:12mm}
+  body{background:#ffffff;font-size:11.5px}
+  .bar{display:none}
+  .sheet{max-width:none;margin:0;padding:0;border:none;box-shadow:none}
+  .notice{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .badge,.good,.bad,svg.chart{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="meta">전문가(청능사 · 인공와우 엔지니어) 전달용 참고 보고서 · 외부 전송 없는 오프라인 문서</span>
+  <div class="btns">
+    <button type="button" onclick="const ds=[...document.querySelectorAll('details.raw')];const o=ds.some(d=>!d.open);ds.forEach(d=>d.open=o)">시행 원시표 모두 펼치기/접기</button>
+    <button type="button" class="pri" onclick="window.print()">인쇄 / PDF 저장</button>
+  </div>
+</div>
+<main class="sheet">
+  <header class="head">
+    <div>
+      <h1>소리 떨림 검사 (TMTF) 전문가 참고 보고서</h1>
+      <p class="sub">Temporal Modulation Transfer Function · 청능사 · 인공와우 엔지니어 참고용</p>
+    </div>
+    <div class="stamp">문서 생성: ${esc(localTime(iso()))}<br>앱 판: ${esc(APP_VERSION)}</div>
+  </header>
+  <aside class="notice">
+    <strong>참고용 고지 — 진단 도구가 아닙니다</strong>
+    <ul>
+      <li>본 보고서는 <b>임상·연구 참고용</b>이며 의학적 진단 도구가 아닙니다. 인공와우 맵(MAP) 변경 및 임상 결정은 청능사의 표준 검사와 종합 평가로 판단해야 합니다.</li>
+      <li>결과는 <b>청취자 + 인공와우 처리기(프로그램·볼륨·전처리) + 소리 전달 경로 + 재생 기기</b>가 합쳐진 값이며, 제시 음압(dB SPL/dBA)은 보정되지 않은 자가 조절 볼륨 기준입니다.</li>
+      <li>본 절차(3AFC, 광대역 잡음, 0.5 s + ISI 0.5 s, 10 ms 직선 경사, 무작위 위상, Won 규칙 14반전/마지막 10반전, 0 dB 4오답 중단)는 Won et al. (2011), Park et al. (2015), De Ruiter et al. (2015)의 원절차와 다르므로 문헌 수치와 직접 순위 비교하지 마세요.</li>
+      <li>‘재지 못함’은 숫자가 아니므로 평균에 포함하지 않으며, 1회 측정값·‘우연 수준’·‘미완’은 참고 값입니다.</li>
+    </ul>
+  </aside>
+  ${body}
+  <footer class="foot">
+    참고 문헌: Levitt (1971) JASA 49:467 · Viemeister (1979) JASA 66:1364 · Won et al. (2011) JASA 130:376 · Park et al. (2015) JARO 16:389 · De Ruiter et al. (2015) Ear Hear 36:557 · Shen &amp; Richards (2013) JASA · Goehring &amp; Carlyon (2026) AUDITO.<br>
+    이 파일은 참가자 기기에서 로컬로 생성된 독립 HTML 문서이며 외부 네트워크 요청을 포함하지 않습니다. 원시 데이터 재검증(계단·자극 파형 재생성)에는 함께 저장된 .json 결과 파일과 tools/verify_result.py 를 사용하세요.
+  </footer>
+</main>
+</body>
+</html>`;
+}
+function saveSpecialistReport(sessions, kind, srcs = null, recordExport = true) {
+  if (!sessions.length) { alert('저장할 결과가 없습니다.'); return; }
+  const name = reportFileNameFor(sessions, kind);
+  download(name, specialistReportHtml(sessions, srcs), 'text/html;charset=utf-8');
+  if (recordExport) {
+    for (const s of sessions) { (s.exports ||= []).push({ at: iso(), how: kind === 'all' ? 'report-html-all' : 'report-html', name }); }
+    saveStore();
+  }
+  return name;
 }
 $('#vFiles').addEventListener('change', async e => {
   const files = [...(e.target.files || [])];

@@ -284,6 +284,19 @@ globalThis.__scope = (async () => {
       dl[0]?.name];
   });
   if (H.dump && fileObj) H.dump(fileObj);
+  $('#saveReport').click();
+  const repDl = await H.takeDownloads();
+  await tryOk('전문가용 보고서 저장(.html): 참고용·비진단 고지 · 자극·계단 명세 · 결과표 · TMTF/계단 SVG · 무결성 · 원시 시행표 · 외부 요청 없음 · 저장 기록', async () => {
+    const h = repDl[0] ? await repDl[0].blob.text() : '';
+    const okName = repDl.length === 1 && /^TMTF_report_P02_R_\d{4}-\d\d-\d\d_\d\d-\d\d\.html$/.test(repDl[0].name);
+    const hasCore = h.includes('참고용 고지 — 진단 도구가 아닙니다') && h.includes('임상·연구 참고용')
+      && h.includes('광대역 가우스 잡음') && h.includes('−26.02 dBFS') && h.includes('2-down 1-up') && h.includes('70.7%')
+      && h.includes(PROC_KEY) && h.includes('자리별 맞힘 1·2·3 (모르겠음 제외)') && h.includes('계단 사후 재계산 (replayCheck)')
+      && h.includes(H.expectBuild) && h.includes('<svg class="chart"') && h.includes('<details class="raw">')
+      && !/https?:\/\//i.test(h);
+    const logged = sess.exports.some(x => x.how === 'report-html' && x.name === repDl[0]?.name) && $('#sendState').textContent.includes(repDl[0]?.name);
+    return [okName && hasCore && logged, `${repDl[0]?.name} len=${h.length}`];
+  });
   $('#copyText').click();
   await wait(20);
   await tryOk('결과 글 복사: 번호 · 귀 · 주파수마다 값 · 앱 판 · 안내', () => {
@@ -323,6 +336,12 @@ globalThis.__scope = (async () => {
     };
     const h = viewSessHtml(mock, '시험');
     return [h.includes('자리별 맞힘 1·2·3 (모르겠음 제외)') && h.includes('<td>1/1 · 0/1 · -</td>'), h.slice(0, 260)];
+  });
+  $('#vReport').click();
+  const vRep = await H.takeDownloads();
+  await tryOk('받은 결과 보기: 전문가용 보고서 저장 단추 동작 · .html 출력 · 참고용 고지 포함', async () => {
+    const h = vRep[0] ? await vRep[0].blob.text() : '';
+    return [!$('#vReport').disabled && vRep.length === 1 && /^TMTF_report_P02_R_.*\.html$/.test(vRep[0].name) && h.includes('참고용 고지') && $('#vState').textContent.includes(vRep[0].name), vRep[0]?.name || 'none'];
   });
   $('#vCsvRuns').click(); $('#vCsvTrials').click();
   const csvs = await H.takeDownloads();
