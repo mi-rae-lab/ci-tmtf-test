@@ -499,6 +499,27 @@ globalThis.__scope = (async () => {
     return [cspOk && rRemote === 'https://mi-rae-lab.github.io/ci-tmtf-test/?id=P02' && rLocal === null && rLoop === null && rHttps === null && rFile === null && warned && $('#envWarn').hidden && sess.env.secure === true,
       `${cspOk} ${rRemote} ${warned} ${sess.env.secure}`];
   });
+  await tryOk('nextFrame(): 먼저 실행된 쪽이 남은 setTimeout · requestAnimationFrame 을 즉시 해제하고 1회만 호출', () => {
+    const oRaf = requestAnimationFrame, oCaf = cancelAnimationFrame, oSt = setTimeout, oCt = clearTimeout;
+    try {
+      let rafCb = null, stCb = null, clearedT = null, canceledR = null, calls = 0;
+      globalThis.requestAnimationFrame = cb => { rafCb = cb; return 101; };
+      globalThis.cancelAnimationFrame = id => { canceledR = id; };
+      globalThis.setTimeout = cb => { stCb = cb; return 202; };
+      globalThis.clearTimeout = id => { clearedT = id; };
+      nextFrame(() => { calls++; });
+      rafCb(); stCb();
+      const okRaf = calls === 1 && clearedT === 202;
+      rafCb = stCb = clearedT = canceledR = null; calls = 0;
+      nextFrame(() => { calls++; });
+      stCb(); rafCb();
+      const okSt = calls === 1 && canceledR === 101;
+      return [okRaf && okSt, `raf:${okRaf} st:${okSt}`];
+    } finally {
+      globalThis.requestAnimationFrame = oRaf; globalThis.cancelAnimationFrame = oCaf;
+      globalThis.setTimeout = oSt; globalThis.clearTimeout = oCt;
+    }
+  });
   ok('경고창은 새 판 하나뿐(지문만 다른 것은 경고 없음) · 확인 창은 멈춤 둘뿐', H.dialogs.filter(d => d[0] === 'alert').length === 1 && H.dialogs.filter(d => d[0] === 'confirm').length === 2, JSON.stringify(H.dialogs).slice(0, 200));
   clearInterval(KEEPMON_TIMER);
 })();

@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.0.6 (2026-11-24)';   // 1.0.6: 원격 HTTP→HTTPS 자동 전환·비보안 연결 경고, 엄격한 CSP·no-referrer 보안 헤더 적용
+const APP_VERSION = '1.0.7 (2026-11-24)';   // 1.0.7: nextFrame() 미해제 타이머·애니메이션 프레임 즉시 해제 최적화
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const STORE_KEY = 'ciTmtf.v1';
@@ -505,11 +505,18 @@ function nextTrial() {
   };
   nextFrame(frame);
 }
-// 다음 화면 갱신 때 실행 — 브라우저가 화면 갱신을 멈춰도(가려진 창 등) 50 ms 타이머로 이어 감
+// 다음 화면 갱신 때 실행 — 브라우저가 화면 갱신을 멈춰도(가려진 창 등) 50 ms 타이머로 이어 감 (먼저 실행된 쪽이 남은 타이머를 해제)
 function nextFrame(f) {
-  let done = false;
-  const go = () => { if (!done) { done = true; f(); } };
-  requestAnimationFrame(go); setTimeout(go, 50);
+  let done = false, rid = 0, tid = 0;
+  const go = () => {
+    if (done) return;
+    done = true;
+    if (rid) { try { cancelAnimationFrame(rid); } catch { } }
+    if (tid) clearTimeout(tid);
+    f();
+  };
+  rid = requestAnimationFrame(go);
+  if (!done) tid = setTimeout(go, 50);
 }
 function answer(i, dunno, inp) {
   if (!awaiting || !S?.cur) return;
