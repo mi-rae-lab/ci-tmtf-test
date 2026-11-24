@@ -1,17 +1,17 @@
 {
  "last": {
-  "at": "2026-11-24T14:13:31+09:00",
+  "at": "2026-11-24T14:42:09+09:00",
   "ok": true,
-  "seconds": 107.9,
-  "buildSha256": "736ed7d4c3545003720dcccd1e46af1bfb8ce11ea3357acb5c048c54411cb1a6",
+  "seconds": 78.0,
+  "buildSha256": "d29f20023e0f430ebf94b3c9741cc1372b9747d1fb408346ed353c070d89cf0d",
   "buildSame": true,
   "files": {
-   "index.html": "3192220b8e834ee1abbfaea4692326d352660149147a688fe02debefb1077c4f",
-   "style.css": "c3af7318722bd02d92aeb00741b89244e64095aef85321e6e6d8458c5dd18967",
+   "index.html": "9a59de3843dbe1fc93a4e25d2601d4d40f60ee737d49b5cd343b110688be1209",
+   "style.css": "46de78457bbca5edfcd46df2004fcc3d10fcb7408892bf72b881d9f496de0977",
    "js/protocols.js": "6a90fbc0f550518b7303ad4143107688602787e96b12d0686693f557542b243c",
    "js/stim.js": "af01df5b315ac4dafadb1c45bebf2e9bce42bdc4f33bc81fc225289be8dda838",
    "js/track.js": "5e10e37654d0c977eaa34ad994978c765e9756c31666442ea06173c7a3a1f6ba",
-   "js/app.js": "f9977c2a7b5edd975d137e6b6a7ebd4fe90394ef1b2a1d53f55fcd1d1b914253"
+   "js/app.js": "bef7e378d9f5eef34f88b0881984fcd81f86a0b7d96d26f278f0da5ecad1697b"
   },
   "tools": {
    "tools/app_check.js": "e2ab58c599b16848e21a811cdeac479f64bc7833ccb8f9237e1aa0064c9737f8",
@@ -46,46 +46,46 @@
     "no": 1,
     "name": "자극 · 계단 JS = 파이썬 (tools/cross_check.py)",
     "ok": true,
-    "seconds": 7.8,
+    "seconds": 6.9,
     "detail": "자극 750개 (줄임 250개): 최대 차 RMS 2.44e-11 dB · 봉우리 3.55e-15 dB · 표본 0.00e+00 · 합 1.49e-08\r\n계단 210개 (측정 불가 4 · 미완 6): 깊이 · 반전 · 반전 시행 · 역치 · SD · 우연 판정 대조\r\n판정: 통과 — 자극 750개 · 계단 210개 JS = 파이썬"
    },
    {
     "no": 2,
     "name": "화면 코드 점검 (tools/app_check.js)",
     "ok": true,
-    "seconds": 43.1,
+    "seconds": 41.0,
     "detail": "판정: 통과 — 80개 중 80개 통과 (문법 · DOM id · 올리기 · 흐름 · 기록 · 파일)"
    },
    {
     "no": 3,
     "name": "결과 파일 다시 만들기 (tools/verify_result.py)",
     "ok": true,
-    "seconds": 4.2,
-    "detail": "계단: 회기 1개 · 측정 12개 중 12개 같음 · 버린 측정 1개 중 1개 이어짐\r\n자극: 시행 449개 · 구간 1347개 다시 만듦 — 봉우리 최대 차 0.0050 dB (기록 0.01 반올림) · RMS 최대 차 0.00040 dB (0.001 반올림)\r\n판정: 통과 (읽기만 — 파일 1개)"
+    "seconds": 4.1,
+    "detail": "계단: 회기 1개 · 측정 11개 중 11개 같음 · 버린 측정 1개 중 1개 이어짐\r\n자극: 시행 415개 · 구간 1245개 다시 만듦 — 봉우리 최대 차 0.0050 dB (기록 0.01 반올림) · RMS 최대 차 0.00040 dB (0.001 반올림)\r\n판정: 통과 (읽기만 — 파일 1개)"
    },
    {
     "no": 4,
     "name": "Lean 4 빌드 (tools/lean, 처음부터)",
     "ok": true,
-    "seconds": 22.2,
+    "seconds": 9.0,
     "detail": "Build completed successfully (27 jobs)."
    },
    {
     "no": 5,
     "name": "Lean 공리 감사 (MyAudit.lean)",
     "ok": true,
-    "seconds": 27.2,
+    "seconds": 13.4,
     "detail": "SUMMARY consts=396 theorems=287 axiomDecls=0 others=109 · UNION Classical.choice,Quot.sound,propext · NONSTANDARD 0"
    },
    {
     "no": 6,
     "name": "JS ↔ Lean 대조 (cross_check.js · crosscheck)",
     "ok": true,
-    "seconds": 3.4,
+    "seconds": 3.3,
     "detail": "RNG      307/307 · RAMP     120/120 · BINS     60/60 · SPEC     12/12 · GAIN     140/140 · FLAT     8/8 · DUR      30/30 · GRID     1/1 · CHOICES  3/3 · PAPER    2/2 · TRACK    360/360 · PV       131/131 · 허용 오차 안 가장 큰 상대 차: PV 8.55e-16 (허용 1e-9) · GAIN 8.42e-7 (허용 0.00002) · 변조 RNG      잡음 · 판정: 통과"
    }
   ],
-  "appVersion": "1.0.1 (2026-11-24)"
+  "appVersion": "1.0.2 (2026-11-24)"
  },
  "history": [
   {
@@ -99,6 +99,12 @@
    "buildSha256": "736ed7d4c3545003720dcccd1e46af1bfb8ce11ea3357acb5c048c54411cb1a6",
    "appVersion": "1.0.1 (2026-11-24)",
    "seconds": 107.9
+  },
+  {
+   "at": "2026-11-24T14:42:09+09:00",
+   "buildSha256": "d29f20023e0f430ebf94b3c9741cc1372b9747d1fb408346ed353c070d89cf0d",
+   "appVersion": "1.0.2 (2026-11-24)",
+   "seconds": 78.0
   }
  ]
 }

@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <meta name="description" content="인공와우 사용자를 위한 소리 떨림 검사 (시간 변조 탐지, TMTF)">
 <title>소리 떨림 검사</title>
-<link rel="stylesheet" href="style.css?v=1.0.1">
+<link rel="stylesheet" href="style.css?v=1.0.2">
 </head>
 <body>
 <header class="top">
@@ -49,8 +50,13 @@
 
 <!-- ───────────── 준비 ───────────── -->
 <section id="pgSetup" class="page">
+  <ol class="steps" aria-label="진행 순서">
+    <li class="on" aria-current="step"><span class="dot">1</span>준비</li>
+    <li><span class="dot">2</span>소리 맞추기</li>
+    <li><span class="dot">3</span>연습 · 검사</li>
+  </ol>
   <div class="card">
-    <h2>1. 어느 쪽 귀로 듣나요?</h2>
+    <h2><span class="qnum">1</span> 어느 쪽 귀로 듣나요?</h2>
     <div class="choices three" id="earPick" role="group" aria-label="듣는 귀">
       <button class="choice" data-v="L">왼쪽</button>
       <button class="choice" data-v="R">오른쪽</button>
@@ -59,7 +65,7 @@
     <p class="hint">한쪽만 할 때는 반대쪽 처리기나 보청기를 빼 주세요.</p>
   </div>
   <div class="card">
-    <h2>2. 소리를 어떻게 듣나요?</h2>
+    <h2><span class="qnum">2</span> 소리를 어떻게 듣나요?</h2>
     <div class="choices col" id="pathPick" role="group" aria-label="듣는 방법">
       <button class="choice" data-v="speaker">컴퓨터·휴대폰 스피커</button>
       <button class="choice" data-v="headphone">이어폰·헤드폰</button>
@@ -70,7 +76,7 @@
     <p id="btNote" class="hint warn" hidden>블루투스는 소리 앞부분이 잘릴 수 있어요. 할 수 있으면 선으로 연결해 주세요. 그대로 해도 됩니다.</p>
   </div>
   <div class="card">
-    <h2>3. 참가 번호 <span class="opt">(받은 번호가 있을 때만)</span></h2>
+    <h2><span class="qnum">3</span> 참가 번호 <span class="opt">(받은 번호가 있을 때만)</span></h2>
     <input id="codeIn" class="field" type="text" maxlength="20" autocomplete="off" placeholder="예: P02" aria-label="참가 번호">
     <p class="hint">이름은 적지 마세요.</p>
     <details id="moreBox" class="more">
@@ -99,6 +105,11 @@
 
 <!-- ───────────── 소리 크기 ───────────── -->
 <section id="pgSound" class="page">
+  <ol class="steps" aria-label="진행 순서">
+    <li class="done"><span class="dot">✓</span>준비</li>
+    <li class="on" aria-current="step"><span class="dot">2</span>소리 맞추기</li>
+    <li><span class="dot">3</span>연습 · 검사</li>
+  </ol>
   <div class="card">
     <h2>소리 크기 맞추기</h2>
     <ol class="list">
@@ -212,9 +223,9 @@
 </main>
 
 <!-- ?v= 는 js/app.js 의 APP_VERSION 앞 번호와 같게 (판을 바꿀 때 함께 올려야 브라우저가 옛 파일을 쓰지 않음 — tools/app_check.js 가 확인) -->
-<script src="js/protocols.js?v=1.0.1"></script>
-<script src="js/stim.js?v=1.0.1"></script>
-<script src="js/track.js?v=1.0.1"></script>
-<script src="js/app.js?v=1.0.1"></script>
+<script src="js/protocols.js?v=1.0.2"></script>
+<script src="js/stim.js?v=1.0.2"></script>
+<script src="js/track.js?v=1.0.2"></script>
+<script src="js/app.js?v=1.0.2"></script>
 </body>
 </html>
