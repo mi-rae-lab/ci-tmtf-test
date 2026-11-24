@@ -115,7 +115,10 @@ globalThis.__scope = (async () => {
   H.key('0');
   await tryOk('모르겠음(0): 무작위 자리로 침(u 1) · ‘떨리는 소리는 n번이었어요’ · 고른 칸 표시 없음', () => { const t = sess.practiceTrials[2]; return [t.u === 1 && t.inp === 'key' && t.a >= 0 && t.a < 3 && $('#fb').textContent === `떨리는 소리는 ${t.tg + 1}번이었어요` && !$$('.iv').some(b => b.classList.contains('wrong')), JSON.stringify(t).slice(0, 120)]; });
   await until(() => vis('#pgBreak'), 10000, '연습 끝 화면');
-  await tryOk('연습 끝: 3번 가운데 1번(모르겠음은 셈에서 뺌) · 도움말 · 연습 한 번 더 · 검사 시작', () => [$('#bBody').textContent.includes('3번 가운데 1번') && !$('#bPractice').hidden && $('#bNext').textContent === '검사 시작' && $('#bBody').textContent.includes('볼륨을 조금 키우거나'), $('#bBody').textContent.slice(0, 120)]);
+  await tryOk('연습 끝: 3번 가운데 1번(모르겠음은 셈에서 뺌) · 도움말 · 연습 한 번 더 · 검사 시작 · 모르겠음 안내 문구', () => [
+    $('#bBody').textContent.includes('3번 가운데 1번') && !$('#bPractice').hidden && $('#bNext').textContent === '검사 시작' && $('#bBody').textContent.includes('볼륨을 조금 키우거나')
+      && $('#bBody').textContent.includes('떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요') && $('#bBody').textContent.includes('세 소리가 완전히 똑같이 들릴 때만')
+      && $('#pgHome').textContent.includes('떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요'), $('#bBody').textContent.slice(0, 160)]);
   $('#bPractice').click();
   await until(() => awaiting && S.cur?.practice && S.practiceRound === 2, 10000, '연습 한 번 더');
   ok('연습 한 번 더: 연습 차례 2 · 제목 ‘연습 1 / 3’', $('#tTitle').textContent === '연습 1 / 3' && sess.practiceRounds === 2, $('#tTitle').textContent);
@@ -304,6 +307,22 @@ globalThis.__scope = (async () => {
     const rows = $('#vList').querySelectorAll('tr').length - 1, html = $('#vList').innerHTML;
     return [VIEW.sessions.length === 1 && $('#vState').textContent.includes('검사 1개') && $('#vState').textContent.includes('other.json') && rows === sess.runs.length
       && (html.match(/class="good">같음/g) || []).length === 2 * sess.runs.length && !html.includes('class="bad"') && $('#vList').querySelectorAll('figure').length === sess.runs.length && !$('#vCsvRuns').disabled, `${rows} · ${$('#vState').textContent}`];
+  });
+  await tryOk('받은 결과 보기: 자리별 맞힘 1·2·3 은 모르겠음(u=1) 시행 제외', () => {
+    const mock = {
+      id: 'pos-check', start: iso(), ear: 'R', path: 'wired', P: snapP(PR), events: [], runs: [{
+        round: 1, fm: 10, order: 1, thr: null, ceiling: false, incomplete: true, n0: 0, k0: 0, nTrials: 5, nDunno: 3,
+        trials: [
+          { d: 0, tg: 0, a: 0, c: 1, u: 0 },
+          { d: 0, tg: 0, a: 1, c: 0, u: 1 },
+          { d: 0, tg: 1, a: 0, c: 0, u: 0 },
+          { d: 0, tg: 1, a: 1, c: 1, u: 1 },
+          { d: 0, tg: 2, a: 2, c: 1, u: 1 },
+        ],
+      }],
+    };
+    const h = viewSessHtml(mock, '시험');
+    return [h.includes('자리별 맞힘 1·2·3 (모르겠음 제외)') && h.includes('<td>1/1 · 0/1 · -</td>'), h.slice(0, 260)];
   });
   $('#vCsvRuns').click(); $('#vCsvTrials').click();
   const csvs = await H.takeDownloads();

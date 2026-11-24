@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.0.3 (2026-11-24)';   // 1.0.3: 모르겠음·틀림·맞음 피드백 타일 표시 구분 (모르겠음이 정답처럼 보이던 문제 해결)
+const APP_VERSION = '1.0.4 (2026-11-24)';   // 1.0.4: 모르겠음 사용 기준 안내 다듬기 · 받은 결과 보기 자리별 맞힘에서 모르겠음 제외
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const STORE_KEY = 'ciTmtf.v1';
@@ -589,7 +589,7 @@ function showBreak(kind, info = {}) {
     title = '연습 끝';
     h = info.n ? `<p>${info.n}번 가운데 <b>${info.k}번</b> 맞았어요.</p>` : '<p>연습을 건너뛰었어요.</p>';
     if (info.n && info.k < 2) h += '<p class="hint">떨리는 소리가 잘 구별되지 않으면 볼륨을 조금 키우거나 ‘연습 한 번 더’를 눌러 보세요. 그래도 어려우면 그대로 시작해도 됩니다.</p>';
-    h += '<p>이제 검사를 시작합니다. 맞힐수록 떨림이 약해져 어려워집니다. 잘 모르겠으면 ‘모르겠음’을 누르세요.</p>';
+    h += '<p>이제 검사를 시작합니다. 맞힐수록 떨림이 약해져 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 누르세요.</p>';
     h += '<p class="hint">검사가 끝날 때까지 볼륨은 바꾸지 마세요.</p>';
     $('#bNext').textContent = '검사 시작';
   } else if (kind === 'stopped') {
@@ -890,7 +890,8 @@ function viewSessHtml(s, src) {
     + (df && df.length ? ` · 화면이 받은 파일 ≠ 서버 파일: ${esc(df.join(', '))}` : '');
   const rowsH = runs.map(r => {
     const v = verdict(r), rp = replayCheck(r, r.P || P), rm = rmsCheck(r);
-    const pos = [0, 1, 2].map(k => { const tt = (r.trials || []).filter(t => t.tg === k); return tt.length ? `${tt.filter(t => t.c).length}/${tt.length}` : '-'; }).join(' · ');
+    const chosen = (r.trials || []).filter(t => !t.u);
+    const pos = [0, 1, 2].map(k => { const tt = chosen.filter(t => t.tg === k); return tt.length ? `${tt.filter(t => t.c).length}/${tt.length}` : '-'; }).join(' · ');
     return `<tr><td>${r.round || 1}${r.extra ? '+' : ''}</td><td>${r.fm}</td><td>${r.thr ?? ''}</td><td>${esc(v.main)}</td><td>${r.ceiling ? '재지 못함' : r.atChance ? '우연 수준' : r.incomplete ? '미완' : ''}</td>
       <td>${r.k0}/${r.n0}${r.pChance !== null && r.pChance !== undefined ? ` (p ${(+r.pChance).toFixed(3)})` : ''}</td><td>${r.sd ?? ''}</td><td>${r.nTrials}</td><td>${r.nDunno}</td><td>${r.durS !== undefined ? (r.durS / 60).toFixed(1) : ''}</td>
       <td class="${rp.ok ? 'good' : 'bad'}">${rp.ok ? '같음' : esc(rp.why)}</td><td class="${rm.ok ? 'good' : 'bad'}">${rm.ok ? '같음' : `차 ${rm.worst} dB${rm.scaled ? ` · 줄임 ${rm.scaled}` : ''}`}</td><td>${pos}</td></tr>`;
@@ -901,7 +902,7 @@ function viewSessHtml(s, src) {
     s.focusEnd ? `집중 ${esc(FOCUS[s.focusEnd] || s.focusEnd)}` : '', s.info && (s.info.age || s.info.ciYears || s.info.onset || s.info.maker) ? `나이 ${esc(s.info.age || '-')} · 사용 ${esc(s.info.ciYears || '-')} · 시작 ${esc(s.info.onset || '-')} · 회사 ${esc(s.info.maker || '-')}` : '',
     s.info?.note ? `메모: ${esc(s.info.note)}` : '', src ? `파일 ${esc(src)}` : ''].filter(Boolean).join(' · ');
   return `<div class="card vsess"><h3>${esc(s.code || '번호 없음')} · ${esc(EAR[s.ear] || s.ear || '')} · ${esc(PATH[s.path] || s.path || '')}</h3><p class="meta">${meta}</p>
-    <div class="tablewrap"><table class="tbl dense"><tr><th>바퀴</th><th>Hz</th><th>역치 dB</th><th>깊이</th><th>표시</th><th>0 dB 맞힘</th><th>반전 SD</th><th>시행</th><th>모르겠음</th><th>분</th><th>계단 다시</th><th>구간 세기</th><th>자리별 맞힘 1·2·3</th></tr>${rowsH}</table></div>
+    <div class="tablewrap"><table class="tbl dense"><tr><th>바퀴</th><th>Hz</th><th>역치 dB</th><th>깊이</th><th>표시</th><th>0 dB 맞힘</th><th>반전 SD</th><th>시행</th><th>모르겠음</th><th>분</th><th>계단 다시</th><th>구간 세기</th><th>자리별 맞힘 1·2·3 (모르겠음 제외)</th></tr>${rowsH}</table></div>
     ${chartHtml(s)}
     <div class="stairs">${runs.map(r => `<figure>${stairSvg(r)}<figcaption>${r.fm} Hz · ${r.round || 1}바퀴${r.extra ? '(더)' : ''} · ${esc(verdict(r).main)}</figcaption></figure>`).join('')}</div></div>`;
 }
