@@ -8,7 +8,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'none'; media-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'self'; form-action 'none'; object-src 'none'">
 <meta name="description" content="인공와우 사용자를 위한 TMTF 검사 (시간 변조 탐지)">
 <title>TMTF 검사</title>
-<link rel="stylesheet" href="style.css?v=1.2.6">
+<link rel="stylesheet" href="style.css?v=1.2.7">
 </head>
 <body>
 <header class="top">
@@ -235,6 +235,7 @@
     <div class="center"><button id="dunno" class="btn big" disabled>모르겠음</button></div>
     <div id="fb" class="fb" aria-live="polite"></div>
     <p id="tNote" class="hint center" aria-live="polite"></p>
+    <div id="resumeAudioWrap" class="center mt" hidden><button id="resumeAudioBtn" class="btn primary" type="button">소리 다시 재생</button></div>
     <p id="keysHint" class="hint center keys">키보드: 1 · 2 · 3, 모르겠음은 0</p>
     <p id="tGuide" class="test-guide">처음에는 쉽지만, 맞힐수록 떨림이 미세해져 점점 어려워집니다. 떨림이 아주 조금이라도 느껴지면 그 번호를 선택해 주세요. 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 눌러 주세요.</p>
   </div>
@@ -308,9 +309,9 @@
 </footer>
 
 <!-- ?v= 는 js/app.js 의 APP_VERSION 앞 번호와 같게 (판을 바꿀 때 함께 올려야 브라우저가 옛 파일을 쓰지 않음 — tools/app_check.js 가 확인) -->
-<script src="js/protocols.js?v=1.2.6"></script>
-<script src="js/stim.js?v=1.2.6"></script>
-<script src="js/track.js?v=1.2.6"></script>
-<script src="js/app.js?v=1.2.6"></script>
+<script src="js/protocols.js?v=1.2.7"></script>
+<script src="js/stim.js?v=1.2.7"></script>
+<script src="js/track.js?v=1.2.7"></script>
+<script src="js/app.js?v=1.2.7"></script>
 </body>
 </html>

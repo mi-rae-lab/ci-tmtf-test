@@ -322,7 +322,7 @@ globalThis.__scope = (async () => {
     const hasCore = h.includes('TMTF 검사 전문가 참고 보고서') && h.includes('참고용 고지 — 진단 도구가 아닙니다') && h.includes('For research and educational purposes only')
       && h.includes('광대역 가우스 잡음') && h.includes('−26.02 dBFS') && h.includes('2-down 1-up') && h.includes('70.7%')
       && h.includes(PROC_KEY) && h.includes('자리별 맞힘 1·2·3 (모르겠음 제외)') && h.includes('계단 사후 재계산 (replayCheck)')
-      && h.includes('HTTPS 보안 연결') && h.includes("connect-src 'none'") && h.includes('name="referrer" content="no-referrer"')
+      && h.includes('HTTPS 보안 연결') && h.includes("connect-src 'none'") && h.includes("script-src 'none'") && !h.includes('onclick=') && h.includes('name="referrer" content="no-referrer"')
       && h.includes(H.expectBuild) && h.includes('<svg class="chart"') && h.includes('<details class="raw">')
       && ['10.1121/1.1912375', '10.1121/1.383531', '10.1121/1.3592521', '10.1121/1.4773271', '10.1007/s10162-014-0499-z', '10.1097/AUD.0000000000000162', '10.1177/23312165261416179'].every(d => h.includes(d))
       && !/\b(?:src|href)\s*=\s*["']https?:/i.test(h) && !/url\(\s*['"]?https?:/i.test(h);
@@ -418,7 +418,11 @@ globalThis.__scope = (async () => {
     return [a.status === 'pass' && b.status === 'pass-code' && b.differ.join() === 'index.html' && c.status === 'not-checked' && c.differ.join() === 'js/stim.js' && d.status === 'not-checked' && e.status === 'not-checked',
       [a, b, c, d, e].map(x => x.status).join(' ')];
   });
-  $('#vHome').click(); $('#goSetup').click(); $('#setupNext').click();
+  $('#vHome').click(); $('#goSetup').click();
+  await tryOk('1.2.7 새 참가자 검사 시작 시 이전 참가자의 번호·귀·경로·선택 정보·메모·볼륨 초기화', () => [
+    PRE.ear === null && PRE.path === null && $('#setupNext').disabled && $('#codeIn').value === '' && $('#infoAge').value === '' && $('#infoNote').value === '' && $('#osVol').value === '',
+    `ear=${PRE.ear} path=${PRE.path} code=${$('#codeIn').value} age=${$('#infoAge').value}`]);
+  $('#earPick').querySelector('[data-v="R"]').click(); $('#pathPick').querySelector('[data-v="wired"]').click(); $('#setupNext').click();
   $('#volOk').click();
   const nS = DB.sessions.length, nD = DB.decisions.length;
   H.override['js/app.js'] = H.fileBytes('js/app.js') && new TextDecoder().decode(H.fileBytes('js/app.js')).replace(/const APP_VERSION = '[^']+'/, "const APP_VERSION = '9.9.9 (시험)'");
@@ -458,7 +462,7 @@ globalThis.__scope = (async () => {
       return [S === null && !!si.end && h.includes('index.html 만 다름') && h.includes('화면이 받은 파일 ≠ 서버 파일: index.html'), si.endReason];
     });
     BUILD_LOAD = keep; delete H.cached['index.html']; delete H.override['index.html'];
-    $('#toHome').click(); $('#goSetup').click(); $('#setupNext').click(); $('#volOk').click();
+    $('#toHome').click(); $('#goSetup').click(); $('#earPick').querySelector('[data-v="R"]').click(); $('#pathPick').querySelector('[data-v="wired"]').click(); $('#setupNext').click(); $('#volOk').click();
   }
 
   // ── 중간에 끝내기 · 나가기 경고 · 출력 확인
@@ -585,7 +589,9 @@ globalThis.__scope = (async () => {
     const inK = inAppBrowser('Mozilla/5.0 KAKAOTALK 10.0') === '카카오톡';
     const inN = inAppBrowser('Mozilla/5.0 NAVER(inapp)') === '네이버 앱';
     const inC = inAppBrowser('Mozilla/5.0 Chrome/120.0 Safari/537.36') === null;
+    $('#earPick').querySelector('[data-v="R"]').click();
     const earPressed = $$('#earPick .choice').filter(b => b.getAttribute('aria-pressed') === 'true').length === 1;
+    resetSetupForm();
     const pw = $('#progWrap');
     const progOk = pw && pw.getAttribute('role') === 'progressbar' && pw.getAttribute('aria-valuenow') !== null;
     const prevPath = PRE.path;
@@ -742,7 +748,87 @@ globalThis.__scope = (async () => {
       `badPages=${badPages.join(',')} ariaBad=${ariaBad.join(',')} rep=${repOk} csv=${csvOk} hlp=${helpersOk}` + (!repOk ? ' repKo=' + (repClean.match(/[가-힣][^<\n]{0,30}/g) || []).slice(0, 5).join('|') : '')];
   });
   ok('경고창은 새 판 하나뿐(지문만 다른 것은 경고 없음) · 확인 창은 멈춤 둘뿐', H.dialogs.filter(d => d[0] === 'alert').length === 1 && H.dialogs.filter(d => d[0] === 'confirm').length === 2, JSON.stringify(H.dialogs).slice(0, 200));
-  await tryOk('1.2.3 개인정보 · 브라우저 내부 전용: # 해시 링크 우선(서버 미전송) · fetch 쿼리 제거 · PII 입력 경고 · 로컬 기록 즉시 삭제(#homeClearAll)', () => {
+  await tryOk('1.2.7 보안(XSS 차단): 악성 JSON 주입 시 자료형 검증·이스케이프·보고서 script-src none·인라인 핸들러 0건', () => {
+    const xss = '<script>alert(1)<\/script><img src=x onerror=alert(2)>';
+    const evil = {
+      id: 'evil-1', format: FORMAT, formatVersion: 2, app: xss, start: '2026-11-24T00:00:00Z', end: '2026-11-24T00:10:00Z',
+      code: xss, ear: 'R', path: 'wired', osVolume: xss, procKey: xss,
+      info: { age: xss, note: xss }, env: { origin: xss, platform: xss, audio: { sampleRate: xss } },
+      P: { nAFC: xss, dur: xss, isi: xss, rampMs: xss, band: { type: xss }, ceiling: xss, rove: xss, startDb: xss, bigUntil: xss, big: xss, small: xss, totalRev: xss, avgLast: xss },
+      runs: [{ order: xss, round: xss, fm: 10, thr: -12, sd: 1.1, ceiling: false, n0: xss, k0: xss, reversals: [xss, -10, -12], revAt: [0], nTrials: 1, nDunno: 0,
+        trials: [{ d: 0, tg: 0, a: 0, c: 1, u: 0, inp: xss, rt: xss, rms: [-26], pk: [-10] }] }],
+      events: [{ type: 'keep-gap-start', from: xss, why: xss }],
+    };
+    const clean = sanitizeSession(evil, true);
+    const vh = viewSessHtml(clean, xss);
+    const rh = specialistReportHtml([clean], [xss]);
+    const noScript = !/<script/i.test(rh) && !/<script/i.test(vh) && !/<img\b/i.test(rh) && !/<img\b/i.test(vh) && !/<[a-z][^>]*\bon[a-z]+\s*=/i.test(rh) && !/<[a-z][^>]*\bon[a-z]+\s*=/i.test(vh);
+    const cspStrict = rh.includes("script-src 'none'") && !rh.includes("script-src 'unsafe-inline'");
+    const typed = clean.P.nAFC === 3 && clean.P.dur === 0.5 && clean.osVolume === null && clean.runs[0].reversals.length === 2;
+    return [noScript && cspStrict && typed, `noScript=${noScript} csp=${cspStrict} typed=${typed}`];
+  });
+  await tryOk('1.2.7 160시행 전량 정답(−40 dB 바닥·반전 0회) 구분: 오답 안내·0 dB ▽ 미표시 · 상한/반전 부족 사유 구분', () => {
+    const T = new Track(PR);
+    for (let i = 0; i < 160; i++) T.respond(true);
+    const res = T.result();
+    const floorRun = { order: 1, round: 1, fm: 10, thr: res.thr, sd: res.sd, ceiling: res.ceiling, incomplete: res.incomplete, n0: res.n0, k0: res.k0, atChance: res.atChance, reversals: T.reversals, revAt: T.revAt, nTrials: T.trials.length, nDunno: 0, trials: T.trials };
+    const ceilRun = { order: 2, round: 1, fm: 200, thr: 0, sd: null, ceiling: true, incomplete: false, n0: 4, k0: 0, atChance: false, reversals: [], revAt: [], nTrials: 4, nDunno: 0, trials: [] };
+    const maxRun = { order: 3, round: 1, fm: 50, thr: null, sd: null, ceiling: false, incomplete: true, n0: 2, k0: 2, atChance: false, reversals: [-4], revAt: [3], nTrials: 160, nDunno: 0, trials: [{ d: -4, c: 1 }] };
+    const fewRun = { order: 4, round: 1, fm: 100, thr: null, sd: null, ceiling: false, incomplete: false, n0: 2, k0: 2, atChance: false, reversals: [-4], revAt: [3], nTrials: 10, nDunno: 0, trials: [{ d: -4, c: 1 }] };
+    const vF = verdict(floorRun), vC = verdict(ceilRun), vM = verdict(maxRun), vW = verdict(fewRun);
+    const mockSess = { id: 'floor-s', start: iso(), ear: 'R', path: 'wired', P: snapP(PR), events: [], runs: [floorRun] };
+    showEnd(mockSess, { offers: false, noScroll: true, noFocus: true });
+    const notesTxt = $('#endNotes').textContent;
+    const chHtml = chartHtml(mockSess);
+    const repH = specialistReportHtml([mockSess]);
+    const okAll = res.thr === null && !res.ceiling && vF.kind === 'floor' && !vF.sub.includes('틀렸') && vF.sub.includes('가장 약한 떨림')
+      && vC.kind === 'ceil' && vM.kind === 'max' && vW.kind === 'few'
+      && !notesTxt.includes('가장 큰 떨림에서도 자주 틀려') && notesTxt.includes('최대 횟수')
+      && !chHtml.includes('class="ceil"') && repH.includes('최저 깊이(−40 dB) 반전 부족') && !repH.includes('0 dB 4오답 중단</td>');
+    $('#toHome').click();
+    return [okAll, `v=${vF.kind}/${vC.kind}/${vM.kind}/${vW.kind} ceilSvg=${chHtml.includes('class="ceil"')}`];
+  });
+  await tryOk('1.2.7 오디오 정지 시 미청취 채점 차단(소리 점검 · 본 검사) 및 빠른 탭 왕복 시 단일 재생 예약 유지', async () => {
+    const c0 = H.ctxs[0], origResume = c0.resume.bind(c0);
+    // 1) 소리 점검 중 오디오 재개 실패 → 응답 버튼 잠금 유지 · 다시 듣기만 활성
+    await c0.suspend();
+    c0.resume = async () => {};
+    openOnsetCheck();
+    await until(() => ONSET.phase === 'suspended', 10000, '온셋 오디오 정지');
+    const onsetBlocked = $$('#onCountPick .choice').every(b => b.disabled) && !$('#onReplay').disabled;
+    c0.resume = origResume;
+    $('#onReplay').click();
+    await until(() => ONSET.phase === 'awaiting', 10000, '온셋 재개 복구');
+    const onsetRecovered = !$$('#onCountPick .choice')[0].disabled;
+    cancelOnsetTimer(); ONSET.running = false; ONSET.phase = 'idle';
+    // 2) 본 검사: 빠른 탭 왕복(hidden→visible→hidden→visible) 시 trial-void 1건만 · 겹침 없이 3버퍼만 재생 · 재개 복구
+    $('#goSetup').click(); $('#earPick').querySelector('[data-v="L"]').click(); $('#pathPick').querySelector('[data-v="wired"]').click(); $('#setupNext').click(); $('#volOk').click();
+    $('#soundNext').click(); $('#onsetSkip').click();
+    await until(() => S && S.cur && S.cur.practice && S.cur.phase === 'playing', 15000, '탭 왕복 시험 재생');
+    const s4 = S.session, voidBefore = s4.events.filter(e => e.type === 'trial-void').length;
+    H.visibility(true); await wait(2);
+    H.visibility(false); await wait(2);   // 700ms(가상) 지나기 전 다시 숨김
+    H.visibility(true); await wait(2);
+    const bufBefore = starts().length;
+    H.visibility(false);
+    await until(() => awaiting && S?.cur?.practice, 15000, '단일 재재생 완료');
+    const voidAdded = s4.events.filter(e => e.type === 'trial-void').length - voidBefore;
+    const bufAdded = starts().length - bufBefore;
+    // 3) 본 검사 중 오디오 재개 실패 → 응답 잠금 · #resumeAudioWrap 표시 · 클릭으로 복구
+    await c0.suspend();
+    c0.resume = async () => {};
+    H.key(String(awaiting.tg + 1));
+    await until(() => S?.cur?.phase === 'suspended', 15000, '본 검사 오디오 정지');
+    const testBlocked = $$('.iv').every(b => b.disabled) && $('#dunno').disabled && !$('#resumeAudioWrap').hidden;
+    c0.resume = origResume;
+    $('#resumeAudioBtn').click();
+    await until(() => awaiting && S?.cur?.practice, 15000, '본 검사 재개 복구');
+    const testRecovered = $('#resumeAudioWrap').hidden && !$('#dunno').disabled;
+    $('#stopBtn').click(); $('#bEnd').click(); $('#toHome').click();
+    return [onsetBlocked && onsetRecovered && voidAdded === 1 && bufAdded === 3 && testBlocked && testRecovered,
+      `on=${onsetBlocked}/${onsetRecovered} void=${voidAdded} bufs=${bufAdded} tst=${testBlocked}/${testRecovered}`];
+  });
+  await tryOk('1.2.3+1.2.7 개인정보 · 삭제 동기화: # 해시 링크 · PII 경고 · 삭제 시 뷰어/결과 동시 초기화 · 타 탭 삭제 기록 부활 차단', () => {
     const pHash = parseLinkParams('#id=P99&hz=10,100&lang=en', '?id=P02');
     const hashOk = pHash.get('id') === 'P99' && pHash.get('hz') === '10,100' && pHash.get('lang') === 'en';
     const noQueryFetch = !assetUrl('index.html', 'force-cache').includes('?');
@@ -750,10 +836,29 @@ globalThis.__scope = (async () => {
     const piiWarnOn = !$('#notePrivWarn').hidden && hasPiiLike('test@example.com') && hasPiiLike('900101-1234567');
     $('#infoNote').value = '조용한 방'; $('#infoNote').dispatchEvent({ type: 'input' });
     const piiWarnOff = $('#notePrivWarn').hidden;
+    // 뷰어에 이 기기 기록 로드 + 결과 화면 표시 상태에서 삭제 → 뷰어/결과 모두 초기화
+    $('#goViewer').click(); $('#vLocal').click();
+    const loadedBefore = VIEW.sessions.length > 0;
+    $('#vHome').click();
+    showEnd(sess, { offers: false, noScroll: true, noFocus: true });
+    showPage('pgHome', { noScroll: true, noFocus: true });
     H.confirmAnswer = true;
     $('#homeClearAll').click();
-    const cleared = !H.store.has('ciTmtf.v1') && DB.sessions.length === 0 && $('#homeSaved').hidden;
-    return [hashOk && noQueryFetch && piiWarnOn && piiWarnOff && cleared, `hash=${hashOk} noQ=${noQueryFetch} pii=${piiWarnOn}/${piiWarnOff} clr=${cleared}`];
+    const cleared = !H.store.has('ciTmtf.v1') && DB.sessions.length === 0 && $('#homeSaved').hidden && VIEW.sessions.length === 0 && $('#vList').innerHTML === '' && $('#vReport').disabled && SHOWN === null;
+    // 타 탭 삭제 시뮬레이션: 다른 탭이 localStorage 를 지운 뒤 이 탭이 saveStore() 를 호출해도 오래된 기록이 부활하지 않음
+    DB.sessions.push({ id: 'tab-ghost', start: iso(), end: iso(), runs: [{ fm: 10, thr: -10, trials: [] }], events: [] });
+    saveStore();
+    const syncedOk = H.store.has('ciTmtf.v1') && STORE.syncedRev !== null;
+    H.store.delete('ciTmtf.v1');   // 다른 탭이 삭제
+    saveStore();                    // 이 탭이 오래된 DB 를 저장 시도
+    const noResurrect = !H.store.has('ciTmtf.v1') && DB.sessions.length === 0;
+    // storage 이벤트 동기화 확인
+    DB.sessions.push({ id: 'tab-ghost-2', start: iso(), end: iso(), runs: [{ fm: 10, thr: -10, trials: [] }], events: [] });
+    saveStore(); $('#goViewer').click(); $('#vLocal').click();
+    handleStorageEvent({ key: STORE_KEY, newValue: null });
+    const storageSynced = DB.sessions.length === 0 && VIEW.sessions.length === 0 && SHOWN === null;
+    return [hashOk && noQueryFetch && piiWarnOn && piiWarnOff && loadedBefore && cleared && syncedOk && noResurrect && storageSynced,
+      `hash=${hashOk} clr=${cleared} noRes=${noResurrect} stSync=${storageSynced}`];
   });
   clearInterval(KEEPMON_TIMER);
 })();
