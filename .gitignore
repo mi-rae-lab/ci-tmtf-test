@@ -1,0 +1,13 @@
+# 이 기기의 기록 · 빌드 결과물 · 받은 결과 파일은 올리지 않음
+tools/lean/.lake/
+tools/검산기록/
+__pycache__/
+*.pyc
+.claude/
+data/
+내보내기/
+TMTF_*.json
+TMTF_*.csv
+*.log
+.DS_Store
+Thumbs.db
