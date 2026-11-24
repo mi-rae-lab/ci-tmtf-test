@@ -610,10 +610,10 @@ globalThis.__scope = (async () => {
   await tryOk('1.1.0 한/영 언어 전환(applyLang · #langToggle): 영어 UI 전환 및 한국어 원복', () => {
     $('#langToggle').click();
     const enOk = LANG === 'en' && document.documentElement.getAttribute('lang') === 'en' && $('#goSetup').textContent === 'Start'
-      && $('#dunno').textContent === 'Not sure' && $('#langToggle').textContent === 'KO' && $('#fmInfo').textContent.includes('Flutter rates');
+      && $('#hLearn').textContent.includes('What you can learn') && $('#dunno').textContent === 'Not sure' && $('#langToggle').textContent === 'KO' && $('#fmInfo').textContent.includes('Flutter rates');
     $('#langToggle').click();
     const koOk = LANG === 'ko' && document.documentElement.getAttribute('lang') === 'ko' && $('#goSetup').textContent === '시작하기'
-      && $('#dunno').textContent === '모르겠음' && $('#langToggle').textContent === 'EN' && $('#fmInfo').textContent.includes('검사할 떨림 빠르기');
+      && $('#hLearn').textContent === '이 검사를 하면 알 수 있는 것' && $('#dunno').textContent === '모르겠음' && $('#langToggle').textContent === 'EN' && $('#fmInfo').textContent.includes('검사할 떨림 빠르기');
     return [enOk && koOk, `en=${enOk} ko=${koOk}`];
   });
   ok('경고창은 새 판 하나뿐(지문만 다른 것은 경고 없음) · 확인 창은 멈춤 둘뿐', H.dialogs.filter(d => d[0] === 'alert').length === 1 && H.dialogs.filter(d => d[0] === 'confirm').length === 2, JSON.stringify(H.dialogs).slice(0, 200));

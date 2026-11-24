@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.1.1 (2026-11-24)';   // 1.1.1: ‘처리기’ 표기를 ‘음성처리기(인공와우 외부기기)’로 변경
+const APP_VERSION = '1.1.2 (2026-11-24)';   // 1.1.2: 처음 화면 및 안내에 ‘이 검사를 하면 알 수 있는 것’ 추가 (한/영)
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const STORE_KEY = 'ciTmtf.v1';
@@ -1635,7 +1635,7 @@ const UI_TEXT = {
     title: '소리 떨림 검사',
     txt: {
       appTitle: '소리 떨림 검사', appSub: '인공와우 사용자를 위한 검사',
-      hWhat: '어떤 검사인가요?', hPrep: '준비할 것', hPrep1: '조용한 곳',
+      hWhat: '어떤 검사인가요?', hLearn: '이 검사를 하면 알 수 있는 것', hPrep: '준비할 것', hPrep1: '조용한 곳',
       hPrep3: '평소 쓰는 음성처리기(인공와우 외부기기) 프로그램과 볼륨', hPrep4: '컴퓨터를 권합니다. 휴대폰·태블릿도 됩니다.',
       goSetup: '시작하기', hSaved: '이 기기에 저장된 검사', homeSaveAll: '모두 파일로 저장',
       goViewer: '받은 결과 파일 보기 (검사를 보낸 분용)',
@@ -1666,6 +1666,10 @@ const UI_TEXT = {
       hWhat1: '잡음 소리 <b>세 개</b>를 차례로 들려 드립니다. 그중 <b>하나만 떨립니다.</b>',
       hWhat2: '떨리는 소리가 <b>몇 번째</b>인지 고르면 됩니다.',
       hWhat3: '처음에는 쉽고, 맞힐수록 떨림이 약해져 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 누르세요.',
+      hLearn1: '<b>느린 떨림부터 빠른 떨림까지</b> 소리가 얼마나 약하게 떨릴 때 알아채는지 그래프로 볼 수 있습니다.',
+      hLearn2: '말소리는 크기가 빠르게 오르내리는 떨림으로 이루어져 있어, 내 귀와 음성처리기(인공와우 외부기기)가 <b>소리의 빠른 변화와 리듬</b>을 어떻게 따라가는지 참고할 수 있습니다.',
+      hLearn3: '<b>왼쪽·오른쪽 귀</b>나 음성처리기(인공와우 외부기기) <b>설정·프로그램을 바꾼 전후</b>를 같은 방법으로 다시 해 보면 변화를 비교해 볼 수 있습니다.',
+      hLearn4: '끝나면 <b>전문가용 보고서</b>로 저장해 청능사나 인공와우 엔지니어와 상담할 때 참고 자료로 보여 줄 수 있습니다.',
       hNotice1: '이 검사는 <b>진단이 아닙니다.</b> 결과를 보고 음성처리기(인공와우 외부기기) 설정을 바꾸려면 청능사와 상의하세요.',
       hNotice2: '이름이나 연락처는 묻지 않습니다. 결과는 이 기기의 브라우저에만 저장되고, <b>‘결과 파일 저장’을 직접 눌러야만</b> 밖으로 나갑니다.',
       snd2: '컴퓨터(휴대폰) 볼륨을 움직여 <b>편하게 잘 들리는 크기</b>로 맞추세요. 너무 크게 하지 마세요.',
@@ -1679,7 +1683,7 @@ const UI_TEXT = {
     title: 'Sound Flutter Test',
     txt: {
       appTitle: 'Sound Flutter Test', appSub: 'A listening test for cochlear implant users',
-      hWhat: 'How does it work?', hPrep: 'Before you start', hPrep1: 'A quiet room',
+      hWhat: 'How does it work?', hLearn: 'What you can learn from this test', hPrep: 'Before you start', hPrep1: 'A quiet room',
       hPrep3: 'Your everyday sound processor program and volume', hPrep4: 'A computer works best. Phones and tablets also work.',
       goSetup: 'Start', hSaved: 'Saved tests on this device', homeSaveAll: 'Save all to file',
       goViewer: 'View received result files (for clinicians / researchers)',
@@ -1710,6 +1714,10 @@ const UI_TEXT = {
       hWhat1: 'You will hear <b>three</b> noise sounds in a row. Only <b>one of them flutters.</b>',
       hWhat2: 'Pick <b>which one</b> was the fluttering sound.',
       hWhat3: 'It starts easy and gets harder as you get answers right. <b>If you notice even a tiny flutter, pick that number.</b> Only press “Not sure” when all three sounds feel completely identical.',
+      hLearn1: 'See on a chart how soft a flutter you can hear, from <b>slow to fast flutter</b>.',
+      hLearn2: 'Speech is full of rapid loudness changes, so this gives a reference for how your ear and sound processor follow <b>quick sound changes and rhythm</b>.',
+      hLearn3: 'Repeat under the same setup to compare your <b>left vs. right ear</b>, or <b>before and after</b> changing a sound processor program or setting.',
+      hLearn4: 'Save a <b>specialist report</b> at the end to share as a reference with your audiologist or CI engineer.',
       hNotice1: 'This test is <b>not a medical diagnosis.</b> Talk to your audiologist before changing any sound processor settings.',
       hNotice2: 'We never ask for your name or contact details. Results stay only in this browser and leave <b>only when you tap “Save result file”.</b>',
       snd2: 'Adjust your device volume to a <b>comfortable, clearly audible level</b>. Do not make it too loud.',
