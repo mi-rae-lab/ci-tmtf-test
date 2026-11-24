@@ -73,9 +73,38 @@ globalThis.__scope = (async () => {
       `${m1.toFixed(3)} ${m0.toFixed(3)} ${r1.toFixed(4)} ${r0.toFixed(4)}`];
   });
   $('#volOk').click();
-  await tryOk('크기 확인 → 시작 열림 · 시각 기록', () => [!$('#soundNext').disabled && !!PRE.volOkAt, '']);
+  await tryOk('크기 확인 → 시작 열림 · 시각 기록 · 18 Hz 유지 신호 1개 자동 켜짐(keepStart 여러 번 호출해도 발진기 1개 · 멈춤 0번)', () => {
+    keepStart(); keepStart();
+    const stN = H.oscLog.filter(x => x.ev === 'start').length, spN = H.oscLog.filter(x => x.ev === 'stop').length;
+    return [!$('#soundNext').disabled && !!PRE.volOkAt && stN === 1 && spN === 0 && keep && keep.node.frequency.value === 18 && $('#keepBadge').textContent.includes('켜짐'), `st=${stN} sp=${spN}`];
+  });
   $('#osVol').value = '30';
   $('#soundNext').click();
+  // ── 짧은 소리 점검 (네 번 소리 · 앞 무음 3초 × 2회)
+  await until(() => vis('#pgOnset') && ONSET.running && ONSET.phase === 'awaiting' && ONSET.idx === 0, 20000, '네 번 소리 점검 1회');
+  await tryOk('네 번 소리 점검 1회: 1,030 ms 버퍼 재생 · 다시 듣기 동작 · 4개+아니오 응답', async () => {
+    const b1 = starts().at(-1);
+    const durOk = b1 && Math.abs(b1.dur - 1.03) < 1e-4;
+    $('#onReplay').click();
+    await until(() => ONSET.phase === 'awaiting', 10000, '다시 듣기 완료');
+    const repOk = ONSET.cur.replays === 1;
+    $('#onCountPick').querySelector('[data-v="4"]').click();
+    const firstShown = !$('#onFirstBox').hidden && $('#onTrialNext').disabled;
+    $('#onFirstPick').querySelector('[data-v="no"]').click();
+    const nextReady = !$('#onTrialNext').disabled;
+    $('#onTrialNext').click();
+    return [durOk && repOk && firstShown && nextReady, `dur=${b1?.dur} rep=${repOk} first=${firstShown} next=${nextReady}`];
+  });
+  await until(() => ONSET.running && ONSET.phase === 'awaiting' && ONSET.idx === 1, 20000, '네 번 소리 점검 2회');
+  $('#onCountPick').querySelector('[data-v="4"]').click();
+  $('#onFirstPick').querySelector('[data-v="no"]').click();
+  $('#onTrialNext').click();
+  await until(() => !$('#onsetResCard').hidden, 10000, '네 번 소리 점검 결과');
+  await tryOk('네 번 소리 점검 완료: 3초 × 2회 기록 · 판정 ‘정상’ · 쉬운 정상 안내', () => [
+    PRE.onset && !PRE.onset.skipped && PRE.onset.trials.length === 2 && PRE.onset.trials.every(t => t.silenceBeforeMs === 3000 && t.resp === 4 && t.first === 'no')
+      && PRE.onset.trials[0].replays === 1 && PRE.onset.summary.verdict === '정상' && $('#onResMsg').textContent.includes('정상적으로 들렸습니다'),
+    JSON.stringify(PRE.onset?.summary)]);
+  $('#onsetStart').click();
   await until(() => S && S.cur && S.cur.practice && awaiting, 20000, '연습 첫 시행');
   const sess = S.session;
   await tryOk('회기 시작: 번호 · 귀 · 듣는 방법 · 볼륨 · 더 알려 주기(나이만, 나머지 null · 상자 열림) · 조건 이름 · 절차 · 계획(5개 무작위 한 바퀴) · build 통과 · 준비 기록 옮김 · 준비 칸 비움 · 링크', () => {
@@ -279,8 +308,9 @@ globalThis.__scope = (async () => {
   await tryOk('결과 파일 저장: 이름 TMTF_P02_R_날짜_시각.json · 형식 · 회기 하나(측정 · 시행 · 연습 · 사건 · 준비 · build 다) · 저장 기록', async () => {
     fileObj = JSON.parse(await dl[0].blob.text());
     const s = fileObj.sessions[0];
-    return [dl.length === 1 && /^TMTF_P02_R_\d{4}-\d\d-\d\d_\d\d-\d\d\.json$/.test(dl[0].name) && fileObj.format === 'ci-tmtf-public' && fileObj.formatVersion === 1 && fileObj.procKey === PROC_KEY && fileObj.sessions.length === 1
-      && s.id === sess.id && s.runs.length === sess.runs.length && s.practiceTrials.length === 3 && s.events.length === sess.events.length && s.setup.noise.length === 1 && s.build.sha256 === H.expectBuild && sess.exports.some(x => x.how === 'file'),
+    return [dl.length === 1 && /^TMTF_P02_R_\d{4}-\d\d-\d\d_\d\d-\d\d\.json$/.test(dl[0].name) && fileObj.format === 'ci-tmtf-public' && fileObj.formatVersion === 2 && fileObj.procKey === PROC_KEY && fileObj.sessions.length === 1
+      && s.id === sess.id && s.runs.length === sess.runs.length && s.practiceTrials.length === 3 && s.events.length === sess.events.length && s.setup.noise.length === 1 && s.build.sha256 === H.expectBuild
+      && s.keepalive && s.keepalive.mode === 'tone18all' && s.onsetCheck && !s.onsetCheck.skipped && s.onsetCheck.summary.verdict === '정상' && sess.exports.some(x => x.how === 'file'),
       dl[0]?.name];
   });
   if (H.dump && fileObj) H.dump(fileObj);
@@ -391,7 +421,7 @@ globalThis.__scope = (async () => {
   $('#volOk').click();
   const nS = DB.sessions.length, nD = DB.decisions.length;
   H.override['js/app.js'] = H.fileBytes('js/app.js') && new TextDecoder().decode(H.fileBytes('js/app.js')).replace(/const APP_VERSION = '[^']+'/, "const APP_VERSION = '9.9.9 (시험)'");
-  $('#soundNext').click();
+  $('#soundNext').click(); $('#onsetSkip').click();
   await until(() => H.dialogs.some(d => d[0] === 'alert'), 10000, '새 판 경고');
   await tryOk('새 판이 나옴(서버 app.js 판 번호 9.9.9 ≠ 지금 1.0.x) → 새로 고침 안내 · 시작 안 함 · DB.decisions 에 막힘(두 판 번호 · 두 해시)', () => {
     const d = DB.decisions.at(-1);
@@ -413,7 +443,7 @@ globalThis.__scope = (async () => {
     H.override['index.html'] = html0.replace('</body>', '<script src="https://inject.example/a.js?k=2"></script></body>');
     const keep = BUILD_LOAD; BUILD_LOAD = await computeBuild('force-cache');
     const nA = H.dialogs.filter(d => d[0] === 'alert').length;
-    $('#soundNext').click();
+    $('#soundNext').click(); $('#onsetSkip').click();
     await until(() => S && S.cur && S.cur.practice && awaiting, 20000, '끼워 넣은 화면 회기');
     const si = S.session;
     await tryOk('화면 파일만 오는 길에 바뀜 → 경고 없이 시작 · build.differ = [index.html] · 받은 판 · 서버 판 모두 pass-code · 판 번호 같음 · 회기 사건에 differ', () => [
@@ -431,10 +461,14 @@ globalThis.__scope = (async () => {
   }
 
   // ── 중간에 끝내기 · 나가기 경고 · 출력 확인
-  $('#soundNext').click();
+  const oscIdBeforeS3 = keep?.node?.id;
+  $('#soundNext').click(); $('#onsetSkip').click();
   await until(() => S && S.cur && S.cur.practice && awaiting, 20000, '셋째 회기 연습');
   const s3 = S.session;
-  await tryOk('새 회기: 귀 · 듣는 방법은 그대로, 준비 기록은 새로(잡음 0 · 들어 보기 0) · build pass · 다른 파일 없음', () => [s3 !== sess && s3.ear === 'R' && s3.path === 'wired' && s3.setup.noise.length === 0 && s3.setup.demo.length === 0 && s3.build.verified.status === 'pass' && s3.build.differ.length === 0, JSON.stringify(s3.build.differ)]);
+  await tryOk('새 회기: 귀 · 듣는 방법 · 유지 신호 발진기 그대로(멈춤 0번), 준비 기록은 새로 · 건너뛴 온셋 기록 · build pass', () => [
+    s3 !== sess && s3.ear === 'R' && s3.path === 'wired' && s3.setup.noise.length === 0 && s3.setup.demo.length === 0 && s3.build.verified.status === 'pass' && s3.build.differ.length === 0
+      && keep?.node?.id === oscIdBeforeS3 && H.oscLog.filter(x => x.ev === 'start').length === 1 && H.oscLog.filter(x => x.ev === 'stop').length === 0
+      && s3.onsetCheck && s3.onsetCheck.skipped === true, JSON.stringify(H.oscLog)]);
   {
     let prevented = false;
     H.wins.beforeunload.forEach(f => f({ preventDefault() { prevented = true; }, returnValue: undefined }));
@@ -444,15 +478,24 @@ globalThis.__scope = (async () => {
   await until(() => vis('#pgBreak'), 10000, '연습 끝');
   ok('연습 3번 모두 맞음 → 도움말 없음', $('#bBody').textContent.includes('3번 중 3번') && !$('#bBody').textContent.includes('볼륨을 조금 키우거나'), $('#bBody').textContent.slice(0, 80));
   await wait(60);
-  await tryOk('출력 확인: 회기 중 1초마다 — 오디오가 돌고 시계가 흐르면 ‘나오는 중’', () => [KEEPMON.polls > 0 && (KEEPMON.ok > 0 || KEEPMON.buffer > 0) && !KEEPMON.open && KEEPMON.last && KEEPMON.last.cls !== 'gap', JSON.stringify(KEEPMON.last)]);
+  await tryOk('출력 확인: 가짜 분석기 18 Hz −45.00 dBFS → ‘나오는 중’(ok) · db18 일치', () => [
+    KEEPMON.polls > 0 && KEEPMON.ok > 0 && !KEEPMON.open && KEEPMON.last && KEEPMON.last.cls === 'ok' && Math.abs(KEEPMON.last.db18 - (-45)) < 0.05, JSON.stringify(KEEPMON.last)]);
   await H.ctxs[0].suspend();
   await wait(60);
   await tryOk('오디오가 멈춤(suspended) → 끊김 열림 · 회기 사건 keep-gap-start(까닭)', () => [!!KEEPMON.open && s3.events.some(e => e.type === 'keep-gap-start' && /suspended/.test(e.why)), JSON.stringify(KEEPMON.open)]);
   await H.ctxs[0].resume();
   await wait(60);
   await tryOk('다시 돎 → 끊김 닫힘 · keep-gap-end(길이)', () => [!KEEPMON.open && s3.events.some(e => e.type === 'keep-gap-end' && typeof e.durS === 'number'), '']);
+  H.forceSilent = true;
+  await wait(60);
+  await tryOk('몰래 끊김(앱은 켜진 줄 아는데 출력에 18 Hz 없음) → 끊김 열림 · keep-gap-start', () => [
+    !!KEEPMON.open && /18 Hz 없음/.test(KEEPMON.open.why || '') && s3.events.some(e => e.type === 'keep-gap-start' && /18 Hz 없음/.test(e.why || '')), JSON.stringify(KEEPMON.open)]);
+  H.forceSilent = false;
+  await wait(60);
+  await tryOk('18 Hz 다시 나옴 → 몰래 끊김 닫힘 · keep-gap-end(길이)', () => [
+    !KEEPMON.open && s3.events.filter(e => e.type === 'keep-gap-end' && typeof e.durS === 'number').length === 2, String(s3.events.filter(e => e.type === 'keep-gap-end').length)]);
   $('#bEnd').click();
-  await tryOk('‘여기까지만 하기’ → 중간에 끝냄(남은 측정 5개) · 회기 닫음 · 결과 화면(측정 없음) · 끝 질문 보임 · 출력 확인 요약', () => [S === null && s3.endReason === '중간에 끝냄 (남은 측정 5개)' && !!s3.end && vis('#pgEnd') && $('#endTable').textContent.includes('완료된 측정이 없습니다') && !!$('#focusPick') && s3.keepMonitor && s3.keepMonitor.gaps.length === 1, s3.endReason]);
+  await tryOk('‘여기까지만 하기’ → 중간에 끝냄(남은 측정 5개) · 회기 닫음 · 결과 화면(측정 없음) · 끝 질문 보임 · 출력 확인 요약(끊김 2건)', () => [S === null && s3.endReason === '중간에 끝냄 (남은 측정 5개)' && !!s3.end && vis('#pgEnd') && $('#endTable').textContent.includes('완료된 측정이 없습니다') && !!$('#focusPick') && s3.keepMonitor && s3.keepMonitor.gaps.length === 2, `${s3.endReason} gaps=${s3.keepMonitor?.gaps?.length}`]);
   {
     let prevented = false;
     H.wins.beforeunload.forEach(f => f({ preventDefault() { prevented = true; } }));
@@ -593,7 +636,7 @@ globalThis.__scope = (async () => {
     const firstChildBefore = $('#vList').children[0];
     const s2 = {
       id: 'p02-second', code: 'P02', ear: 'L', path: 'wired', start: '2026-11-25T10:00:00+09:00', end: '2026-11-25T10:20:00+09:00',
-      app: APP_VERSION, P: snapP(PR), events: [],
+      app: APP_VERSION, keepalive: { mode: 'tone18all', userOff: false }, P: snapP(PR), events: [],
       runs: [
         { order: 1, round: 1, fm: 10, thr: -20, sd: 1.2, ceiling: false, n0: 2, k0: 2, nTrials: 30, nDunno: 0, trials: [{ d: 0, tg: 0, a: 0, c: 1, u: 0 }] },
         { order: 2, round: 1, fm: 200, thr: 0, sd: null, ceiling: true, n0: 4, k0: 0, nTrials: 4, nDunno: 0, trials: [{ d: 0, tg: 0, a: 1, c: 0, u: 0 }] },
@@ -603,17 +646,65 @@ globalThis.__scope = (async () => {
     renderViewer();
     const incOk = $('#vList').children.length === prevCount + 1 && $('#vList').children[0] === firstChildBefore;
     const cmp = $('#vCompare').innerHTML;
-    const cmpOk = cmp.includes('참가 번호 P02 묶어 비교 (2개 회기)') && cmp.includes('차이 (#2−#1)') && cmp.includes('<svg class="chart"') && cmp.includes('재지 못함');
+    const cmpOk = cmp.includes('참가 번호 P02 묶어 비교 (2개 회기') && cmp.includes('차이 (#2−#1)') && cmp.includes('<svg class="chart"') && cmp.includes('재지 못함');
     VIEW.sessions.pop(); renderViewer(true);
     return [incOk && cmpOk && $('#vCompare').innerHTML === '', `inc=${incOk} cmp=${cmpOk}`];
+  });
+  await tryOk('1.2.0 tone18 방식: 버퍼 시작 순간 멈춤 · 끝 순간 재개(틈 0) · 수동 끄기/켜기(#keepToggle) · 3초 대기', () => {
+    setKeepMode('tone18');
+    const n0 = H.oscLog.length, t0 = ctx.currentTime + 0.1, buf = new Float32Array(24000);   // 0.5 s
+    play(buf, t0);
+    const evs = H.oscLog.slice(n0), sp = evs.find(e => e.ev === 'stop'), st = evs.find(e => e.ev === 'start');
+    const gap0 = !!sp && !!st && Math.abs(sp.t - t0) < 1e-9 && Math.abs(st.t - (t0 + 0.5)) < 1e-9;
+    setKeepMode('tone18all');
+    // 사용자 수동 끄기 → 발진기 멈춤, 다시 켜기 → 발진기 재개 + 3초 대기 설정
+    $('#keepToggle').click();
+    const offOk = keepUserOff === true && keep === null && $('#keepToggle').getAttribute('aria-pressed') === 'false';
+    $('#keepToggle').click();
+    const onOk = keepUserOff === false && !!keep && keepWarmupRemainMs() > 0 && $('#keepToggle').getAttribute('aria-pressed') === 'true';
+    return [gap0 && offOk && onOk, `gap0=${gap0} off=${offOk} on=${onOk}`];
+  });
+  await tryOk('1.2.0 네 번 소리 자극(onsetBeep · fourBeeps) 표본/RMS(−24 dBFS) 및 §4-4 판정(정상 · 가끔 누락 · 온셋 잘림 의심)', () => {
+    const b = onsetBeep(48000), fb = fourBeeps(48000);
+    const bRms = 20 * Math.log10(Stim.rms(b));
+    const sigOk = b.length === 5760 && fb.length === 49440 && Math.abs(bRms - (-24)) < 0.01;
+    const sOk = summarizeOnset([{ silenceBeforeMs: 3000, resp: 4, first: 'no' }, { silenceBeforeMs: 3000, resp: 4, first: 'unsure' }]);
+    const sOcc = summarizeOnset([
+      { silenceBeforeMs: 3000, resp: 4, first: 'no' }, { silenceBeforeMs: 3000, resp: 4, first: 'no' },
+      { silenceBeforeMs: 3000, resp: 4, first: 'no' }, { silenceBeforeMs: 3000, resp: 3, first: 'no' },
+    ]);
+    const sCutMiss = summarizeOnset([{ silenceBeforeMs: 3000, resp: 3, first: 'no' }, { silenceBeforeMs: 3000, resp: 4, first: 'no' }]);
+    const sCutWeak = summarizeOnset([{ silenceBeforeMs: 3000, resp: 4, first: 'yes' }, { silenceBeforeMs: 3000, resp: 4, first: 'no' }]);
+    return [sigOk && sOk.verdict === '정상' && sOk.byGap[0].firstWeak === 0 && sOcc.verdict === '가끔 누락' && sOcc.byGap[0].miss === 0.25
+      && sCutMiss.verdict === '온셋 잘림 의심' && sCutMiss.byGap[0].miss === 0.5 && sCutWeak.verdict === '온셋 잘림 의심' && sCutWeak.byGap[0].firstWeak === 0.5,
+      `rms=${bRms.toFixed(2)} ${sOk.verdict}/${sOcc.verdict}/${sCutMiss.verdict}/${sCutWeak.verdict}`];
+  });
+  await tryOk('1.2.0 formatVersion 1 옛 파일 하위 호환 · 유지 신호 방식이 다른 회기는 비교에서 분리', async () => {
+    const v1Sess = {
+      id: 'p02-v1-legacy', code: 'P02', ear: 'R', path: 'wired', start: '2026-11-20T10:00:00+09:00', end: '2026-11-20T10:20:00+09:00',
+      app: '1.1.3 (2026-11-24)', P: snapP(PR), events: [],
+      runs: [{ order: 1, round: 1, fm: 10, thr: -16, sd: 1.1, ceiling: false, n0: 2, k0: 2, nTrials: 20, nDunno: 0, trials: [{ d: 0, tg: 0, a: 0, c: 1, u: 0 }] }],
+    };
+    const v1File = new File([JSON.stringify({ format: FORMAT, formatVersion: 1, app: '1.1.3', procKey: PROC_KEY, sessions: [v1Sess] })], 'legacy_v1.json');
+    $('#vFiles').files = [v1File];
+    $('#vFiles').dispatchEvent({ type: 'change', target: $('#vFiles') });
+    await until(() => VIEW.sessions.some(x => x.s.id === 'p02-v1-legacy'), 10000, 'v1 파일 열기');
+    const cmp = $('#vCompare').innerHTML;
+    const sepOk = cmp.includes('유지 신호 방식이 다른 회기가 있어 합치지 않고 분리했습니다') && !cmp.includes('묶어 비교');
+    const repH = specialistReportHtml([v1Sess], ['legacy_v1.json']);
+    const repOk = repH.includes('유지 신호 없음 (v1 기록)') && repH.includes('기록 없음 (v1 파일)');
+    VIEW.sessions = VIEW.sessions.filter(x => x.s.id !== 'p02-v1-legacy'); renderViewer(true);
+    return [sepOk && repOk, `sep=${sepOk} rep=${repOk}`];
   });
   await tryOk('1.1.0 한/영 언어 전환(applyLang · #langToggle): 영어 UI 전환 및 한국어 원복', () => {
     $('#langToggle').click();
     const enOk = LANG === 'en' && document.documentElement.getAttribute('lang') === 'en' && $('#goSetup').textContent === 'Start'
-      && $('#hLearn').textContent.includes('What you can learn') && $('#dunno').textContent === 'Not sure' && $('#langToggle').textContent === 'KO' && $('#fmInfo').textContent.includes('Flutter rates');
+      && $('#hLearn').textContent.includes('What you can learn') && $('#hKeep').textContent === 'Keep sound steady'
+      && $('#onFirstQ').textContent.includes('first beep') && $('#dunno').textContent === 'Not sure' && $('#langToggle').textContent === 'KO' && $('#fmInfo').textContent.includes('Flutter rates');
     $('#langToggle').click();
     const koOk = LANG === 'ko' && document.documentElement.getAttribute('lang') === 'ko' && $('#goSetup').textContent === '시작하기'
-      && $('#hLearn').textContent === '이 검사를 하면 알 수 있는 것' && $('#dunno').textContent === '모르겠음' && $('#langToggle').textContent === 'EN' && $('#fmInfo').textContent.includes('검사할 떨림 속도')
+      && $('#hLearn').textContent === '이 검사를 하면 알 수 있는 것' && $('#hKeep').textContent === '소리 끊김 방지'
+      && $('#onFirstQ').textContent.includes('첫 소리') && $('#dunno').textContent === '모르겠음' && $('#langToggle').textContent === 'EN' && $('#fmInfo').textContent.includes('검사할 떨림 속도')
       && $('#snd1').textContent.includes('소리 재생') && $('#goViewer').textContent === '결과 파일 열기 (청능사·연구자용)';
     return [enOk && koOk, `en=${enOk} ko=${koOk}`];
   });

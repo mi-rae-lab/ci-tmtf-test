@@ -191,7 +191,7 @@ const realAdd = globalThis.addEventListener.bind(globalThis);
 def(globalThis, 'addEventListener', (t, f, o) => { if (t === 'beforeunload') wins.beforeunload.push(f); else realAdd(t, f, o); });
 try { def(navigator, 'clipboard', { writeText: async t => { clip.push({ how: 'clipboard', text: t }); } }); } catch { }
 // 가짜 AudioContext — 소리는 내지 않고 버퍼마다 시작 시각 · 길이 · 표본(마지막 몇 개만)을 적음. 시계는 빠른 시계, suspend 동안 멈춤
-const audioLog = [], ctxs = [];
+const audioLog = [], oscLog = [], ctxs = [];
 let nodeN = 0;
 class FNode { constructor(c, type) { this.ctx = c; this.type = type; this.id = ++nodeN; this.outs = []; } connect(x) { this.outs.push(x); return x; } disconnect() { this.outs = []; } }
 class FSource extends FNode {
@@ -202,13 +202,48 @@ class FSource extends FNode {
   }
   stop(t = 0) { audioLog.push({ ev: 'stop', id: this.id, t }); }
 }
+class FOsc extends FNode {
+  constructor(c) { super(c, 'osc'); this.frequency = { value: 440 }; this.tStart = null; this.tStop = null; c._oscs.push(this); }
+  start(t = 0) { this.tStart = t; oscLog.push({ ev: 'start', id: this.id, freq: this.frequency.value, t, at: this.ctx.currentTime }); }
+  stop(t = 0) { this.tStop = t; oscLog.push({ ev: 'stop', id: this.id, freq: this.frequency.value, t, at: this.ctx.currentTime }); }
+  gainVal() {
+    let g = 1, cur = this.outs[0];
+    const seen = new Set();
+    while (cur && !seen.has(cur)) { seen.add(cur); if (cur.type === 'gain' && cur.gain) g *= cur.gain.value; cur = cur.outs[0]; }
+    return g;
+  }
+}
 class FakeAudioContext {
-  constructor(o = {}) { this.sampleRate = o.sampleRate || 48000; this._t0 = vnow(); this._frozen = null; this._off = 0; this.state = 'running'; this.destination = new FNode(this, 'dest'); this.baseLatency = 0.01; this.outputLatency = 0.02; this.onstatechange = null; ctxs.push(this); }
+  constructor(o = {}) { this.sampleRate = o.sampleRate || 48000; this._t0 = vnow(); this._frozen = null; this._off = 0; this.state = 'running'; this.destination = new FNode(this, 'dest'); this.baseLatency = 0.01; this.outputLatency = 0.02; this.onstatechange = null; this._oscs = []; this._sineCache = new Map(); ctxs.push(this); }
   get currentTime() { return this._frozen !== null ? this._frozen : (vnow() - this._t0) / 1000 - this._off; }
   async resume() { if (this.state !== 'running') { this._off = (vnow() - this._t0) / 1000 - this._frozen; this._frozen = null; this.state = 'running'; if (this.onstatechange) this.onstatechange(); } }
   async suspend() { if (this.state === 'running') { this._frozen = this.currentTime; this.state = 'suspended'; if (this.onstatechange) this.onstatechange(); } }
   createGain() { const n = new FNode(this, 'gain'); n.gain = { value: 1 }; return n; }
-  createAnalyser() { const n = new FNode(this, 'analyser'); n.fftSize = 2048; n.getFloatTimeDomainData = buf => buf.fill(0); return n; }
+  createOscillator() { return new FOsc(this); }
+  createAnalyser() {
+    const c = this, n = new FNode(c, 'analyser');
+    n.fftSize = 2048;
+    n.getFloatTimeDomainData = buf => {
+      buf.fill(0);
+      if (H.forceSilent || c.state !== 'running') return;
+      const now = c.currentTime, N = buf.length, fs = c.sampleRate;
+      for (const o of c._oscs) {
+        if (o.tStart === null || o.tStart > now + 1e-6) continue;
+        if (o.tStop !== null && o.tStop <= now + 1e-6) continue;
+        const f = o.frequency.value, g = o.gainVal();
+        const key = `${N}|${fs}|${f}|${g}`;
+        let tbl = c._sineCache.get(key);
+        if (!tbl) {
+          tbl = new Float32Array(N);
+          const w = 2 * Math.PI * f / fs;
+          for (let i = 0; i < N; i++) tbl[i] = g * Math.sin(w * i);
+          c._sineCache.set(key, tbl);
+        }
+        for (let i = 0; i < N; i++) buf[i] += tbl[i];
+      }
+    };
+    return n;
+  }
   createBufferSource() { const n = new FSource(this, 'buf'); n.buffer = null; n.onended = null; return n; }
   createBuffer(ch, len, fs) { return { numberOfChannels: ch, length: len, sampleRate: fs, data: null, copyToChannel(d) { this.data = new Float32Array(d); } }; }
   getOutputTimestamp() { return { contextTime: this.currentTime, performanceTime: vnow() }; }
@@ -220,7 +255,7 @@ globalThis.addEventListener('unhandledrejection', e => { rejections.push(String(
 // 가짜 웹 서버: 앱 파일은 디스크에서 그대로(= build 해시가 실제 파일의 해시), 통과 기록은 시험이 정함
 const APP = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];
 const H = {
-  ok, K, confirmAnswer: true, dialogs, downloads, calls, audioLog, ctxs, clip, wins, store, rejections,
+  ok, K, confirmAnswer: true, forceSilent: false, dialogs, downloads, calls, audioLog, oscLog, ctxs, clip, wins, store, rejections,
   realSetTimeout: realST, realNow, vnow,
   passRecord: null,                  // null = 통과 기록 없음(404), 있으면 검증_통과.json 그대로 ({ last, history })
   override: {},                      // { 'js/app.js': '바뀐 내용' } — 화면을 연 뒤 서버 파일이 바뀐 경우
