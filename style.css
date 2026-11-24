@@ -771,7 +771,7 @@ details.more[open] summary::before{transform:rotate(90deg)}
   box-shadow:0 0 0 2px var(--ok) inset;
 }
 .iv.right::after{
-  content:'✓ 정답';
+  content:'떨린 소리';
   position:absolute;
   bottom:10px;
   left:50%;
@@ -781,6 +781,23 @@ details.more[open] summary::before{transform:rotate(90deg)}
   line-height:1;
   color:var(--ok);
   white-space:nowrap;
+}
+.run:has(#fb.ok) .iv.right::after{
+  content:'✓ 맞음';
+}
+.run:has(#fb.no) .iv.right{
+  background:var(--panel);
+  box-shadow:0 0 0 1px var(--ok) inset;
+}
+.run:has(#fb.mid) .iv.right{
+  background:var(--acc-soft);
+  border-color:var(--acc);
+  color:var(--acc-ink);
+  box-shadow:0 0 0 1px var(--acc) inset;
+}
+.run:has(#fb.mid) .iv.right::after{
+  content:'떨린 소리';
+  color:var(--acc-ink);
 }
 .iv.wrong{
   background:var(--err-soft);

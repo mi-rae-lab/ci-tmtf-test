@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.0.2 (2026-11-24)';   // 1.0.2: 화면 디자인을 미니멀하고 현대식으로 다듬음
+const APP_VERSION = '1.0.3 (2026-11-24)';   // 1.0.3: 모르겠음·틀림·맞음 피드백 타일 표시 구분 (모르겠음이 정답처럼 보이던 문제 해결)
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const STORE_KEY = 'ciTmtf.v1';
