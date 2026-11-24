@@ -222,7 +222,7 @@ const APP = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/tra
 const H = {
   ok, K, confirmAnswer: true, dialogs, downloads, calls, audioLog, ctxs, clip, wins, store, rejections,
   realSetTimeout: realST, realNow, vnow,
-  passHistory: null,                 // null = 통과 기록 없음(404)
+  passRecord: null,                  // null = 통과 기록 없음(404), 있으면 검증_통과.json 그대로 ({ last, history })
   override: {},                      // { 'js/app.js': '바뀐 내용' } — 화면을 연 뒤 서버 파일이 바뀐 경우
   cached: {},                        // { 'js/app.js': '옛 내용' } — force-cache 로 읽을 때만(브라우저가 옛 파일을 쓴 경우)
   key: (key, target) => { const e = { type: 'keydown', key, target: target || bodyEl, repeat: false, preventDefault() { e.defaultPrevented = true; } }; for (const f of docL.keydown || []) f(e); return e; },
@@ -255,7 +255,7 @@ globalThis.fetch = async (url, opt = {}) => {
   if (mode === 'force-cache' && u in H.cached) return new Response(H.cached[u], { status: 200 });   // 브라우저 캐시에 남은 옛 파일
   if (u in H.override) return new Response(H.override[u], { status: 200 });
   if (APP.includes(u)) return new Response(readBytes(u), { status: 200 });
-  if (u === '검증_통과.json') return H.passHistory ? new Response(JSON.stringify({ last: {}, history: H.passHistory }), { status: 200 }) : new Response('', { status: 404 });
+  if (u === '검증_통과.json') return H.passRecord ? new Response(JSON.stringify(H.passRecord), { status: 200 }) : new Response('', { status: 404 });
   return new Response('', { status: 404 });
 };
 let loadErr = null;

@@ -100,6 +100,7 @@ tools\전수검산.bat        (또는 python -I -X utf8 tools/run_checks.py)
 - 필요: Python 3 + numpy, [deno](https://deno.com), Lean 4(elan)
 - 6단계가 모두 통과하면 `검증_통과.json`에 기록이 남습니다.
 - 검사 화면은 회기를 시작할 때 자기 파일의 해시를 이 기록과 맞대어 회기에 적습니다.
+- 새 판이 나왔을 때만 새로 고침을 안내합니다. 해시만 다르면 막지 않고 기록에 남깁니다.
 
 | 파일 | 내용 |
 |---|---|

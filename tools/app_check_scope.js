@@ -11,6 +11,7 @@ globalThis.__scope = (async () => {
   const ri = n => Math.floor(rng.uniform() * n);
   const starts = () => H.audioLog.filter(x => x.ev === 'start');
   const bits = c => c.map(x => x ? 1 : 0).join('');
+  const V = APP_VERSION.split(' ')[0];   // index.html 의 ?v=
 
   // ── 처음 화면 · build
   await until(() => BUILD_LOAD !== null, 15000, 'build');
@@ -20,9 +21,11 @@ globalThis.__scope = (async () => {
     return [BUILD_LOAD.ok && BUILD_LOAD.buildSha256 === whole && JSON.stringify(BUILD_LOAD.files) === JSON.stringify(fh) && BUILD_LOAD.verified.status === 'no-record', JSON.stringify(BUILD_LOAD).slice(0, 240)];
   });
   await tryOk('처음 열 때 build = force-cache(화면이 실제로 받은 판) · 화면이 부른 주소 그대로(?v=) · 화면 주소 = index.html', () =>
-    [BUILD_LOAD.mode === 'force-cache' && H.calls.includes('GET js/app.js?v=1.0.0 force-cache') && H.calls.includes('GET style.css?v=1.0.0 force-cache') && H.calls.includes('GET index.html force-cache'), H.calls.slice(0, 7).join(' | ')]);
+    [BUILD_LOAD.mode === 'force-cache' && H.calls.includes(`GET js/app.js?v=${V} force-cache`) && H.calls.includes(`GET style.css?v=${V} force-cache`) && H.calls.includes('GET index.html force-cache'), H.calls.slice(0, 7).join(' | ')]);
   H.expectBuild = BUILD_LOAD.buildSha256;
-  H.passHistory = [{ at: '2026-11-24T00:00:00+09:00', buildSha256: BUILD_LOAD.buildSha256, appVersion: APP_VERSION }];
+  // 통과 기록(검증_통과.json 꼴): 마지막 통과의 파일 해시 + history — 처음 열 때는 기록이 없었고(no-record), 회기를 시작할 때 다시 읽어 맞댐
+  H.passRecord = { last: { ok: true, at: '2026-11-24T00:00:00+09:00', appVersion: APP_VERSION, buildSha256: BUILD_LOAD.buildSha256, files: { ...BUILD_LOAD.files } },
+    history: [{ at: '2026-11-24T00:00:00+09:00', buildSha256: BUILD_LOAD.buildSha256, appVersion: APP_VERSION }] };
   await tryOk('처음 화면: 기본 떨림 빠르기 10 · 50 · 100 · 150 · 200 Hz · 20분쯤 · 링크 번호(?id=P02) · 경고 없음 · 경고창 없음', () => [
     vis('#pgHome') && $('#fmInfo').textContent === '검사할 떨림 빠르기: 10 · 50 · 100 · 150 · 200 Hz' && $('#homeTime').textContent.startsWith('20분쯤') && $('#codeIn').value === 'P02' && $('#envWarn').hidden && $('#homeSaved').hidden && !H.dialogs.length,
     `${$('#fmInfo').textContent} | ${$('#homeTime').textContent} | ${$('#codeIn').value}`]);
@@ -145,6 +148,9 @@ globalThis.__scope = (async () => {
     return C0;
   }
   const THR1 = { 10: -18, 50: -14, 100: -8, 150: -3, 200: null };
+  // 지금 측정이 늘 찍기(200 Hz)면 그 측정만 역치 −12 dB 로 (keep: 그 측정을 결과로 남기는 자리인지 — 역치 점검에서 그만큼 바꿔 봄)
+  let goodKept = null;
+  const GOOD = keep => { const fm = S.plan[S.idx].fm; if (THR1[fm] === null && keep) goodKept = fm; return { ...THR1, [fm]: THR1[fm] ?? -12 }; };
   const nextFm = () => S.plan[S.idx].fm;
   // 첫 측정: 그대로
   await runTrack(THR1);
@@ -152,7 +158,8 @@ globalThis.__scope = (async () => {
   await tryOk('측정 끝 → 쉬는 화면(1 / 5 끝 · 남은 4) · 기록 1개 · 하던 측정(current) 비움', () => [$('#bBody').textContent.includes('1 / 5개 끝났어요') && sess.runs.length === 1 && sess.current === null && $('#bPractice').hidden, $('#bBody').textContent]);
   // 둘째: 소리 나는 중 화면 가려짐 → 그 시행 버리고, 돌아오면 같은 깊이로 다시
   $('#bNext').click();
-  await runTrack(THR1, async (n, C0) => {
+  // 가려짐 · 멈춤 시험 자리는 늘 ‘잘 듣는 사람’ 모형 — 무작위 순서로 늘 찍기(200 Hz)가 걸리면 시험 시행 전에 측정이 끝나 버림
+  await runTrack(GOOD(true), async (n, C0) => {
     if (n !== 3) return;
     await until(() => C0.phase === 'playing', 10000, '가려짐 시험 소리');
     const pend = { ...C0.pend }, nTr = C0.track.trials.length;
@@ -171,7 +178,7 @@ globalThis.__scope = (async () => {
   $('#bNext').click();
   const fm3 = S.plan[S.idx].fm;
   let abandonedN = 0;
-  await runTrack(THR1, async (n, C0) => {
+  await runTrack(GOOD(false), async (n, C0) => {
     if (n === 2) {
       await until(() => awaiting && S.cur === C0, 10000, '멈춤 창 계속');
       H.confirmAnswer = false; $('#stopBtn').click(); H.confirmAnswer = true;
@@ -216,7 +223,7 @@ globalThis.__scope = (async () => {
     const g = fm => r1.find(r => r.fm === fm);
     const near = (fm, thr) => { const r = g(fm); return !r.ceiling && r.thr !== null && Math.abs(r.thr - thr) <= 6; };
     const r200 = g(200);
-    return [near(10, -18) && near(50, -14) && near(100, -8) && (r200.ceiling || r200.atChance), r1.map(r => `${r.fm}:${r.thr}${r.ceiling ? '(천장)' : ''}`).join(' ')];
+    return [near(10, -18) && near(50, -14) && near(100, -8) && (goodKept === 200 ? near(200, -12) : (r200.ceiling || r200.atChance)), r1.map(r => `${r.fm}:${r.thr}${r.ceiling ? '(천장)' : ''}`).join(' ') + (goodKept ? ` · ${goodKept} Hz 는 −12 dB 모형` : '')];
   });
   await tryOk('회기 사건: 측정 시작 6(다시 1) · 끝 5 · 버림 1 · 멈춤 창 2 · 가려짐/돌아옴 · plan-done', () => {
     const n = t => sess.events.filter(e => e.type === t).length;
@@ -318,7 +325,7 @@ globalThis.__scope = (async () => {
   await tryOk('네트워크: 앱 파일 · 통과 기록 읽기(GET)만 — 보내는 요청 없음 · 회기 시작 때는 no-store(서버의 지금 판)', () => {
     const allow = new Set([...H.appFiles, '검증_통과.json']);
     const bad = H.calls.filter(c => { const [m, u] = c.split(' '); return m !== 'GET' || !allow.has(u.split('?')[0]); });
-    return [!bad.length && H.calls.length > 0 && H.calls.includes('GET js/app.js?v=1.0.0 no-store') && H.calls.includes('GET index.html no-store'), bad.join(' | ') || `${H.calls.length}개`];
+    return [!bad.length && H.calls.length > 0 && H.calls.includes(`GET js/app.js?v=${V} no-store`) && H.calls.includes('GET index.html no-store'), bad.join(' | ') || `${H.calls.length}개`];
   });
 
   // ── 화면이 닫힌 회기 되살리기
@@ -333,35 +340,62 @@ globalThis.__scope = (async () => {
     return [res.every(Boolean), bits(res)];
   });
 
-  // ── 화면을 연 뒤 앱 파일이 바뀌면 시작 막음
+  // ── 판 확인 (1.0.1): 새 판(서버 app.js 의 판 번호가 다름)이면 막고, 지문만 다르면 막지 않고 회기에 남김
+  await tryOk('통과 기록과 맞대기: 전체 해시가 기록에 있음 → pass · index.html 만 다름 → pass-code · 코드 파일이 다름 → not-checked(다른 파일) · 기록 없음 → not-checked', () => {
+    const files = { ...BUILD_LOAD.files }, rec = { last: { ok: true, files: { ...files }, at: 'x', appVersion: APP_VERSION }, history: [{ buildSha256: H.expectBuild, at: 'x', appVersion: APP_VERSION }] };
+    const a = verifyBuild(rec, H.expectBuild, files), b = verifyBuild(rec, 'other', { ...files, 'index.html': 'zz' }), c = verifyBuild(rec, 'other', { ...files, 'js/stim.js': 'zz' });
+    const d = verifyBuild({ history: [] }, 'other', files), e = verifyBuild({ ...rec, last: { ...rec.last, ok: false } }, 'other', { ...files, 'index.html': 'zz' });
+    return [a.status === 'pass' && b.status === 'pass-code' && b.differ.join() === 'index.html' && c.status === 'not-checked' && c.differ.join() === 'js/stim.js' && d.status === 'not-checked' && e.status === 'not-checked',
+      [a, b, c, d, e].map(x => x.status).join(' ')];
+  });
   $('#vHome').click(); $('#goSetup').click(); $('#setupNext').click();
   $('#volOk').click();
   const nS = DB.sessions.length, nD = DB.decisions.length;
-  H.override['js/app.js'] = '// 바뀐 파일';
+  H.override['js/app.js'] = H.fileBytes('js/app.js') && new TextDecoder().decode(H.fileBytes('js/app.js')).replace(/const APP_VERSION = '[^']+'/, "const APP_VERSION = '9.9.9 (시험)'");
   $('#soundNext').click();
-  await until(() => H.dialogs.some(d => d[0] === 'alert'), 10000, '바뀐 파일 경고');
-  await tryOk('화면을 연 뒤 앱 파일이 바뀜 → 경고 · 시작 안 함 · DB.decisions 에 막힘(두 해시)', () => {
+  await until(() => H.dialogs.some(d => d[0] === 'alert'), 10000, '새 판 경고');
+  await tryOk('새 판이 나옴(서버 app.js 판 번호 9.9.9 ≠ 지금 1.0.x) → 새로 고침 안내 · 시작 안 함 · DB.decisions 에 막힘(두 판 번호 · 두 해시)', () => {
     const d = DB.decisions.at(-1);
-    return [H.dialogs.filter(x => x[0] === 'alert').at(-1)[1] === STALE_MSG && DB.sessions.length === nS && S === null && DB.decisions.length === nD + 1 && d.what === 'session-start' && d.answer === 'blocked' && d.reason === 'page-stale' && d.pageBuild === H.expectBuild && d.fileBuild !== H.expectBuild, JSON.stringify(d)];
+    return [H.dialogs.filter(x => x[0] === 'alert').at(-1)[1] === STALE_MSG && DB.sessions.length === nS && S === null && DB.decisions.length === nD + 1 && d.what === 'session-start' && d.answer === 'blocked'
+      && d.reason === 'new-version' && d.running === APP_VERSION && d.server === '9.9.9 (시험)' && d.pageBuild === H.expectBuild && d.fileBuild !== H.expectBuild, JSON.stringify(d)];
   });
   delete H.override['js/app.js'];
-  await tryOk('브라우저가 옛 파일(캐시)을 쓴 화면 → 처음 열 때 해시(force-cache)가 서버 것(no-store)과 달라 시작 막음', async () => {
+  await tryOk('브라우저 캐시에 옛 stim.js(화면이 받은 판 ≠ 서버 판, 판 번호는 같음) → 받은 판 해시가 달라짐 · 그 파일 이름이 나옴 · 받은 판은 not-checked', async () => {
     H.cached['js/stim.js'] = '// 옛 stim';
     const bl = await computeBuild('force-cache'), now = await computeBuild('no-store');
-    const keep = BUILD_LOAD; BUILD_LOAD = bl;
-    const nA = H.dialogs.filter(d => d[0] === 'alert').length, nS2 = DB.sessions.length;
-    $('#soundNext').click();
-    await until(() => H.dialogs.filter(d => d[0] === 'alert').length > nA, 10000, '캐시 경고');
-    BUILD_LOAD = keep; delete H.cached['js/stim.js'];
-    return [bl.ok && now.ok && bl.buildSha256 !== now.buildSha256 && now.buildSha256 === H.expectBuild && bl.mode === 'force-cache' && DB.sessions.length === nS2 && S === null
-      && DB.decisions.at(-1).pageBuild === bl.buildSha256 && DB.decisions.at(-1).fileBuild === now.buildSha256, `${bl.buildSha256.slice(0, 8)} ${now.buildSha256.slice(0, 8)}`];
+    delete H.cached['js/stim.js'];
+    return [bl.ok && now.ok && bl.buildSha256 !== now.buildSha256 && now.buildSha256 === H.expectBuild && bl.version === APP_VERSION && now.version === APP_VERSION
+      && bl.verified.status === 'not-checked' && bl.verified.differ.join() === 'js/stim.js' && now.verified.status === 'pass', `${bl.verified.status} ${now.verified.status}`];
   });
+  // 오는 길에 화면 파일이 바뀌는 컴퓨터(예: 보안 프로그램이 페이지에 코드를 끼워 넣음 — 받을 때마다 다르게) → 막지 않고 시작 · 회기에 다른 파일 · 코드는 검산한 것 그대로(pass-code)
+  {
+    const html0 = new TextDecoder().decode(H.fileBytes('index.html'));
+    H.cached['index.html'] = html0.replace('</body>', '<script src="https://inject.example/a.js?k=1"></script></body>');
+    H.override['index.html'] = html0.replace('</body>', '<script src="https://inject.example/a.js?k=2"></script></body>');
+    const keep = BUILD_LOAD; BUILD_LOAD = await computeBuild('force-cache');
+    const nA = H.dialogs.filter(d => d[0] === 'alert').length;
+    $('#soundNext').click();
+    await until(() => S && S.cur && S.cur.practice && awaiting, 20000, '끼워 넣은 화면 회기');
+    const si = S.session;
+    await tryOk('화면 파일만 오는 길에 바뀜 → 경고 없이 시작 · build.differ = [index.html] · 받은 판 · 서버 판 모두 pass-code · 판 번호 같음 · 회기 사건에 differ', () => [
+      H.dialogs.filter(d => d[0] === 'alert').length === nA && si.build.differ.join() === 'index.html' && si.build.from === 'load' && si.build.verified.status === 'pass-code'
+        && si.build.running.verified.status === 'pass-code' && si.build.server.verified.status === 'pass-code' && si.build.running.version === APP_VERSION && si.build.server.version === APP_VERSION
+        && si.build.sha256 === BUILD_LOAD.buildSha256 && si.events.find(e => e.type === 'session-start').differ.join() === 'index.html', JSON.stringify(si.build.verified) + ' ' + JSON.stringify(si.build.differ)]);
+    $('#stopBtn').click();   // 연습 그만 → 쉬는 화면
+    $('#bEnd').click();      // 오늘은 여기까지
+    await tryOk('그 회기 끝냄 · 받은 결과 보기에 ‘검산 통과 코드 (index.html 만 다름…)’ · ‘화면이 받은 파일 ≠ 서버 파일: index.html’', () => {
+      const h = viewSessHtml(si, '시험');
+      return [S === null && !!si.end && h.includes('index.html 만 다름') && h.includes('화면이 받은 파일 ≠ 서버 파일: index.html'), si.endReason];
+    });
+    BUILD_LOAD = keep; delete H.cached['index.html']; delete H.override['index.html'];
+    $('#toHome').click(); $('#goSetup').click(); $('#setupNext').click(); $('#volOk').click();
+  }
 
   // ── 중간에 끝내기 · 나가기 경고 · 출력 확인
   $('#soundNext').click();
   await until(() => S && S.cur && S.cur.practice && awaiting, 20000, '셋째 회기 연습');
   const s3 = S.session;
-  await tryOk('새 회기: 귀 · 듣는 방법은 그대로, 준비 기록은 새로(잡음 0 · 들어 보기 0)', () => [s3 !== sess && s3.ear === 'R' && s3.path === 'wired' && s3.setup.noise.length === 0 && s3.setup.demo.length === 0 && s3.build.verified.status === 'pass', '']);
+  await tryOk('새 회기: 귀 · 듣는 방법은 그대로, 준비 기록은 새로(잡음 0 · 들어 보기 0) · build pass · 다른 파일 없음', () => [s3 !== sess && s3.ear === 'R' && s3.path === 'wired' && s3.setup.noise.length === 0 && s3.setup.demo.length === 0 && s3.build.verified.status === 'pass' && s3.build.differ.length === 0, JSON.stringify(s3.build.differ)]);
   {
     let prevented = false;
     H.wins.beforeunload.forEach(f => f({ preventDefault() { prevented = true; }, returnValue: undefined }));
@@ -388,7 +422,7 @@ globalThis.__scope = (async () => {
   $('#toHome').click();
   $('#homeSaveAll').click();
   const all = await H.takeDownloads();
-  await tryOk('모두 파일로 저장: 측정 · 사건이 있는 회기 모두(2개) · 이름 TMTF_all_', async () => { const o = JSON.parse(await all[0].blob.text()); return [all.length === 1 && /^TMTF_all_/.test(all[0].name) && o.sessions.length === 2 && o.format === 'ci-tmtf-public', `${o.sessions.length}`]; });
+  await tryOk('모두 파일로 저장: 측정 · 사건이 있는 회기 모두(3개) · 이름 TMTF_all_', async () => { const o = JSON.parse(await all[0].blob.text()); return [all.length === 1 && /^TMTF_all_/.test(all[0].name) && o.sessions.length === 3 && o.format === 'ci-tmtf-public', `${o.sessions.length}`]; });
 
   // ── 저장소를 못 읽을 때 · 못 쓸 때
   await tryOk('저장된 기록을 못 읽으면 지우지 않고 다른 이름으로 옮김 · 경고', () => {
@@ -409,6 +443,6 @@ globalThis.__scope = (async () => {
     localStorage.setItem = real; const r2 = saveStore(); renderEnvWarn();
     return [r === false && warned && r2 === true && $('#envWarn').hidden, `${r} ${warned} ${r2}`];
   });
-  ok('경고창은 바뀐 파일 · 옛 파일 둘뿐 · 확인 창은 멈춤 둘뿐', H.dialogs.filter(d => d[0] === 'alert').length === 2 && H.dialogs.filter(d => d[0] === 'confirm').length === 2, JSON.stringify(H.dialogs).slice(0, 200));
+  ok('경고창은 새 판 하나뿐(지문만 다른 것은 경고 없음) · 확인 창은 멈춤 둘뿐', H.dialogs.filter(d => d[0] === 'alert').length === 1 && H.dialogs.filter(d => d[0] === 'confirm').length === 2, JSON.stringify(H.dialogs).slice(0, 200));
   clearInterval(KEEPMON_TIMER);
 })();

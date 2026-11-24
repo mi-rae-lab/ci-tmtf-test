@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.0.0 (2026-11-24)';
+const APP_VERSION = '1.0.1 (2026-11-24)';   // 1.0.1: 시작을 막는 것은 판 번호가 바뀐 때만(지문만 다르면 기록만) — 1.0.0 은 사용자 크롬에서 시작이 늘 막혔음
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const STORE_KEY = 'ciTmtf.v1';
@@ -99,9 +99,11 @@ function closeOrphans() {
 }
 function logDecision(what, answer, detail = {}) { DB.decisions.push({ id: uid(), at: iso(), what, answer, ...detail }); saveStore(); }
 
-/* ───────────── 프로그램 파일 확인 (build) — 열린 화면이 어떤 코드인지 기록하고, 서버의 파일과 다르면 시작하지 않음 ─────────────
-   처음 열 때 'force-cache' = 이 화면이 실제로 받은 판(브라우저 캐시), 시작할 때 'no-store' = 지금 서버에 있는 판.
-   둘이 다르면(연 뒤 파일이 바뀜 · 브라우저가 옛 파일을 씀) 새로 고침을 안내. 파일 주소는 화면이 부른 그대로(?v= 포함) — 캐시에서 같은 것을 찾게 */
+/* ───────────── 프로그램 파일 확인 (build) — 열린 화면이 어떤 코드인지 기록 ─────────────
+   처음 열 때 'force-cache' = 이 화면이 실제로 받은 판(브라우저 캐시), 시작할 때 'no-store' = 지금 서버에 있는 판. 파일 주소는 화면이 부른 그대로(?v= 포함).
+   1.0.1: 시작을 막는 것은 ‘판 번호(APP_VERSION)가 바뀐 때’ 뿐 — 새 판이 나왔는데 옛 화면이 돌고 있을 때. 파일 지문(해시)만 다르면 막지 않고 어느 파일이
+   다른지 회기에 남김. (1.0.0 은 지문이 다르면 막아서, 사용자 크롬에서 시작이 늘 막힘 — 서버는 매번 같은 파일을 주었으므로 그 컴퓨터에서 받은 파일이
+   바뀐 것으로 보임, 예: 보안 프로그램이 페이지에 코드를 끼워 넣음. 원인은 확인하지 못함) */
 let BUILD_LOAD = null;
 async function sha256Hex(buf) { const h = await crypto.subtle.digest('SHA-256', buf); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join(''); }
 function assetUrl(f, mode) {
@@ -114,24 +116,32 @@ async function computeBuild(mode = 'no-store') {
     if (location.protocol === 'file:') return { ok: false, error: 'file', mode };
     if (!(window.crypto && crypto.subtle)) return { ok: false, error: 'no-subtle', mode };
     const files = {};
+    let version = null;
     for (const f of APP_FILES) {
       const r = await fetch(assetUrl(f, mode), { cache: mode });
       if (!r.ok) return { ok: false, error: `${f}: ${r.status}`, mode };
-      files[f] = await sha256Hex(await r.arrayBuffer());
+      const buf = await r.arrayBuffer();
+      files[f] = await sha256Hex(buf);
+      if (f === 'js/app.js') version = (/const APP_VERSION = '([^']+)'/.exec(new TextDecoder().decode(buf)) || [])[1] || null;
     }
     const whole = await sha256Hex(new TextEncoder().encode(Object.keys(files).sort().map(k => `${k}:${files[k]}\n`).join('')));
-    let verified;
-    try {
-      const r = await fetch('검증_통과.json', { cache: 'no-store' });
-      if (!r.ok) verified = { status: 'no-record', http: r.status };
-      else {
-        const v = await r.json(), hist = (v.history || []).filter(x => x && x.buildSha256), hit = hist.find(x => x.buildSha256 === whole);
-        verified = hit ? { status: 'pass', at: hit.at || null, appVersion: hit.appVersion || null } : { status: 'not-checked', lastPass: hist.length ? hist[hist.length - 1].buildSha256 : null };
-      }
-    } catch (e) { verified = { status: 'no-record', error: String(e && e.message || e) }; }
-    return { ok: true, buildSha256: whole, files, verified, at: iso(), mode };
+    let rec = null, recErr = null;
+    try { const r = await fetch('검증_통과.json', { cache: 'no-store' }); if (r.ok) rec = await r.json(); else recErr = 'http ' + r.status; } catch (e) { recErr = String(e && e.message || e); }
+    const verified = rec ? verifyBuild(rec, whole, files) : { status: 'no-record', error: recErr };
+    return { ok: true, buildSha256: whole, files, version, verified, passRec: rec, at: iso(), mode };
   } catch (e) { return { ok: false, error: String(e && e.message || e), mode }; }
 }
+// 통과 기록과 맞대기: 전체 해시가 기록에 있으면 pass, 마지막 통과의 파일과 index.html 만 다르면 pass-code(코드 파일은 검산한 것과 같음 —
+// 화면 파일만 오는 길에 바뀐 경우), 그 밖은 not-checked(다른 파일 목록)
+function verifyBuild(rec, whole, files) {
+  const hist = (rec.history || []).filter(x => x && x.buildSha256), hit = hist.find(x => x.buildSha256 === whole);
+  if (hit) return { status: 'pass', at: hit.at || null, appVersion: hit.appVersion || null };
+  const lf = rec.last && rec.last.ok && rec.last.files;
+  const differ = lf ? APP_FILES.filter(f => lf[f] !== files[f]) : APP_FILES.slice();
+  if (lf && differ.length === 1 && differ[0] === 'index.html') return { status: 'pass-code', at: rec.last.at || null, appVersion: rec.last.appVersion || null, differ };
+  return { status: 'not-checked', differ, lastPass: hist.length ? hist[hist.length - 1].buildSha256 : null };
+}
+const VERIFIED_TXT = { pass: '검산 통과 코드', 'pass-code': '검산 통과 코드 (index.html 만 다름 — 오는 길에 바뀐 것으로 보임)', 'not-checked': '검산 기록과 다른 코드', 'no-record': '검산 기록을 못 읽음' };
 const STALE_MSG = '프로그램이 새로 바뀌었습니다.\n화면을 새로 고침 한 뒤 다시 시작해 주세요.';
 
 /* ───────────── 소리 ───────────── */
@@ -339,11 +349,18 @@ async function startSession() {
   $('#soundNext').disabled = true;
   const bi = await computeBuild('no-store');
   $('#soundNext').disabled = !$('#volOk').checked;
-  if (BUILD_LOAD?.ok && bi.ok && BUILD_LOAD.buildSha256 !== bi.buildSha256) {
+  // 새 판이 나왔는데 옛 화면이 돌고 있으면(서버 app.js 의 판 번호 ≠ 지금 도는 판 번호) 새로 고침 안내 — 지문(해시)만 다른 것은 막지 않음
+  if (bi.ok && bi.version && bi.version !== APP_VERSION) {
     alert(STALE_MSG);
-    logDecision('session-start', 'blocked', { reason: 'page-stale', pageBuild: BUILD_LOAD.buildSha256, fileBuild: bi.buildSha256, app: APP_VERSION });
+    logDecision('session-start', 'blocked', { reason: 'new-version', running: APP_VERSION, server: bi.version, pageBuild: BUILD_LOAD?.ok ? BUILD_LOAD.buildSha256 : null, fileBuild: bi.buildSha256 });
     return;
   }
+  // 회기 build: 실제로 돈 코드(처음 열 때 받은 판)를 앞에, 서버의 지금 판 · 서로 다른 파일을 함께
+  const run0 = BUILD_LOAD?.ok ? BUILD_LOAD : null, base = run0 || (bi.ok ? bi : null);
+  const differ = run0 && bi.ok ? APP_FILES.filter(f => run0.files[f] !== bi.files[f]) : null;
+  // 받은 판의 검산 여부는 지금 읽은 통과 기록으로 다시 맞댐 (처음 열 때 기록을 못 읽었어도 바르게)
+  const runVerified = run0 ? (bi.ok && bi.passRec ? verifyBuild(bi.passRec, run0.buildSha256, run0.files) : run0.verified) : null;
+  const pack = (b, v) => b && b.ok ? { sha256: b.buildSha256, files: b.files, version: b.version, verified: v || b.verified } : { sha256: null, error: b ? b.error : 'not-ready' };
   const osv = $('#osVol').value.trim();
   const session = {
     id: uid(), format: FORMAT, app: APP_VERSION, start: iso(), end: null, endReason: null, updated: iso(),
@@ -354,7 +371,8 @@ async function startSession() {
     runs: [], events: [], decisions: [], current: null,
     setup: { setupAt: PRE.setupAt, noise: PRE.noise.slice(), demo: PRE.demo.slice(), volOkAt: PRE.volOkAt },
     env: { ...systemEnv(), audio: audioEnv() },
-    build: bi.ok ? { sha256: bi.buildSha256, files: bi.files, verified: bi.verified } : { sha256: null, error: bi.error },
+    build: { sha256: base ? base.buildSha256 : null, verified: run0 ? runVerified : base ? base.verified : null, from: run0 ? 'load' : base ? 'server' : null,
+      running: pack(BUILD_LOAD, runVerified), server: pack(bi), differ },   // differ: 화면이 받은 파일 ≠ 서버 파일 (null = 비교 못 함)
     buildAtLoad: BUILD_LOAD?.ok ? BUILD_LOAD.buildSha256 : null,
     keepMonAtStart: null, keepMonitor: null, focusEnd: null, focusEndShown: false,
   };
@@ -365,7 +383,7 @@ async function startSession() {
   S = { session, plan: [], idx: 0, cur: null, token: null, t0: performance.now(), lastEnd: null, practiceRound: 0, offer: null };
   session.keepMonAtStart = keepMonSnap();
   addRound(PLAN_FMS, false);
-  logEv('session-start', { fms: PLAN_FMS.slice(), practiceN: PRACTICE_N, build: session.build.sha256, verified: session.build.verified?.status ?? null });
+  logEv('session-start', { fms: PLAN_FMS.slice(), practiceN: PRACTICE_N, build: session.build.sha256, verified: session.build.verified?.status ?? null, differ });
   saveStore();
   wakeOn();
   startPractice();
@@ -867,7 +885,9 @@ function stairSvg(run) {
 function viewSessHtml(s, src) {
   const runs = (s.runs || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
   const P = s.P || snapP(PR);
-  const vf = s.build?.verified?.status === 'pass' ? '<span class="good">검산 통과 코드</span>' : s.build?.sha256 ? '검산 기록과 다른 코드' : '코드 확인 못 함(파일로 연 화면 등)';
+  const vs = s.build?.verified?.status, df = s.build?.differ;
+  const vf = (vs === 'pass' || vs === 'pass-code' ? `<span class="good">${esc(VERIFIED_TXT[vs])}</span>` : s.build?.sha256 ? esc(VERIFIED_TXT[vs] || '검산 기록과 다른 코드') + (s.build.verified?.differ?.length ? ` (${esc(s.build.verified.differ.join(', '))})` : '') : '코드 확인 못 함(파일로 연 화면 등)')
+    + (df && df.length ? ` · 화면이 받은 파일 ≠ 서버 파일: ${esc(df.join(', '))}` : '');
   const rowsH = runs.map(r => {
     const v = verdict(r), rp = replayCheck(r, r.P || P), rm = rmsCheck(r);
     const pos = [0, 1, 2].map(k => { const tt = (r.trials || []).filter(t => t.tg === k); return tt.length ? `${tt.filter(t => t.c).length}/${tt.length}` : '-'; }).join(' · ');
@@ -913,14 +933,14 @@ $('#vHome').onclick = () => { renderHome(); showPage('pgHome'); };
 const csvCell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 $('#vCsvRuns').onclick = () => {
   const head = ['파일', '번호', '귀', '듣는방법', '볼륨', '회기', '회기시작', '앱', 'build', '검산', '바퀴', '더', '순서', '변조Hz', '역치dB', '깊이%', '재지못함', '미완', '0dB시행', '0dB맞힘', '우연p', '우연수준',
-    '반전SD', '시행수', '모르겠음', '걸린초', '앞쉬는초', '표본화Hz', '출력지연ms', '계단다시', '구간세기차dB', '출력끊김', '절차', '나이', '사용기간', '난청시작', '회사', '집중'];
+    '반전SD', '시행수', '모르겠음', '걸린초', '앞쉬는초', '표본화Hz', '출력지연ms', '계단다시', '구간세기차dB', '출력끊김', '절차', '나이', '사용기간', '난청시작', '회사', '집중', '받은파일다름'];
   const lines = [head.join(',')];
   for (const { s, src } of VIEW.sessions) for (const r of (s.runs || [])) {
     const rp = replayCheck(r, r.P || s.P || snapP(PR)), rm = rmsCheck(r);
     lines.push([src, s.code, EAR[s.ear] || s.ear, PATH[s.path] || s.path, s.osVolume, s.id, s.start, s.app, s.build?.sha256, s.build?.verified?.status, r.round, r.extra ? 1 : 0, r.order, r.fm, r.thr,
       r.thr === null || r.ceiling ? '' : pct(r.thr).toFixed(1), r.ceiling ? 1 : 0, r.incomplete ? 1 : 0, r.n0, r.k0, r.pChance === null || r.pChance === undefined ? '' : (+r.pChance).toFixed(4), r.atChance ? 1 : 0,
       r.sd, r.nTrials, r.nDunno, r.durS, r.breakBeforeS, r.audio?.sampleRate, r.audio?.outputLatencyMs, rp.ok ? 1 : 0, rm.worst, (r.keepMonitor?.gaps || []).length + (r.keepMonitor?.openAtEnd ? 1 : 0), s.procKey,
-      s.info?.age, s.info?.ciYears, s.info?.onset, s.info?.maker, s.focusEnd].map(csvCell).join(','));
+      s.info?.age, s.info?.ciYears, s.info?.onset, s.info?.maker, s.focusEnd, (s.build?.differ || []).join(' ')].map(csvCell).join(','));
   }
   download(`TMTF_runs_${stamp()}.csv`, '﻿' + lines.join('\n'), 'text/csv');
 };
