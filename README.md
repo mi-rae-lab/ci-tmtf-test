@@ -63,7 +63,7 @@
 ## 개인정보 · 보안
 
 - **브라우저 내부 처리 원칙 (GitHub Pages 공개 페이지 포함):** 본 앱은 별도 백엔드 서버·데이터베이스·쿠키·분석 도구(Google Analytics 등)·외부 CDN/폰트/스크립트를 사용하지 않습니다. 최초 정적 파일 6개 및 `검증_통과.json` 읽기(`GET`, `credentials: 'omit'`, `no-referrer`) 외에는 별도의 네트워크 전송을 하지 않으며, 소리 생성·검사 진행·그래프·보고서·결과 파일 열기가 **브라우저 내부에서만** 작동하도록 설계했습니다.
-- **엄격한 CSP 및 HTTPS:** `default-src 'none'`, `connect-src 'self'`, `font-src 'none'`, `media-src 'none'`, `frame-src 'none'`, `worker-src 'none'`, `form-action 'none'`, `object-src 'none'`, `no-referrer` 정책과 원격 HTTP → HTTPS 자동 전환을 적용했습니다(GitHub Pages 설정에서 **Enforce HTTPS** 활성화 권장).
+- **엄격한 CSP 및 HTTPS:** `default-src 'none'`, `connect-src 'self'`, `font-src 'none'`, `media-src 'none'`, `frame-src 'none'`, `worker-src 'none'`, `form-action 'none'`, `object-src 'none'`, `no-referrer` 정책과 원격 HTTP → HTTPS 자동 전환을 적용했습니다.
 - **입력 정보 보호:** 이름·연락처를 묻지 않으며, 입력 칸에 `spellcheck="false"`를 적용해 클라우드 맞춤법 검사로의 텍스트 유출을 줄입니다. 메모 칸에 전화번호·이메일·주민등록번호 패턴이 입력되면 브라우저 내부에서 즉시 경고를 표시합니다.
 - **로컬 저장 및 즉시 삭제:** 결과는 **이 기기의 브라우저(`localStorage`)에만** 저장되며, 참가자가 **‘결과 파일 저장’**을 직접 눌러야만 파일로 내보내집니다. 공용 기기를 사용한 뒤에는 첫 화면의 **‘이 기기 기록 지우기’**로 저장된 기록을 즉시 완전 삭제할 수 있습니다.
 - **서버 로그에 남지 않는 해시 링크(`#id=`):** 링크로 참가 번호를 전달할 때 `?id=` 대신 **`#id=P02`**(URL 해시)를 사용하면 HTTP 요청에 번호가 실리지 않아 GitHub Pages 정적 서버 로그에 남지 않습니다.

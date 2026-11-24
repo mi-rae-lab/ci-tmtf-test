@@ -96,7 +96,7 @@
 
 ## 7. 배포
 
-- GitHub `mi-rae-lab/ci-tmtf-test`: **지금은 비공개**이고, 무료 계정이라 Pages도 꺼져 있습니다.
+- GitHub `mi-rae-lab/ci-tmtf-test`: **공개(Public)**이며 GitHub Pages(`main` · `/ (root)`, Enforce HTTPS 자동 강제)가 켜져 있습니다.
 - 다시 공개하는 순서:
   1. Settings → General → Danger Zone → Change visibility → public
   2. Settings → Pages → Deploy from a branch → `main` · `/ (root)` → Save
