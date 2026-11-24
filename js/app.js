@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.1 (2026-11-24)';   // 1.2.1: 7편 원문 대조 검증 반영 및 완전한 참고문헌(저자·제목·학술지·DOI) 수록
+const APP_VERSION = '1.2.2 (2026-11-24)';   // 1.2.2: 웹페이지 하단·README·보고서에 연구/교육용 비의료기기 면책 조항 추가
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;
@@ -1941,7 +1941,7 @@ details.raw .tw{margin-top:8px}
   <aside class="notice">
     <strong>참고용 고지 — 진단 도구가 아닙니다</strong>
     <ul>
-      <li>본 보고서는 <b>임상·연구 참고용</b>이며 의학적 진단 도구가 아닙니다. 인공와우 맵(MAP) 변경 및 임상 결정은 청능사의 표준 검사와 종합 평가로 판단해야 합니다.</li>
+      <li><b>본 도구는 연구 및 교육 목적으로 제작되었으며, 의료기기(디지털의료기기)가 아니고 공식적인 의학적 진단 기기를 대체하지 않습니다 (For research and educational purposes only — Not a medical device).</b> 인공와우 맵(MAP) 변경 및 임상 결정은 반드시 청능사·전문의의 표준 검사와 종합 평가로 판단해야 합니다.</li>
       <li>결과는 <b>청취자 + 음성처리기(인공와우 외부기기: 프로그램·볼륨·전처리) + 소리 전달 경로 + 재생 기기</b>가 합쳐진 값이며, 제시 음압(dB SPL/dBA)은 보정되지 않은 자가 조절 볼륨 기준입니다.</li>
       <li>본 절차(3AFC, 광대역 잡음, 0.5 s + ISI 0.5 s, 10 ms 직선 경사, 무작위 위상, Won 규칙 14반전/마지막 10반전, 0 dB 4오답 중단)는 Won et al. (2011), Park et al. (2015), De Ruiter et al. (2015)의 원절차와 다르므로 문헌 수치와 직접 순위 비교하지 마세요.</li>
       <li>‘재지 못함’은 숫자가 아니므로 평균에 포함하지 않으며, 1회 측정값·‘우연 수준’·‘미완’은 참고 값입니다.</li>
@@ -2062,6 +2062,7 @@ const UI_TEXT = {
       saveFile: '결과 파일 저장', saveReport: '전문가용 보고서 저장', shareFile: '파일 공유하기', shareReport: '보고서 공유하기', copyText: '요약 복사', toHome: '처음으로',
       hViewer: '결과 파일 열기', vDesc: '참가자가 보낸 결과 파일(.json)을 선택하면 이 화면에서 열립니다. 파일은 브라우저 안에서만 처리되며 외부로 전송되지 않습니다.',
       vFilesLbl: '파일 선택', vLocal: '이 기기에 저장된 검사', vReport: '전문가용 보고서 저장', vCsvRuns: '측정 CSV 저장', vCsvTrials: '시행 CSV 저장', vHome: '처음으로',
+      legalDisclaimer: '본 도구는 연구 및 교육 목적으로 제작되었으며, 의료기기(디지털의료기기)가 아니고 공식적인 의학적 진단 기기나 전문 청력검사를 대체하지 않습니다. (For research and educational purposes only — Not a medical device.)',
     },
     html: {
       hWhat1: '‘쉬—’ 하는 소리 <b>세 개</b>를 차례로 들려드립니다. 그중 <b>하나만 떨리게 들립니다.</b>',
@@ -2118,6 +2119,7 @@ const UI_TEXT = {
       saveFile: 'Save result file', saveReport: 'Save specialist report', shareFile: 'Share file', shareReport: 'Share report', copyText: 'Copy summary', toHome: 'Home',
       hViewer: 'Open result files', vDesc: 'Open participant .json result files here. Everything stays in your browser and is never uploaded.',
       vFilesLbl: 'Choose files', vLocal: 'Saved on this device', vReport: 'Save specialist report', vCsvRuns: 'Export runs CSV', vCsvTrials: 'Export trials CSV', vHome: 'Home',
+      legalDisclaimer: 'For research and educational purposes only. This tool is not a medical device and does not replace official medical diagnostic instruments or professional audiological evaluations.',
     },
     html: {
       hWhat1: 'You will hear <b>three</b> steady “shh” sounds in a row. Only <b>one of them flutters.</b>',

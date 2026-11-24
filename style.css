@@ -207,7 +207,7 @@ h2[tabindex="-1"]:focus,.ttl[tabindex="-1"]:focus{outline:none}
 main{
   max-width:640px;
   margin:0 auto;
-  padding:14px 16px 72px;
+  padding:14px 16px 36px;
   transition:max-width .2s ease;
 }
 main:has(#pgViewer.on){max-width:960px}
@@ -390,6 +390,17 @@ ol.list li::before{
   padding-top:18px;
   border-top:1px solid var(--line);
 }
+.site-foot{
+  max-width:640px;
+  margin:0 auto;
+  padding:16px 20px 36px;
+  border-top:1px solid var(--line);
+  text-align:center;
+  color:var(--dim);
+  font-size:13.5px;
+  line-height:1.6;
+}
+.site-foot p{margin:0}
 
 /* 저장된 검사 목록 */
 .saved{

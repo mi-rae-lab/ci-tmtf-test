@@ -319,7 +319,7 @@ globalThis.__scope = (async () => {
   await tryOk('전문가용 보고서 저장(.html): 참고용·비진단 고지 · 자극·계단 명세 · 결과표 · TMTF/계단 SVG · HTTPS/무결성 · CSP · 원시 시행표 · 외부 자원 없음 · 저장 기록', async () => {
     const h = repDl[0] ? await repDl[0].blob.text() : '';
     const okName = repDl.length === 1 && /^TMTF_report_P02_R_\d{4}-\d\d-\d\d_\d\d-\d\d\.html$/.test(repDl[0].name);
-    const hasCore = h.includes('참고용 고지 — 진단 도구가 아닙니다') && h.includes('임상·연구 참고용')
+    const hasCore = h.includes('참고용 고지 — 진단 도구가 아닙니다') && h.includes('For research and educational purposes only')
       && h.includes('광대역 가우스 잡음') && h.includes('−26.02 dBFS') && h.includes('2-down 1-up') && h.includes('70.7%')
       && h.includes(PROC_KEY) && h.includes('자리별 맞힘 1·2·3 (모르겠음 제외)') && h.includes('계단 사후 재계산 (replayCheck)')
       && h.includes('HTTPS 보안 연결') && h.includes("connect-src 'none'") && h.includes('name="referrer" content="no-referrer"')
@@ -701,11 +701,13 @@ globalThis.__scope = (async () => {
     $('#langToggle').click();
     const enOk = LANG === 'en' && document.documentElement.getAttribute('lang') === 'en' && $('#goSetup').textContent === 'Start'
       && $('#hLearn').textContent.includes('What you can learn') && $('#hKeep').textContent === 'Keep sound steady'
-      && $('#onFirstQ').textContent.includes('first beep') && $('#dunno').textContent === 'Not sure' && $('#langToggle').textContent === 'KO' && $('#fmInfo').textContent.includes('Flutter rates');
+      && $('#onFirstQ').textContent.includes('first beep') && $('#legalDisclaimer').textContent.includes('For research and educational purposes only')
+      && $('#dunno').textContent === 'Not sure' && $('#langToggle').textContent === 'KO' && $('#fmInfo').textContent.includes('Flutter rates');
     $('#langToggle').click();
     const koOk = LANG === 'ko' && document.documentElement.getAttribute('lang') === 'ko' && $('#goSetup').textContent === '시작하기'
       && $('#hLearn').textContent === '이 검사를 하면 알 수 있는 것' && $('#hKeep').textContent === '소리 끊김 방지'
-      && $('#onFirstQ').textContent.includes('첫 소리') && $('#dunno').textContent === '모르겠음' && $('#langToggle').textContent === 'EN' && $('#fmInfo').textContent.includes('검사할 떨림 속도')
+      && $('#onFirstQ').textContent.includes('첫 소리') && $('#legalDisclaimer').textContent.includes('연구 및 교육 목적')
+      && $('#dunno').textContent === '모르겠음' && $('#langToggle').textContent === 'EN' && $('#fmInfo').textContent.includes('검사할 떨림 속도')
       && $('#snd1').textContent.includes('소리 재생') && $('#goViewer').textContent === '결과 파일 열기 (청능사·연구자용)';
     return [enOk && koOk, `en=${enOk} ko=${koOk}`];
   });
