@@ -44,19 +44,27 @@ jobs:
       - name: 4. Static privacy, CSP & build-hash integrity audit
         run: |
           python -I -X utf8 - <<'PY'
-          import hashlib, json, os, re
+          import hashlib, json, re
 
           app_files = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js']
           rec = json.load(open('검증_통과.json', encoding='utf-8'))
           fh = {f: hashlib.sha256(open(f, 'rb').read()).hexdigest() for f in app_files}
-          whole = hashlib.sha256(''.join(f'{k}:{fh[k]}
-' for k in sorted(fh)).encode('utf-8')).hexdigest()
+          whole = hashlib.sha256(''.join(f'{k}:{fh[k]}\n' for k in sorted(fh)).encode('utf-8')).hexdigest()
           assert rec['last']['ok'] is True, '검증_통과.json last.ok != True'
           assert rec['last']['buildSha256'] == whole and rec['last']['files'] == fh, 'App file hashes do not match 검증_통과.json'
 
           for f in app_files:
               txt = open(f, encoding='utf-8').read()
-              for pat in (r'XMLHttpRequest', r'WebSocket', r'EventSource', r'sendBeacon', r'document\.cookie', r'indexedDB', r'(?:src|href|action)\s*=\s*["']https?://', r'url\(\s*["']?https?://'):
+              for pat in (
+                  r'\bXMLHttpRequest\b',
+                  r'\bWebSocket\b',
+                  r'\bEventSource\b',
+                  r'\bsendBeacon\b',
+                  r'\bdocument\.cookie\b',
+                  r'\bindexedDB\b',
+                  r'(?:src|href|action)\s*=\s*["\']https?://',
+                  r'url\(\s*["\']?https?://',
+              ):
                   assert not re.search(pat, txt), f'Forbidden pattern {pat} found in {f}'
 
           idx = open('index.html', encoding='utf-8').read()
