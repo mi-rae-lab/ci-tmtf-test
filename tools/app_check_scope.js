@@ -286,14 +286,15 @@ globalThis.__scope = (async () => {
   if (H.dump && fileObj) H.dump(fileObj);
   $('#saveReport').click();
   const repDl = await H.takeDownloads();
-  await tryOk('전문가용 보고서 저장(.html): 참고용·비진단 고지 · 자극·계단 명세 · 결과표 · TMTF/계단 SVG · 무결성 · 원시 시행표 · 외부 요청 없음 · 저장 기록', async () => {
+  await tryOk('전문가용 보고서 저장(.html): 참고용·비진단 고지 · 자극·계단 명세 · 결과표 · TMTF/계단 SVG · HTTPS/무결성 · CSP · 원시 시행표 · 외부 자원 없음 · 저장 기록', async () => {
     const h = repDl[0] ? await repDl[0].blob.text() : '';
     const okName = repDl.length === 1 && /^TMTF_report_P02_R_\d{4}-\d\d-\d\d_\d\d-\d\d\.html$/.test(repDl[0].name);
     const hasCore = h.includes('참고용 고지 — 진단 도구가 아닙니다') && h.includes('임상·연구 참고용')
       && h.includes('광대역 가우스 잡음') && h.includes('−26.02 dBFS') && h.includes('2-down 1-up') && h.includes('70.7%')
       && h.includes(PROC_KEY) && h.includes('자리별 맞힘 1·2·3 (모르겠음 제외)') && h.includes('계단 사후 재계산 (replayCheck)')
+      && h.includes('HTTPS 보안 연결') && h.includes("connect-src 'none'") && h.includes('name="referrer" content="no-referrer"')
       && h.includes(H.expectBuild) && h.includes('<svg class="chart"') && h.includes('<details class="raw">')
-      && !/https?:\/\//i.test(h);
+      && !/\b(?:src|href)\s*=\s*["']https?:/i.test(h) && !/url\(\s*['"]?https?:/i.test(h);
     const logged = sess.exports.some(x => x.how === 'report-html' && x.name === repDl[0]?.name) && $('#sendState').textContent.includes(repDl[0]?.name);
     return [okName && hasCore && logged, `${repDl[0]?.name} len=${h.length}`];
   });
@@ -480,6 +481,23 @@ globalThis.__scope = (async () => {
     const warned = !$('#envWarn').hidden && $('#envWarn').textContent.includes('저장하지 못합니다');
     localStorage.setItem = real; const r2 = saveStore(); renderEnvWarn();
     return [r === false && warned && r2 === true && $('#envWarn').hidden, `${r} ${warned} ${r2}`];
+  });
+  await tryOk('보안 · HTTPS: index.html 엄격한 CSP · no-referrer · 원격 HTTP→HTTPS 전환 · 로컬/file 예외 · 비보안 HTTP 경고', () => {
+    const html0 = new TextDecoder().decode(H.fileBytes('index.html'));
+    const cspOk = html0.includes('http-equiv="Content-Security-Policy"') && html0.includes("default-src 'none'")
+      && html0.includes("script-src 'self'") && html0.includes("style-src 'self'") && html0.includes("connect-src 'self'")
+      && !html0.includes('unsafe-inline') && html0.includes('name="referrer" content="no-referrer"');
+    const rRemote = httpsRedirectUrl({ protocol: 'http:', host: 'mi-rae-lab.github.io', pathname: '/ci-tmtf-test/', search: '?id=P02', hash: '' });
+    const rLocal = httpsRedirectUrl({ protocol: 'http:', host: 'localhost:8820', pathname: '/', search: '', hash: '' });
+    const rLoop = httpsRedirectUrl({ protocol: 'http:', host: '127.0.0.1:8820', pathname: '/', search: '', hash: '' });
+    const rHttps = httpsRedirectUrl({ protocol: 'https:', host: 'mi-rae-lab.github.io', pathname: '/', search: '', hash: '' });
+    const rFile = httpsRedirectUrl({ protocol: 'file:', host: '', pathname: '/index.html', search: '', hash: '' });
+    const keepProto = location.protocol;
+    location.protocol = 'http:'; renderEnvWarn();
+    const warned = !$('#envWarn').hidden && $('#envWarn').textContent.includes('HTTPS');
+    location.protocol = keepProto; renderEnvWarn();
+    return [cspOk && rRemote === 'https://mi-rae-lab.github.io/ci-tmtf-test/?id=P02' && rLocal === null && rLoop === null && rHttps === null && rFile === null && warned && $('#envWarn').hidden && sess.env.secure === true,
+      `${cspOk} ${rRemote} ${warned} ${sess.env.secure}`];
   });
   ok('경고창은 새 판 하나뿐(지문만 다른 것은 경고 없음) · 확인 창은 멈춤 둘뿐', H.dialogs.filter(d => d[0] === 'alert').length === 1 && H.dialogs.filter(d => d[0] === 'confirm').length === 2, JSON.stringify(H.dialogs).slice(0, 200));
   clearInterval(KEEPMON_TIMER);

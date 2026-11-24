@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.0.5 (2026-11-24)';   // 1.0.5: 청능사·인공와우 엔지니어 전달용 전문가 참고 보고서(.html, 인쇄·PDF 지원) 저장 기능 추가
+const APP_VERSION = '1.0.6 (2026-11-24)';   // 1.0.6: 원격 HTTP→HTTPS 자동 전환·비보안 연결 경고, 엄격한 CSP·no-referrer 보안 헤더 적용
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const STORE_KEY = 'ciTmtf.v1';
@@ -21,6 +21,27 @@ const fmtPct = p => p >= 10 ? `${Math.round(p)}%` : `${p.toFixed(1)}%`;
 const randInt = n => { try { return crypto.getRandomValues(new Uint32Array(1))[0] % n; } catch { return Math.floor(Math.random() * n); } };
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = randInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const localTime = t => { try { return new Date(t).toLocaleString('ko-KR'); } catch { return String(t); } };
+
+/* ───────────── HTTPS 보안 연결 확인 ───────────── */
+const isLocalHost = h => {
+  const s = String(h || '').toLowerCase();
+  return s === 'localhost' || s === '127.0.0.1' || s === '[::1]' || s === '::1';
+};
+function httpsRedirectUrl(loc = location) {
+  if (!loc || loc.protocol !== 'http:') return null;
+  const host = loc.hostname || String(loc.host || '').split(':')[0];
+  if (!host || isLocalHost(host)) return null;
+  return 'https://' + (loc.host || host) + (loc.pathname || '/') + (loc.search || '') + (loc.hash || '');
+}
+function isInsecureHttp(loc = location) { return !!httpsRedirectUrl(loc); }
+function isSecureOrigin(loc = location) {
+  if (!loc) return false;
+  if (loc.protocol === 'https:') return true;
+  const host = loc.hostname || String(loc.host || '').split(':')[0];
+  return loc.protocol === 'http:' && isLocalHost(host);
+}
+const HTTPS_UPGRADE = httpsRedirectUrl();
+if (HTTPS_UPGRADE) { try { location.replace(HTTPS_UPGRADE); } catch { } }
 
 /* ───────────── 절차 (고정) ───────────── */
 const COND = Object.freeze({ proto: 'custom', nAFC: 3, band: 'wide', dur: 0.5, isi: 0.5, proc: 'std', rove: 0, ramp: 'linear', level: null });
@@ -198,7 +219,7 @@ function systemEnv() {
   let tz = ''; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { }
   return { app: APP_VERSION, ua: navigator.userAgent, platform: navigator.userAgentData?.platform || navigator.platform || '', lang: navigator.language, tz,
     cores: navigator.hardwareConcurrency || null, touch: navigator.maxTouchPoints || 0, screen: `${screen.width}x${screen.height}@${devicePixelRatio}`, window: `${innerWidth}x${innerHeight}`,
-    origin: location.protocol === 'file:' ? 'file' : location.origin };
+    origin: location.protocol === 'file:' ? 'file' : location.origin, secure: isSecureOrigin() };
 }
 
 /* ───────────── 시행 사이 출력 확인 (와우TMTF 3.1 과 같은 방식) ─────────────
@@ -270,6 +291,7 @@ function wakeOff() { try { if (wake) wake.release(); } catch { } wake = null; }
 function showPage(id) { $$('.page').forEach(p => p.classList.toggle('on', p.id === id)); try { window.scrollTo(0, 0); } catch { } }
 function renderEnvWarn() {
   const m = [];
+  if (isInsecureHttp()) m.push('보안 연결(HTTPS)이 아닙니다. 주소가 https:// 로 시작하는지 확인해 주세요.');
   if (AUDIO_ERR) m.push('이 브라우저에서는 소리를 낼 수 없습니다. 크롬이나 엣지, 사파리 최신판으로 열어 주세요.');
   if (STORE.blocked || !STORE.ok) m.push('이 브라우저는 결과를 저장하지 못합니다. 검사가 끝나면 꼭 ‘결과 파일 저장’을 눌러 주세요.');
   if (STORE.error && STORE.moved) m.push('전에 저장된 기록 하나를 읽지 못해 따로 보관했습니다.');
@@ -1177,8 +1199,18 @@ function reportSessionHtml(s, src, idx, total) {
     </section>
 
     <section class="sec">
-      <h2>5. 데이터 품질 · 신뢰도 · 코드 무결성 점검</h2>
+      <h2>5. 데이터 품질 · 신뢰도 · 보안 및 코드 무결성 점검</h2>
       <table class="kv"><tbody>
+        <tr><th>연결 보안 (HTTPS)</th><td>${(() => {
+          const o = String(s.env?.origin || '');
+          if (o.startsWith('https://')) return `<span class="good">HTTPS 보안 연결</span> (${esc(o)})`;
+          if (o === 'file') return '로컬 파일 실행 (file://)';
+          if (o.startsWith('http://')) {
+            const h = o.replace(/^http:\/\//, '').split(':')[0];
+            return isLocalHost(h) ? `로컬 미리보기 (${esc(o)})` : `<span class="bad">비보안 HTTP 연결</span> (${esc(o)})`;
+          }
+          return esc(o || '미기록');
+        })()}</td></tr>
         <tr><th>계단 사후 재계산 (replayCheck)</th><td>${runs.length ? (rpPass === runs.length ? `<span class="good">전체 ${rpPass}/${runs.length}개 측정 일치</span> (기록된 정오열로 계단 깊이·반전·역치·중단 완전 재현)` : `<span class="bad">일치 ${rpPass}/${runs.length}</span> — 불일치: ${esc(rpBadList.join('; '))}`) : '측정 없음'}</td></tr>
         <tr><th>구간 음압(RMS) 정합성</th><td>${runs.length ? (worstRms <= 0.1 && !scaledN ? `<span class="good">정상</span> (최대 구간 간 RMS 차 ${worstRms.toFixed(3)} dB, 피크 감쇠 0건)` : `<span class="bad">확인 필요</span> (최대 RMS 차 ${worstRms.toFixed(3)} dB, 피크 감쇠 ${scaledN}건)`) : '측정 없음'}</td></tr>
         <tr><th>오디오 출력 연속성 (1초 감시)</th><td>${gapStarts.length ? `<span class="bad">출력 끊김/시계 이탈 ${gapStarts.length}건</span> — ${esc(gapDetail)}` : `<span class="good">끊김 없음</span> (폴링 ${s.keepMonitor?.polls ?? '—'}회 중 정상 ${s.keepMonitor?.ok ?? '—'} · 재생중 ${s.keepMonitor?.buffer ?? '—'})`}</td></tr>
@@ -1202,6 +1234,8 @@ function specialistReportHtml(sessions, srcs = null) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <title>소리 떨림 검사 (TMTF) 전문가 참고 보고서 — ${esc(titleCode)}</title>
 <style>
 *{box-sizing:border-box}
