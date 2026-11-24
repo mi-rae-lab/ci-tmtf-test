@@ -715,6 +715,32 @@ globalThis.__scope = (async () => {
       && $('#snd1').textContent.includes('소리 재생') && $('#goViewer').textContent === '결과 파일 열기 (청능사·연구자용)';
     return [enOk && koOk, `en=${enOk} ko=${koOk}`];
   });
+  await tryOk('1.2.6 영어(EN) 전체 번역 검증: 전 화면·aria-label·결과 보기·전문가 보고서·CSV에서 한글 잔여 0건', async () => {
+    $('#langToggle').click();
+    showEnd(sess, { offers: false, noScroll: true, noFocus: true });
+    renderViewer(true);
+    const koRe = /[가-힣]/;
+    const pages = ['#pgHome', '#pgSetup', '#pgSound', '#pgEnd', '#pgViewer'];
+    const badPages = pages.filter(sel => koRe.test($(sel).textContent));
+    const ariaBad = $$('[aria-label]').map(el => el.getAttribute('aria-label')).filter(v => v && koRe.test(v));
+    const repEn = specialistReportHtml([sess]);
+    const repClean = repEn.replaceAll(PROC_KEY, 'PROC_KEY_CANON');
+    const repOk = repEn.includes('<html lang="en">') && repEn.includes('TMTF Test Specialist Reference Report')
+      && repEn.includes('Reference Notice — Not a Diagnostic Tool') && repEn.includes('Modulation frequency (Hz, log scale)')
+      && !koRe.test(repClean);
+    $('#vCsvRuns').click(); $('#vCsvTrials').click();
+    const enCsvs = await H.takeDownloads();
+    const rTxt = enCsvs[0] ? (await enCsvs[0].blob.text()).replaceAll(PROC_KEY, 'PROC_KEY_CANON') : '';
+    const tTxt = enCsvs[1] ? await enCsvs[1].blob.text() : '';
+    const csvOk = rTxt.replace(/^\uFEFF/, '').startsWith('file,code,ear,path,') && tTxt.replace(/^\uFEFF/, '').startsWith('file,code,ear,session,run_order,')
+      && !koRe.test(rTxt) && !koRe.test(tTxt);
+    const helpersOk = !koRe.test(endReasonText('계획한 측정 모두 마침')) && !koRe.test(endReasonText('중간에 끝냄 (남은 측정 3개)'))
+      && !koRe.test(onsetVerdictText('온셋 잘림 의심')) && !koRe.test(gapWhyText('출력에 18 Hz 없음')) && !koRe.test(verifiedText('pass-code'));
+    $('#toHome').click();
+    $('#langToggle').click();
+    return [!badPages.length && !ariaBad.length && repOk && csvOk && helpersOk,
+      `badPages=${badPages.join(',')} ariaBad=${ariaBad.join(',')} rep=${repOk} csv=${csvOk} hlp=${helpersOk}` + (!repOk ? ' repKo=' + (repClean.match(/[가-힣][^<\n]{0,30}/g) || []).slice(0, 5).join('|') : '')];
+  });
   ok('경고창은 새 판 하나뿐(지문만 다른 것은 경고 없음) · 확인 창은 멈춤 둘뿐', H.dialogs.filter(d => d[0] === 'alert').length === 1 && H.dialogs.filter(d => d[0] === 'confirm').length === 2, JSON.stringify(H.dialogs).slice(0, 200));
   await tryOk('1.2.3 개인정보 · 브라우저 내부 전용: # 해시 링크 우선(서버 미전송) · fetch 쿼리 제거 · PII 입력 경고 · 로컬 기록 즉시 삭제(#homeClearAll)', () => {
     const pHash = parseLinkParams('#id=P99&hz=10,100&lang=en', '?id=P02');

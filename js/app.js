@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.5 (2026-11-24)';   // 1.2.5: 55–70 Hz 1 Hz 예외 목록 제거(5–300 Hz 5 Hz 간격 + 옥타브 유지)
+const APP_VERSION = '1.2.6 (2026-11-24)';   // 1.2.6: 영어(EN) 전체 번역 보완(진행 화면 실시간 전환·대화상자·결과 보기·전문가 보고서·CSV·접근성)
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;
@@ -91,6 +91,33 @@ const tx = (ko, en) => LANG === 'en' ? en : ko;
 const earName = k => (LANG === 'en' ? EAR_EN[k] : EAR[k]) || k || '';
 const pathName = k => (LANG === 'en' ? PATH_EN[k] : PATH[k]) || k || '';
 const focusName = k => (LANG === 'en' ? FOCUS_EN[k] : FOCUS[k]) || k || '';
+const ageName = k => (LANG === 'en' ? AGE_EN[k] : AGE_LBL[k]) || k || '';
+const yearsName = k => (LANG === 'en' ? YEARS_EN[k] : YEARS_LBL[k]) || k || '';
+const onsetName = k => (LANG === 'en' ? ONSET_EN[k] : ONSET_LBL[k]) || k || '';
+const makerName = k => (LANG === 'en' ? MAKER_EN[k] : MAKER_LBL[k]) || k || '';
+function endReasonText(r) {
+  if (!r || LANG !== 'en') return r || '';
+  if (r === '계획한 측정 모두 마침') return 'Completed all planned runs';
+  if (r === '화면이 닫힘 (다음에 열었을 때 발견)') return 'Page closed (detected on next open)';
+  const m = /^중간에 끝냄 \(남은 측정 (\d+)개\)$/.exec(r);
+  if (m) return `Stopped early (${m[1]} run(s) remaining)`;
+  return r;
+}
+function onsetVerdictText(v) {
+  if (!v || LANG !== 'en') return v || '';
+  return ({ '정상': 'Normal', '가끔 누락': 'Occasional miss', '온셋 잘림 의심': 'Possible onset clipping', '건너뜀': 'Skipped' })[v] || v;
+}
+function gapWhyText(w) {
+  if (!w || LANG !== 'en') return w || '';
+  if (w === '출력에 18 Hz 없음') return '18 Hz signal missing at output';
+  let m = /^오디오가 (.+)$/.exec(w);
+  if (m) return `Audio state: ${m[1]}`;
+  m = /^오디오 시계 ([^ ]+) \(실제 시간과 다름\)$/.exec(w);
+  if (m) return `Audio clock rate ${m[1]} (drifted from wall clock)`;
+  m = /^출력 18 Hz 크기 (.+) dBFS$/.exec(w);
+  if (m) return `18 Hz output level ${m[1]} dBFS`;
+  return w;
+}
 function inAppBrowser(ua = navigator.userAgent) {
   const s = String(ua || '');
   if (/KAKAOTALK/i.test(s)) return tx('카카오톡', 'KakaoTalk');
@@ -240,7 +267,10 @@ function verifyBuild(rec, whole, files) {
   return { status: 'not-checked', differ, lastPass: hist.length ? hist[hist.length - 1].buildSha256 : null };
 }
 const VERIFIED_TXT = { pass: '검산 통과 코드', 'pass-code': '검산 통과 코드 (index.html 만 다름 — 오는 길에 바뀐 것으로 보임)', 'not-checked': '검산 기록과 다른 코드', 'no-record': '검산 기록을 못 읽음' };
+const VERIFIED_TXT_EN = { pass: 'Verified code', 'pass-code': 'Verified code (only index.html differed — likely modified in transit)', 'not-checked': 'Code differs from verification record', 'no-record': 'Verification record unavailable' };
+const verifiedText = vs => (LANG === 'en' ? VERIFIED_TXT_EN[vs] : VERIFIED_TXT[vs]) || '';
 const STALE_MSG = '프로그램이 새 버전으로 업데이트되었습니다.\n화면을 새로고침한 뒤 다시 시작해 주세요.';
+const STALE_MSG_EN = 'A new version of this app is available.\nPlease refresh the page and start again.';
 
 /* ───────────── 소리 · 18 Hz 연결 유지 신호 ───────────── */
 const KEEP_HZ = 18;
@@ -266,7 +296,7 @@ function audio() {
 }
 function audioOk() {
   try { audio(); return true; }
-  catch (e) { AUDIO_ERR = String(e && e.message || e); renderEnvWarn(); alert('이 브라우저에서는 소리를 재생할 수 없습니다. 최신 버전의 크롬·엣지·사파리로 열어 주세요.'); return false; }
+  catch (e) { AUDIO_ERR = String(e && e.message || e); renderEnvWarn(); alert(tx('이 브라우저에서는 소리를 재생할 수 없습니다. 최신 버전의 크롬·엣지·사파리로 열어 주세요.', 'This browser cannot play sound. Please open in the latest Chrome, Edge, or Safari.')); return false; }
 }
 function keepStart(when) {
   const kind = keepKindOf(keepMode);
@@ -516,17 +546,17 @@ function renderKeepUi() {
   if (keepUserOff || !keepKindOf(keepMode)) {
     badge.className = 'pill off';
     badge.textContent = tx('꺼짐', 'Off');
-    btn.textContent = tx('유지 신호 다시 켜기', 'Turn keepalive on');
+    btn.textContent = tx('유지 신호 다시 켜기', 'Turn steady signal on');
     btn.setAttribute('aria-pressed', 'false');
   } else if (keep) {
     badge.className = 'pill ok';
     badge.textContent = tx('켜짐 (유지 중)', 'On (active)');
-    btn.textContent = tx('유지 신호 끄기', 'Turn keepalive off');
+    btn.textContent = tx('유지 신호 끄기', 'Turn steady signal off');
     btn.setAttribute('aria-pressed', 'true');
   } else {
     badge.className = 'pill ok';
     badge.textContent = tx('소리 재생 시 자동 켜짐 (권장)', 'Turns on with sound (recommended)');
-    btn.textContent = tx('유지 신호 끄기', 'Turn keepalive off');
+    btn.textContent = tx('유지 신호 끄기', 'Turn steady signal off');
     btn.setAttribute('aria-pressed', 'true');
   }
 }
@@ -581,13 +611,13 @@ $('#noisePlay').onclick = () => {
   play(m.data, ctx.currentTime + 0.05);
   PRE.noise.push({ at: iso(), seed: m.seed, durS: 10, rmsDb: +m.rmsDb.toFixed(3), sampleRate: ctx.sampleRate });
   $('#noiseState').textContent = tx('소리가 재생되는 중입니다 (10초)', 'Playing sound (10 s)');
-  noiseTimer = setTimeout(() => { $('#noiseState').textContent = ''; }, 10200);
+  noiseTimer = setTimeout(() => { noiseTimer = null; $('#noiseState').textContent = ''; }, 10200);
 };
-$('#noiseStop').onclick = () => { stopAll(); clearTimeout(noiseTimer); $('#noiseState').textContent = ''; const L = PRE.noise[PRE.noise.length - 1]; if (L && !L.stoppedAt) L.stoppedAt = iso(); };
+$('#noiseStop').onclick = () => { stopAll(); clearTimeout(noiseTimer); noiseTimer = null; $('#noiseState').textContent = ''; const L = PRE.noise[PRE.noise.length - 1]; if (L && !L.stoppedAt) L.stoppedAt = iso(); };
 function demo(mod) {
   if (!audioOk()) return;
   if (!keepUserOff) keepStart();
-  stopAll(); clearTimeout(noiseTimer); $('#noiseState').textContent = '';
+  stopAll(); clearTimeout(noiseTimer); noiseTimer = null; $('#noiseState').textContent = '';
   const m = stim(PRACTICE_FM, mod ? 0 : null, 2);
   play(m.data, ctx.currentTime + 0.05);
   PRE.demo.push({ at: iso(), kind: mod ? 'mod' : 'flat', fm: PRACTICE_FM, depthDb: mod ? 0 : null, seed: m.seed, phase: m.phase, durS: 2 });
@@ -598,7 +628,7 @@ $('#volOk').addEventListener('change', () => { PRE.volOkAt = $('#volOk').checked
 $('#soundBack').onclick = () => { stopAll(); showPage('pgSetup'); };
 $('#soundNext').onclick = () => {
   if (!audioOk()) return;
-  stopAll(); clearTimeout(noiseTimer); $('#noiseState').textContent = '';
+  stopAll(); clearTimeout(noiseTimer); noiseTimer = null; $('#noiseState').textContent = '';
   if (!keepUserOff) keepStart();
   openOnsetCheck();
 };
@@ -636,6 +666,15 @@ function setOnState(cls, txt) {
   const el = $('#onState'); if (!el) return;
   el.className = 'on-state' + (cls ? ' ' + cls : '');
   el.textContent = txt;
+}
+function renderOnsetLive() {
+  if (!ONSET.running) return;
+  const gapMs = ONSET_GAPS[ONSET.idx] ?? ONSET_GAPS[0];
+  $('#onTitle').textContent = tx(`소리 점검 ${ONSET.idx + 1} / ${ONSET_GAPS.length}`, `Sound check ${ONSET.idx + 1} / ${ONSET_GAPS.length}`);
+  if (ONSET.phase === 'warmup') setOnState('busy', tx('소리가 안정될 때까지 잠시 기다립니다 (3초)...', 'Warming up audio (3 s)...'));
+  else if (ONSET.phase === 'waiting') setOnState('busy', tx(`${gapMs / 1000}초 동안 조용히 기다린 뒤 짧은 소리가 나옵니다...`, `Waiting ${gapMs / 1000} s quietly before the beeps...`));
+  else if (ONSET.phase === 'playing') setOnState('busy', tx('짧은 소리가 나오는 중입니다...', 'Playing short beeps...'));
+  else if (ONSET.phase === 'awaiting') setOnState('ready', tx('들린 대로 선택해 주세요.', 'Please select what you heard.'));
 }
 function setOnLocked(locked) {
   $$('#onCountPick .choice').forEach(b => { b.disabled = locked; });
@@ -814,7 +853,7 @@ async function startSession() {
   if (!audioOk()) return;
   if (!keepUserOff) keepStart();
   cancelOnsetTimer(); ONSET.running = false; ONSET.phase = 'idle';
-  stopAll(); clearTimeout(noiseTimer); $('#noiseState').textContent = '';
+  stopAll(); clearTimeout(noiseTimer); noiseTimer = null; $('#noiseState').textContent = '';
   $('#soundNext').disabled = true;
   $('#onsetSkip').disabled = true; $('#onsetStart').disabled = true;
   const bi = await computeBuild('no-store');
@@ -822,7 +861,7 @@ async function startSession() {
   $('#onsetSkip').disabled = false; $('#onsetStart').disabled = false;
   // 새 판이 나왔는데 옛 화면이 돌고 있으면(서버 app.js 의 판 번호 ≠ 지금 도는 판 번호) 새로 고침 안내 — 지문(해시)만 다른 것은 막지 않음
   if (bi.ok && bi.version && bi.version !== APP_VERSION) {
-    alert(STALE_MSG);
+    alert(tx(STALE_MSG, STALE_MSG_EN));
     logDecision('session-start', 'blocked', { reason: 'new-version', running: APP_VERSION, server: bi.version, pageBuild: BUILD_LOAD?.ok ? BUILD_LOAD.buildSha256 : null, fileBuild: bi.buildSha256 });
     return;
   }
@@ -888,13 +927,32 @@ function setProg(v) {
   $('#progBar').style.width = (100 * c).toFixed(1) + '%';
   const w = $('#progWrap'); if (w) w.setAttribute('aria-valuenow', String(Math.round(c * 100)));
 }
-function setFb(cls, t) { const el = $('#fb'); el.className = 'fb' + (cls ? ' ' + cls : ''); el.textContent = t; }
+let LAST_FB = null, LAST_TNOTE = null;
+function setFb(cls, t, meta = null) { LAST_FB = meta; const el = $('#fb'); el.className = 'fb' + (cls ? ' ' + cls : ''); el.textContent = t; }
+function setTNote(kind) {
+  LAST_TNOTE = kind || null;
+  $('#tNote').textContent = kind === 'practice' ? tx('연습 결과는 최종 기록에 포함되지 않습니다.', 'Practice trials are not counted in your results.')
+    : kind === 'replay' ? tx('다른 화면으로 이동하여 소리를 다시 들려드립니다.', 'You switched away, so we will play that sound again.') : '';
+}
+function renderTestLive() {
+  const C = S?.cur; if (!C) return;
+  if (C.practice) setTitle(tx(`연습 ${PRACTICE_N - C.left + (C.phase === 'feedback' ? 0 : 1)} / ${PRACTICE_N}`, `Practice ${PRACTICE_N - C.left + (C.phase === 'feedback' ? 0 : 1)} / ${PRACTICE_N}`));
+  else setTitle(trackTitle());
+  setTNote(LAST_TNOTE);
+  if (LAST_FB) {
+    const f = LAST_FB;
+    if (f.kind === 'dunno') setFb('mid', tx(`떨리는 소리는 ${f.tg + 1}번이었습니다`, `The fluttering sound was #${f.tg + 1}`), f);
+    else if (f.kind === 'ok') setFb('ok', tx('맞았습니다', 'Correct'), f);
+    else if (f.kind === 'no') setFb('no', tx(`아쉽습니다. ${f.tg + 1}번이었습니다`, `Not quite. It was #${f.tg + 1}`), f);
+    else if (f.kind === 'err') setFb('no', tx('소리를 생성하지 못했습니다. 화면을 새로고침해 주세요.', 'Could not generate sound. Please refresh the page.'), f);
+  }
+}
 function startPractice() {
   S.practiceRound++; S.session.practiceRounds = S.practiceRound;
   S.cur = { practice: true, fm: PRACTICE_FM, left: PRACTICE_N, k: 0, u: 0, startIso: iso(), startPt: performance.now(), replays: 0, phase: 'idle', keepMonAtStart: keepMonSnap() };
   logEv('practice-start', { fm: PRACTICE_FM, n: PRACTICE_N, round: S.practiceRound });
   showPage('pgTest'); setTitle(tx(`연습 1 / ${PRACTICE_N}`, `Practice 1 / ${PRACTICE_N}`)); setProg(0);
-  $('#tNote').textContent = tx('연습 결과는 최종 기록에 포함되지 않습니다.', 'Practice trials are not counted in your results.');
+  setTNote('practice');
   nextTrial();
 }
 function trackTitle() {
@@ -907,7 +965,7 @@ function startTrack() {
   S.cur = { fm: item.fm, round: item.round, extra: !!item.extra, practice: false, track: new Track(PR), startIso: iso(), startPt: now,
     breakS: S.lastEnd !== null ? +((now - S.lastEnd) / 1000).toFixed(1) : null, replays: 0, phase: 'idle', keepMonAtStart: keepMonSnap() };
   logEv('track-start', { fm: item.fm, round: item.round, extra: !!item.extra, order: S.idx + 1 });
-  showPage('pgTest'); setTitle(trackTitle()); setProg(0); $('#tNote').textContent = '';
+  showPage('pgTest'); setTitle(trackTitle()); setProg(0); setTNote(null);
   saveCurrent(true);
   nextTrial();
 }
@@ -932,7 +990,7 @@ function nextTrial() {
   const tg = randInt(n);
   let made;
   try { made = btns.map((_, i) => stim(C.fm, i === tg ? depth : null)); }
-  catch (e) { logEv('stim-error', { fm: C.fm, d: depth, msg: String(e && e.message || e) }); setFb('no', tx('소리를 생성하지 못했습니다. 화면을 새로고침해 주세요.', 'Could not generate sound. Please refresh the page.')); return; }
+  catch (e) { logEv('stim-error', { fm: C.fm, d: depth, msg: String(e && e.message || e) }); setFb('no', tx('소리를 생성하지 못했습니다. 화면을 새로고침해 주세요.', 'Could not generate sound. Please refresh the page.'), { kind: 'err' }); return; }
   const t0 = ctx.currentTime + LEAD_S, step = PR.dur + PR.isi;
   made.forEach((m, i) => play(m.data, t0 + i * step));
   const h0 = heardTime(), p0 = performance.now();
@@ -993,9 +1051,9 @@ function answer(i, dunno, inp) {
   $('#dunno').disabled = true;
   if (PR.feedback) {
     btns[a.tg].classList.add('right');
-    if (dunno) setFb('mid', tx(`떨리는 소리는 ${a.tg + 1}번이었습니다`, `The fluttering sound was #${a.tg + 1}`));
-    else if (correct) setFb('ok', tx('맞았습니다', 'Correct'));
-    else { btns[i].classList.add('wrong'); setFb('no', tx(`아쉽습니다. ${a.tg + 1}번이었습니다`, `Not quite. It was #${a.tg + 1}`)); }
+    if (dunno) setFb('mid', tx(`떨리는 소리는 ${a.tg + 1}번이었습니다`, `The fluttering sound was #${a.tg + 1}`), { kind: 'dunno', tg: a.tg });
+    else if (correct) setFb('ok', tx('맞았습니다', 'Correct'), { kind: 'ok', tg: a.tg });
+    else { btns[i].classList.add('wrong'); setFb('no', tx(`아쉽습니다. ${a.tg + 1}번이었습니다`, `Not quite. It was #${a.tg + 1}`), { kind: 'no', tg: a.tg }); }
   }
   const C = S.cur; C.phase = 'feedback';
   const meta = { a: i, tg: a.tg, u: dunno ? 1 : 0, rt, inp, ...C.tm };
@@ -1055,8 +1113,8 @@ document.addEventListener('visibilitychange', () => {
     } else if (C.phase === 'awaiting' && C.tm) C.tm.hid = true;
   } else if (C.needReplay) {
     C.needReplay = false;
-    $('#tNote').textContent = tx('다른 화면으로 이동하여 소리를 다시 들려드립니다.', 'You switched away, so we will play that sound again.');
-    setTimeout(() => { if (S?.cur === C && !document.hidden) { $('#tNote').textContent = C.practice ? tx('연습 결과는 최종 기록에 포함되지 않습니다.', 'Practice trials are not counted in your results.') : ''; nextTrial(); } }, 700);
+    setTNote('replay');
+    setTimeout(() => { if (S?.cur === C && !document.hidden) { setTNote(C.practice ? 'practice' : null); nextTrial(); } }, 700);
   }
 });
 window.addEventListener('pagehide', () => flushSave());
@@ -1083,9 +1141,9 @@ function practiceDone() {
   S.cur = null; S.token = null;
   showBreak('practice', { k: C.k, u: C.u, n: PRACTICE_N });
 }
-function showBreak(kind, info = {}) {
-  stopAll(); awaiting = null;
-  if (kind !== 'practice') logEv('break', { kind });
+let LAST_BREAK = null;
+function renderBreakContent(kind, info = {}) {
+  if (!S) return;
   const left = S.plan.length - S.idx, total = S.plan.length;
   let title = '', h = '';
   $('#bPractice').hidden = kind !== 'practice';
@@ -1123,6 +1181,12 @@ function showBreak(kind, info = {}) {
     $('#bNext').textContent = tx('다음', 'Next');
   }
   $('#bTitle').textContent = title; $('#bBody').innerHTML = h;
+}
+function showBreak(kind, info = {}) {
+  stopAll(); awaiting = null;
+  if (kind !== 'practice') logEv('break', { kind });
+  LAST_BREAK = { kind, info };
+  renderBreakContent(kind, info);
   showPage('pgBreak');
 }
 $('#bNext').onclick = () => { if (!S) return; if (S.idx < S.plan.length) startTrack(); };
@@ -1141,7 +1205,7 @@ $('#stopBtn').onclick = () => {
     S.token = null; S.cur = null; stopAll(); awaiting = null;
     showBreak('practice', { k: C.k, u: C.u, n: PRACTICE_N - C.left }); return;
   }
-  const at = iso(), msg = '진행 중이던 구간은 취소하고 잠시 멈출까요?\n이미 마친 구간은 저장되어 있습니다.';
+  const at = iso(), msg = tx('진행 중이던 구간은 취소하고 잠시 멈출까요?\n이미 마친 구간은 저장되어 있습니다.', 'Cancel the current run and pause?\nRuns you already finished are saved.');
   const go = confirm(msg);
   if (C.tm && ['playing', 'awaiting'].includes(phase)) C.tm.ev.push({ t: at, type: 'stop-dialog', phase, answer: go ? 'stop' : 'keep', closedAt: iso() });
   logEv('stop-dialog', { phase, text: msg, answer: go ? 'stop' : 'keep', openedAt: at, fm: C.fm, trials: C.track.trials.length });
@@ -1392,8 +1456,8 @@ function posStats(run) {
 }
 function buildStatusHtml(s) {
   const vs = s.build?.verified?.status, df = s.build?.differ;
-  return (vs === 'pass' || vs === 'pass-code' ? `<span class="good">${esc(VERIFIED_TXT[vs])}</span>` : s.build?.sha256 ? esc(VERIFIED_TXT[vs] || '검산 기록과 다른 코드') + (s.build.verified?.differ?.length ? ` (${esc(s.build.verified.differ.join(', '))})` : '') : '코드 확인 못 함(파일로 연 화면 등)')
-    + (df && df.length ? ` · 화면이 받은 파일 ≠ 서버 파일: ${esc(df.join(', '))}` : '');
+  return (vs === 'pass' || vs === 'pass-code' ? `<span class="good">${esc(verifiedText(vs))}</span>` : s.build?.sha256 ? esc(verifiedText(vs) || tx('검산 기록과 다른 코드', 'Code differs from verification record')) + (s.build.verified?.differ?.length ? ` (${esc(s.build.verified.differ.join(', '))})` : '') : tx('코드 확인 못 함(파일로 연 화면 등)', 'Code not verified (e.g. opened from file://)'))
+    + (df && df.length ? ` · ${tx('화면이 받은 파일 ≠ 서버 파일', 'Loaded file ≠ server file')}: ${esc(df.join(', '))}` : '');
 }
 function repThrOf(rs) {
   if (!rs || !rs.length) return null;
@@ -1409,13 +1473,13 @@ function replayCheck(run, P) {
     const T = new Track(P);
     for (let i = 0; i < (run.trials || []).length; i++) {
       const t = run.trials[i];
-      if (T.done) return { ok: false, why: `시행 ${i + 1}: 계단이 이미 끝난 뒤` };
-      if (Math.abs(T.depth - t.d) > 1e-9) return { ok: false, why: `시행 ${i + 1}: 깊이 ${t.d} ≠ ${T.depth}` };
+      if (T.done) return { ok: false, why: tx(`시행 ${i + 1}: 계단이 이미 끝난 뒤`, `Trial ${i + 1}: after staircase finished`) };
+      if (Math.abs(T.depth - t.d) > 1e-9) return { ok: false, why: tx(`시행 ${i + 1}: 깊이 ${t.d} ≠ ${T.depth}`, `Trial ${i + 1}: depth ${t.d} ≠ ${T.depth}`) };
       T.respond(!!t.c);
     }
     const r = T.result();
     const same = T.done === true && !!r.ceiling === !!run.ceiling && (r.thr ?? null) === (run.thr ?? null) && JSON.stringify(T.reversals) === JSON.stringify(run.reversals || []);
-    return same ? { ok: true } : { ok: false, why: `역치 ${r.thr} · 기록 ${run.thr}` };
+    return same ? { ok: true } : { ok: false, why: tx(`역치 ${r.thr} · 기록 ${run.thr}`, `Thr ${r.thr} vs saved ${run.thr}`) };
   } catch (e) { return { ok: false, why: String(e && e.message || e) }; }
 }
 function rmsCheck(run) {
@@ -1445,16 +1509,16 @@ function viewSessHtml(s, src) {
     const pos = posStats(r);
     return `<tr><td>${r.round || 1}${r.extra ? '+' : ''}</td><td>${r.fm}</td><td>${r.thr ?? ''}</td><td>${esc(v.main)}</td><td>${r.ceiling ? tx('재지 못함', 'Ceiling') : r.atChance ? tx('우연 수준', 'At chance') : r.incomplete ? tx('미완', 'Incomplete') : ''}</td>
       <td>${r.k0}/${r.n0}${r.pChance !== null && r.pChance !== undefined ? ` (p ${(+r.pChance).toFixed(3)})` : ''}</td><td>${r.sd ?? ''}</td><td>${r.nTrials}</td><td>${r.nDunno}</td><td>${r.durS !== undefined ? (r.durS / 60).toFixed(1) : ''}</td>
-      <td class="${rp.ok ? 'good' : 'bad'}">${rp.ok ? tx('같음', 'Match') : esc(rp.why)}</td><td class="${rm.ok ? 'good' : 'bad'}">${rm.ok ? tx('같음', 'Match') : `차 ${rm.worst} dB${rm.scaled ? ` · 줄임 ${rm.scaled}` : ''}`}</td><td>${pos}</td></tr>`;
+      <td class="${rp.ok ? 'good' : 'bad'}">${rp.ok ? tx('같음', 'Match') : esc(rp.why)}</td><td class="${rm.ok ? 'good' : 'bad'}">${rm.ok ? tx('같음', 'Match') : `${tx('차', 'diff')} ${rm.worst} dB${rm.scaled ? ` · ${tx('줄임', 'scaled')} ${rm.scaled}` : ''}`}</td><td>${pos}</td></tr>`;
   }).join('');
   const ab = (s.events || []).filter(e => e.type === 'track-abandoned').length, gaps = (s.events || []).filter(e => e.type === 'keep-gap-start').length;
   const kk = sessionKeepKey(s), oc = s.onsetCheck;
   const ocTxt = oc ? (oc.skipped ? tx('소리 점검: 건너뜀', 'Onset: skipped')
-    : `${tx('소리 점검', 'Onset')}: ${esc(oc.summary?.verdict || '')} (${(oc.summary?.resp || []).join(',')})`) : '';
-  const meta = [`${esc(localTime(s.start))} – ${s.end ? esc(localTime(s.end)) : tx('끝 없음', 'no end')}`, esc(s.endReason || ''), `${tx('앱', 'App')} ${esc(s.app || '')}`, vf,
+    : `${tx('소리 점검', 'Onset')}: ${esc(onsetVerdictText(oc.summary?.verdict || ''))} (${(oc.summary?.resp || []).join(',')})`) : '';
+  const meta = [`${esc(localTime(s.start))} – ${s.end ? esc(localTime(s.end)) : tx('끝 없음', 'no end')}`, esc(endReasonText(s.endReason || '')), `${tx('앱', 'App')} ${esc(s.app || '')}`, vf,
     `${tx('유지 신호', 'Keepalive')}: ${esc(keepModeLabel(kk))}`, ocTxt,
     `${tx('표본화', 'SR')} ${s.env?.audio?.sampleRate ?? '?'} Hz`, `${tx('볼륨', 'Vol')} ${s.osVolume ?? tx('모름', '?')}`, `${tx('연습', 'Practice')} ${(s.practiceTrials || []).length}`, ab ? `${tx('버린 측정', 'Abandoned')} ${ab}` : '', gaps ? `<span class="bad">${tx('출력 끊김', 'Audio gaps')} ${gaps}</span>` : '',
-    s.focusEnd ? `${tx('집중', 'Focus')} ${esc(focusName(s.focusEnd))}` : '', s.info && (s.info.age || s.info.ciYears || s.info.onset || s.info.maker) ? `나이 ${esc(s.info.age || '-')} · 사용 ${esc(s.info.ciYears || '-')} · 시작 ${esc(s.info.onset || '-')} · 회사 ${esc(s.info.maker || '-')}` : '',
+    s.focusEnd ? `${tx('집중', 'Focus')} ${esc(focusName(s.focusEnd))}` : '', s.info && (s.info.age || s.info.ciYears || s.info.onset || s.info.maker) ? `${tx('나이', 'Age')} ${esc(ageName(s.info.age) || '-')} · ${tx('사용', 'CI')} ${esc(yearsName(s.info.ciYears) || '-')} · ${tx('시작', 'Onset')} ${esc(onsetName(s.info.onset) || '-')} · ${tx('회사', 'Brand')} ${esc(makerName(s.info.maker) || '-')}` : '',
     s.info?.note ? `${tx('메모', 'Note')}: ${esc(s.info.note)}` : '', src ? `${tx('파일', 'File')} ${esc(src)}` : ''].filter(Boolean).join(' · ');
   return `<div class="card vsess"><h3>${esc(s.code || tx('번호 없음', 'No ID'))} · ${esc(earName(s.ear))} · ${esc(pathName(s.path))}</h3><p class="meta">${meta}</p>
     <div class="tablewrap"><table class="tbl dense"><tr><th>${tx('바퀴', 'Rnd')}</th><th>Hz</th><th>${tx('역치 dB', 'Thr dB')}</th><th>${tx('깊이', 'Depth')}</th><th>${tx('표시', 'Flag')}</th><th>${tx('0 dB 맞힘', '0 dB')}</th><th>${tx('반전 SD', 'SD')}</th><th>${tx('시행', 'Trials')}</th><th>${tx('모르겠음', 'Unsure')}</th><th>${tx('분', 'Min')}</th><th>${tx('계단 다시', 'Replay')}</th><th>${tx('구간 세기', 'RMS')}</th><th>${tx('자리별 맞힘 1·2·3 (모르겠음 제외)', 'Interval 1·2·3 (excl. unsure)')}</th></tr>${rowsH}</table></div>
@@ -1607,7 +1671,7 @@ function reportChartSvg(sess) {
   const minDb = Math.min(-30, Math.floor(Math.min(0, ...allThr) / 6) * 6);
   const x = f => L + (W - L - R) * (Math.log(f) - lo) / (hi - lo || 1);
   const y = d => T + (H - T - B) * (1 - d / minDb);
-  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="주파수별 변조 탐지 역치(TMTF) 그래프">`;
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${tx('주파수별 변조 탐지 역치(TMTF) 그래프', 'Temporal Modulation Transfer Function (TMTF) chart')}">`;
   for (let d = 0; d >= minDb; d -= 6) {
     const yy = y(d);
     s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/>`;
@@ -1619,9 +1683,9 @@ function reportChartSvg(sess) {
     s += `<line class="grid" x1="${xx}" x2="${xx}" y1="${T}" y2="${H - B}"/>`;
     s += `<text class="tick" x="${xx}" y="${H - B + 18}" text-anchor="middle">${f}</text>`;
   }
-  s += `<text class="axl" x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle">변조 주파수 (Hz, 로그 척도)</text>`;
-  s += `<text class="axl" x="14" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(-90 14 ${(T + H - B) / 2})">변조 깊이 (dB)</text>`;
-  s += `<text class="axl" x="${W - 12}" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(90 ${W - 12} ${(T + H - B) / 2})">변조 깊이 (%)</text>`;
+  s += `<text class="axl" x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle">${tx('변조 주파수 (Hz, 로그 척도)', 'Modulation frequency (Hz, log scale)')}</text>`;
+  s += `<text class="axl" x="14" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(-90 14 ${(T + H - B) / 2})">${tx('변조 깊이 (dB)', 'Modulation depth (dB)')}</text>`;
+  s += `<text class="axl" x="${W - 12}" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate(90 ${W - 12} ${(T + H - B) / 2})">${tx('변조 깊이 (%)', 'Modulation depth (%)')}</text>`;
   const pts = [];
   for (const { fm, rs } of rows) {
     const norm = rs.filter(r => !r.ceiling && r.thr !== null && r.thr !== undefined && !r.atChance && !r.incomplete);
@@ -1636,13 +1700,13 @@ function reportChartSvg(sess) {
   }
   if (pts.length > 1) s += `<polyline class="ln" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
   for (const p of pts) s += `<circle class="pt" cx="${p[0]}" cy="${p[1]}" r="6"/>`;
-  return s + '</svg><p class="cap">위로 갈수록 약한 변조까지 탐지(높은 민감도). 빈 원(○): 정상 개별 측정 · 점선 원: 참고값(우연 수준/미완) · 채운 원(●) 및 연결선: 정상 측정 대표값(2회 이상 평균, 1회 측정은 잠정 참고값) · ▽: 재지 못함(평균 제외).</p>';
+  return s + `</svg><p class="cap">${tx('위로 갈수록 약한 변조까지 탐지(높은 민감도). 빈 원(○): 정상 개별 측정 · 점선 원: 참고값(우연 수준/미완) · 채운 원(●) 및 연결선: 정상 측정 대표값(2회 이상 평균, 1회 측정은 잠정 참고값) · ▽: 재지 못함(평균 제외).', 'Higher points indicate finer modulation sensitivity. Open circle (○): normal run · dashed circle: reference only (at chance / incomplete) · filled circle (●) & line: normal representative value (mean of ≥2 runs; single run is provisional) · ▽: not measured (excluded from averages).')}</p>`;
 }
 function reportRunBadge(r) {
-  if (r.ceiling || r.thr === null || r.thr === undefined) return '<span class="badge bad">재지 못함</span>';
-  if (r.atChance) return '<span class="badge warn">우연 수준 (참고값)</span>';
-  if (r.incomplete) return '<span class="badge warn">미완 (참고값)</span>';
-  return '<span class="badge ok">정상</span>';
+  if (r.ceiling || r.thr === null || r.thr === undefined) return `<span class="badge bad">${tx('재지 못함', 'Not measured')}</span>`;
+  if (r.atChance) return `<span class="badge warn">${tx('우연 수준 (참고값)', 'At chance (ref)')}</span>`;
+  if (r.incomplete) return `<span class="badge warn">${tx('미완 (참고값)', 'Incomplete (ref)')}</span>`;
+  return `<span class="badge ok">${tx('정상', 'Normal')}</span>`;
 }
 function reportSessionHtml(s, src, idx, total) {
   const runs = (s.runs || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -1655,39 +1719,39 @@ function reportSessionHtml(s, src, idx, total) {
   const durMin = s.start && s.end ? ((Date.parse(s.end) - Date.parse(s.start)) / 60000) : null;
   const info = s.info || {};
   const vs = s.build?.verified?.status, df = s.build?.differ;
-  const buildStatus = vs ? (VERIFIED_TXT[vs] || vs) : (s.build?.sha256 ? '검산 기록과 다른 코드' : '확인 불가(로컬 file:// 등)');
-  const bandTxt = P.band?.type === 'wide' ? '광대역 가우스 잡음 (20 Hz – fs/2, 구간마다 독립 재추출)' : `대역 제한 잡음 (${esc(JSON.stringify(P.band))})`;
-  const rampTxt = `${P.rampMs ?? 10} ms ${P.rampShape === 'cos2' ? '코사인²(cos²)' : '직선(linear)'} 경사`;
-  const phaseTxt = P.phase === 'random' ? '구간마다 [0, 2π) 균등 무작위 (Shen & Richards 2013)' : esc(P.phase || '0');
-  const ceilTxt = P.ceiling === 'stop4' ? '0 dB에서 4회 오답 시 즉시 중단(재지 못함, 숫자 아님 · 앱 자체 규칙; 미탐지 0 dB 처리는 De Ruiter et al. 2015 참고)' : esc(P.ceiling || '없음');
-  const pathTxt = (PATH[s.path] || s.path || '미입력') + (s.path === 'bt' ? ' (주의: 블루투스 스트리밍 특성상 자극 앞부분 잘림 가능)' : '');
+  const buildStatus = vs ? (verifiedText(vs) || vs) : (s.build?.sha256 ? tx('검산 기록과 다른 코드', 'Code differs from verification record') : tx('확인 불가(로컬 file:// 등)', 'Unavailable (e.g. local file://)'));
+  const bandTxt = P.band?.type === 'wide' ? tx('광대역 가우스 잡음 (20 Hz – fs/2, 구간마다 독립 재추출)', 'Wideband Gaussian noise (20 Hz – fs/2, refreshed per interval)') : `${tx('대역 제한 잡음', 'Band-limited noise')} (${esc(JSON.stringify(P.band))})`;
+  const rampTxt = `${P.rampMs ?? 10} ms ${P.rampShape === 'cos2' ? tx('코사인²(cos²)', 'raised-cosine (cos²)') : tx('직선(linear)', 'linear')} ${tx('경사', 'ramps')}`;
+  const phaseTxt = P.phase === 'random' ? tx('구간마다 [0, 2π) 균등 무작위 (Shen & Richards 2013)', 'Uniform random [0, 2π) per interval (Shen & Richards 2013)') : esc(P.phase || '0');
+  const ceilTxt = P.ceiling === 'stop4' ? tx('0 dB에서 4회 오답 시 즉시 중단(재지 못함, 숫자 아님 · 앱 자체 규칙; 미탐지 0 dB 처리는 De Ruiter et al. 2015 참고)', 'Stop after 4 incorrect responses at 0 dB (not measured, non-numeric; app-specific safeguard; cf. De Ruiter et al. 2015)') : esc(P.ceiling || tx('없음', 'None'));
+  const pathTxt = (pathName(s.path) || tx('미입력', 'Not entered')) + (s.path === 'bt' ? tx(' (주의: 블루투스 스트리밍 특성상 자극 앞부분 잘림 가능)', ' (Note: Bluetooth streaming may clip stimulus onset)') : '');
 
   // 1. 주파수별 요약 표 (재지 못함은 절대 0 dB로 평균 내지 않음)
   const maxN = rows.length ? Math.max(...rows.map(x => x.rs.length)) : 0;
-  const sumTable = !rows.length ? '<p class="muted">완료된 측정이 없습니다.</p>' : (() => {
-    const head = `<tr><th>변조 주파수</th>${Array.from({ length: maxN }, (_, i) => `<th>${i + 1}차 측정</th>`).join('')}<th>대표값 (평균)</th></tr>`;
+  const sumTable = !rows.length ? `<p class="muted">${tx('완료된 측정이 없습니다.', 'No completed runs.')}</p>` : (() => {
+    const head = `<tr><th>${tx('변조 주파수', 'Modulation freq')}</th>${Array.from({ length: maxN }, (_, i) => `<th>${tx(`${i + 1}차 측정`, `Run ${i + 1}`)}</th>`).join('')}<th>${tx('대표값 (평균)', 'Representative (mean)')}</th></tr>`;
     const body = rows.map(({ fm, rs }) => {
       const cells = Array.from({ length: maxN }, (_, i) => {
         const r = rs[i];
         if (!r) return '<td class="muted">—</td>';
         if (r.ceiling || r.thr === null || r.thr === undefined) {
-          const reason = r.ceiling ? (r.n0 >= 6 && !r.atChance ? '0 dB 4오답 중단(100% 일부 탐지)' : '0 dB 4오답 중단') : '역치 미산출';
-          return `<td><b>재지 못함</b><small>${esc(reason)}</small></td>`;
+          const reason = r.ceiling ? (r.n0 >= 6 && !r.atChance ? tx('0 dB 4오답 중단(100% 일부 탐지)', 'Stopped at 4 misses at 0 dB (some 100% detection)') : tx('0 dB 4오답 중단', 'Stopped at 4 misses at 0 dB')) : tx('역치 미산출', 'Threshold unavailable');
+          return `<td><b>${tx('재지 못함', 'Not measured')}</b><small>${esc(reason)}</small></td>`;
         }
-        const tag = r.atChance ? ' · 우연 수준(참고값)' : r.incomplete ? ' · 미완(참고값)' : '';
+        const tag = r.atChance ? tx(' · 우연 수준(참고값)', ' · at chance (ref)') : r.incomplete ? tx(' · 미완(참고값)', ' · incomplete (ref)') : '';
         return `<td><b>${r.thr.toFixed(2)} dB</b> (${esc(fmtPct(pct(r.thr)))})<small>SD ${r.sd !== null && r.sd !== undefined ? r.sd.toFixed(2) + ' dB' : '—'}${tag}</small></td>`;
       }).join('');
       const norm = rs.filter(r => !r.ceiling && r.thr !== null && r.thr !== undefined && !r.atChance && !r.incomplete).map(r => r.thr);
-      let rep = '<span class="muted">산출 불가</span>';
+      let rep = `<span class="muted">${tx('산출 불가', 'Unavailable')}</span>`;
       if (norm.length >= 2 && norm.length === rs.length) {
         const m = meanOf(norm), diff = Math.max(...norm) - Math.min(...norm);
-        rep = `<b>${m.toFixed(2)} dB</b> (${esc(fmtPct(pct(m)))})<small>${norm.length}회 평균 · 범위차 ${diff.toFixed(2)} dB</small>`;
+        rep = `<b>${m.toFixed(2)} dB</b> (${esc(fmtPct(pct(m)))})<small>${tx(`${norm.length}회 평균 · 범위차 ${diff.toFixed(2)} dB`, `Mean of ${norm.length} · range ${diff.toFixed(2)} dB`)}</small>`;
       } else if (norm.length === 1 && rs.length === 1) {
-        rep = `${norm[0].toFixed(2)} dB (${esc(fmtPct(pct(norm[0])))})<small>1회 측정 · 잠정 참고값</small>`;
+        rep = `${norm[0].toFixed(2)} dB (${esc(fmtPct(pct(norm[0])))})<small>${tx('1회 측정 · 잠정 참고값', 'Single run · provisional reference')}</small>`;
       } else if (rs.some(r => r.ceiling || r.thr === null || r.thr === undefined)) {
-        rep = '<span class="muted">평균 제외 (‘재지 못함’ 포함)</span>';
+        rep = `<span class="muted">${tx('평균 제외 (‘재지 못함’ 포함)', 'Excluded from mean (contains “not measured”)')}</span>`;
       } else {
-        rep = '<span class="muted">참고값만 존재 (평균 제외)</span>';
+        rep = `<span class="muted">${tx('참고값만 존재 (평균 제외)', 'Reference values only (excluded from mean)')}</span>`;
       }
       return `<tr><td class="num"><b>${fm} Hz</b></td>${cells}<td>${rep}</td></tr>`;
     }).join('');
@@ -1712,7 +1776,7 @@ function reportSessionHtml(s, src, idx, total) {
     const pos = posStats(r);
     const rtMed = medianOf(chosen.map(t => t.rt).filter(v => typeof v === 'number' && isFinite(v)));
     const dunnoPct = r.nTrials ? ((100 * (r.nDunno || 0)) / r.nTrials).toFixed(0) + '%' : '0%';
-    const thrCell = r.ceiling || r.thr === null || r.thr === undefined ? '재지 못함' : `${r.thr.toFixed(2)} dB (${esc(fmtPct(pct(r.thr)))})`;
+    const thrCell = r.ceiling || r.thr === null || r.thr === undefined ? tx('재지 못함', 'Not measured') : `${r.thr.toFixed(2)} dB (${esc(fmtPct(pct(r.thr)))})`;
     const pTxt = r.pChance !== null && r.pChance !== undefined ? ` (p=${(+r.pChance).toFixed(3)})` : '';
     return `<tr><td class="num">${r.order ?? ''}</td><td class="num">${r.round || 1}${r.extra ? '+' : ''}</td><td class="num"><b>${r.fm}</b></td>
       <td class="num"><b>${thrCell}</b></td><td class="num">${r.sd !== null && r.sd !== undefined ? r.sd.toFixed(2) : '—'}</td>
@@ -1725,9 +1789,9 @@ function reportSessionHtml(s, src, idx, total) {
   // 3. 계단 궤적 그림 + 반전 깊이 목록
   const stairFigs = runs.map(r => {
     const rev = r.reversals || [], avgLast = (r.P || P).avgLast || 10;
-    const revTxt = rev.length ? rev.map((d, i) => i >= rev.length - avgLast && !r.ceiling ? `<b>${d}</b>` : String(d)).join(', ') : '없음';
-    const thrLbl = r.ceiling || r.thr === null || r.thr === undefined ? '재지 못함' : `${r.thr.toFixed(2)} dB (${fmtPct(pct(r.thr))})`;
-    return `<figure>${stairSvg(r)}<figcaption><b>#${r.order} · ${r.fm} Hz · ${r.round || 1}바퀴${r.extra ? '(추가)' : ''}</b> — ${esc(thrLbl)}${r.sd !== null && r.sd !== undefined ? ` · SD ${r.sd.toFixed(2)} dB` : ''}<br><span class="muted">반전(${rev.length}회, 굵은 값=평균 사용): ${revTxt}</span></figcaption></figure>`;
+    const revTxt = rev.length ? rev.map((d, i) => i >= rev.length - avgLast && !r.ceiling ? `<b>${d}</b>` : String(d)).join(', ') : tx('없음', 'None');
+    const thrLbl = r.ceiling || r.thr === null || r.thr === undefined ? tx('재지 못함', 'Not measured') : `${r.thr.toFixed(2)} dB (${fmtPct(pct(r.thr))})`;
+    return `<figure>${stairSvg(r)}<figcaption><b>#${r.order} · ${r.fm} Hz · ${tx(`${r.round || 1}바퀴${r.extra ? '(추가)' : ''}`, `Round ${r.round || 1}${r.extra ? ' (extra)' : ''}`)}</b> — ${esc(thrLbl)}${r.sd !== null && r.sd !== undefined ? ` · SD ${r.sd.toFixed(2)} dB` : ''}<br><span class="muted">${tx(`반전(${rev.length}회, 굵은 값=평균 사용)`, `Reversals (${rev.length}, bold = averaged)`)}: ${revTxt}</span></figcaption></figure>`;
   }).join('');
 
   // 4. 품질 · 무결성 요약
@@ -1737,11 +1801,11 @@ function reportSessionHtml(s, src, idx, total) {
   const hidN = evs.filter(e => e.type === 'hidden').length;
   const voidN = evs.filter(e => e.type === 'trial-void').length;
   const driftMed = medianOf(drifts), driftMax = drifts.length ? Math.max(...drifts.map(x => Math.abs(x))) : null;
-  const gapDetail = gapStarts.length ? gapStarts.map((g, i) => `${localTime(g.from)} (${g.why || '원인 미상'}${gapEnds[i]?.durS !== undefined ? `, ${gapEnds[i].durS}s` : ''})`).join('; ') : '없음';
-  const abDetail = abEvs.length ? abEvs.map(a => `${a.fm} Hz (${a.stopVia || '중단'}, ${a.trialList?.length ?? 0}시행, 당시 깊이 ${a.depthNow ?? '?'} dB)`).join('; ') : '없음';
+  const gapDetail = gapStarts.length ? gapStarts.map((g, i) => `${localTime(g.from)} (${gapWhyText(g.why) || tx('원인 미상', 'unknown cause')}${gapEnds[i]?.durS !== undefined ? `, ${gapEnds[i].durS}s` : ''})`).join('; ') : tx('없음', 'None');
+  const abDetail = abEvs.length ? abEvs.map(a => `${a.fm} Hz (${a.stopVia || tx('중단', 'stopped')}, ${tx(`${a.trialList?.length ?? 0}시행, 당시 깊이 ${a.depthNow ?? '?'} dB`, `${a.trialList?.length ?? 0} trials, depth ${a.depthNow ?? '?'} dB`)})`).join('; ') : tx('없음', 'None');
   const noiseList = s.setup?.noise || [], demoList = s.setup?.demo || [];
-  const noiseTxt = noiseList.length ? `${noiseList.length}회 (RMS ${noiseList.map(x => x.rmsDb + ' dBFS').join(', ')})` : '0회';
-  const demoTxt = demoList.length ? `${demoList.length}회 (떨림 ${demoList.filter(x => x.kind === 'mod').length} · 비떨림 ${demoList.filter(x => x.kind === 'flat').length})` : '0회';
+  const noiseTxt = noiseList.length ? `${noiseList.length}${tx('회', 'x')} (RMS ${noiseList.map(x => x.rmsDb + ' dBFS').join(', ')})` : tx('0회', '0x');
+  const demoTxt = demoList.length ? `${demoList.length}${tx('회', 'x')} (${tx('떨림', 'mod')} ${demoList.filter(x => x.kind === 'mod').length} · ${tx('비떨림', 'flat')} ${demoList.filter(x => x.kind === 'flat').length})` : tx('0회', '0x');
 
   // 5. 시행별 원시 기록표 (접이식)
   const rawDetails = runs.map(r => {
@@ -1749,142 +1813,142 @@ function reportSessionHtml(s, src, idx, total) {
     const nUse = r.ceiling || r.thr === null || r.thr === undefined ? 0 : Math.min((r.P || P).avgLast || 10, nRev);
     const tRows = tr.map((t, i) => {
       const ri = revAt.indexOf(i);
-      const revMark = ri < 0 ? '' : `${ri + 1}${ri + 1 > nRev - nUse ? ' (사용)' : ''}`;
+      const revMark = ri < 0 ? '' : `${ri + 1}${ri + 1 > nRev - nUse ? tx(' (사용)', ' (used)') : ''}`;
       const flags = [];
-      if (t.early) flags.push(`이른입력 ${t.early}`);
-      if (t.hid) flags.push('가려짐');
-      if (t.rep) flags.push(`재제시 ${t.rep}`);
-      if (t.late) flags.push('예약늦음');
-      if (t.kGap) flags.push('출력끊김중');
-      if (t.scaled) flags.push('피크감쇠');
-      const ansTxt = t.a !== undefined && t.a !== null ? `${t.a + 1}${t.u ? ' (난수)' : ''}` : '—';
+      if (t.early) flags.push(`${tx('이른입력', 'early')} ${t.early}`);
+      if (t.hid) flags.push(tx('가려짐', 'hidden'));
+      if (t.rep) flags.push(`${tx('재제시', 'replayed')} ${t.rep}`);
+      if (t.late) flags.push(tx('예약늦음', 'late'));
+      if (t.kGap) flags.push(tx('출력끊김중', 'audio-gap'));
+      if (t.scaled) flags.push(tx('피크감쇠', 'peak-scaled'));
+      const ansTxt = t.a !== undefined && t.a !== null ? `${t.a + 1}${t.u ? tx(' (난수)', ' (rand)') : ''}` : '—';
       return `<tr><td class="num">${i + 1}</td><td class="num">${t.d}</td><td class="num">${t.tg !== undefined ? t.tg + 1 : '—'}</td><td class="num">${ansTxt}</td>
-        <td>${t.c ? '<span class="good">맞음</span>' : '<span class="bad">틀림</span>'}</td><td class="num">${t.u ? '예' : ''}</td>
+        <td>${t.c ? `<span class="good">${tx('맞음', 'Correct')}</span>` : `<span class="bad">${tx('틀림', 'Wrong')}</span>`}</td><td class="num">${t.u ? tx('예', 'Yes') : ''}</td>
         <td>${esc(t.inp || '')}</td><td class="num">${t.rt ?? '—'}</td><td class="num">${esc((t.rms || []).join(' / '))}</td>
         <td class="num">${esc((t.pk || []).join(' / '))}</td><td class="num">${revMark}</td><td>${esc(flags.join(', '))}</td></tr>`;
     }).join('');
-    return `<details class="raw"><summary>#${r.order} · ${r.fm} Hz (${r.round || 1}바퀴${r.extra ? ' 추가' : ''}) — 전체 시행 ${tr.length}건 펼쳐 보기</summary>
-      <div class="tw"><table class="dense"><thead><tr><th>#</th><th>깊이(dB)</th><th>정답</th><th>답</th><th>정오</th><th>모르겠음</th><th>입력</th><th>반응(ms)</th><th>구간 RMS(dBFS)</th><th>봉우리(dBFS)</th><th>반전</th><th>특이사항</th></tr></thead><tbody>${tRows}</tbody></table></div></details>`;
+    return `<details class="raw"><summary>#${r.order} · ${r.fm} Hz (${tx(`${r.round || 1}바퀴${r.extra ? ' 추가' : ''}`, `Round ${r.round || 1}${r.extra ? ' extra' : ''}`)}) — ${tx(`전체 시행 ${tr.length}건 펼쳐 보기`, `Show all ${tr.length} trials`)}</summary>
+      <div class="tw"><table class="dense"><thead><tr><th>#</th><th>${tx('깊이(dB)', 'Depth (dB)')}</th><th>${tx('정답', 'Target')}</th><th>${tx('답', 'Resp')}</th><th>${tx('정오', 'Result')}</th><th>${tx('모르겠음', 'Unsure')}</th><th>${tx('입력', 'Input')}</th><th>${tx('반응(ms)', 'RT (ms)')}</th><th>${tx('구간 RMS(dBFS)', 'Interval RMS (dBFS)')}</th><th>${tx('봉우리(dBFS)', 'Peak (dBFS)')}</th><th>${tx('반전', 'Rev')}</th><th>${tx('특이사항', 'Flags')}</th></tr></thead><tbody>${tRows}</tbody></table></div></details>`;
   }).join('');
 
   return `<article class="sess">
-    ${total > 1 ? `<div class="sess-tag">회기 ${idx + 1} / ${total}${src ? ` · 출처: ${esc(src)}` : ''}</div>` : ''}
+    ${total > 1 ? `<div class="sess-tag">${tx(`회기 ${idx + 1} / ${total}`, `Session ${idx + 1} / ${total}`)}${src ? ` · ${tx('출처', 'Source')}: ${esc(src)}` : ''}</div>` : ''}
     <section class="sec">
-      <h2>1. 회기 · 대상자 · 청취 환경 정보</h2>
+      <h2>${tx('1. 회기 · 대상자 · 청취 환경 정보', '1. Session, Participant & Listening Environment')}</h2>
       <div class="kv-grid">
         <table class="kv"><tbody>
-          <tr><th>참가 번호</th><td>${esc(s.code || '미입력 (익명)')}</td></tr>
-          <tr><th>검사 귀</th><td>${esc(EAR[s.ear] || s.ear || '미입력')}</td></tr>
-          <tr><th>소리 전달 경로</th><td>${esc(pathTxt)}</td></tr>
-          <tr><th>기기 볼륨 기록값</th><td>${s.osVolume !== null && s.osVolume !== undefined ? esc(String(s.osVolume)) : '미기록'}</td></tr>
-          <tr><th>검사 일시</th><td>${esc(localTime(s.start))} – ${s.end ? esc(localTime(s.end)) : '종료 미기록'}${durMin !== null && isFinite(durMin) ? ` (약 ${durMin.toFixed(1)}분)` : ''}</td></tr>
-          <tr><th>종료 사유</th><td>${esc(s.endReason || '미기록')}</td></tr>
-          <tr><th>계획 변조 주파수</th><td>${esc((s.fmsPlan || []).join(' · '))} Hz (${(s.rounds || []).length}바퀴)</td></tr>
-          <tr><th>검사 후 집중도 자기보고</th><td>${s.focusEnd ? esc(FOCUS[s.focusEnd] || s.focusEnd) : '미선택'}</td></tr>
+          <tr><th>${tx('참가 번호', 'Participant ID')}</th><td>${esc(s.code || tx('미입력 (익명)', 'Not entered (anonymous)'))}</td></tr>
+          <tr><th>${tx('검사 귀', 'Tested ear')}</th><td>${esc(earName(s.ear) || tx('미입력', 'Not entered'))}</td></tr>
+          <tr><th>${tx('소리 전달 경로', 'Audio path')}</th><td>${esc(pathTxt)}</td></tr>
+          <tr><th>${tx('기기 볼륨 기록값', 'Reported device volume')}</th><td>${s.osVolume !== null && s.osVolume !== undefined ? esc(String(s.osVolume)) : tx('미기록', 'Not recorded')}</td></tr>
+          <tr><th>${tx('검사 일시', 'Date & time')}</th><td>${esc(localTime(s.start))} – ${s.end ? esc(localTime(s.end)) : tx('종료 미기록', 'end not recorded')}${durMin !== null && isFinite(durMin) ? ` (${tx(`약 ${durMin.toFixed(1)}분`, `~${durMin.toFixed(1)} min`)})` : ''}</td></tr>
+          <tr><th>${tx('종료 사유', 'End reason')}</th><td>${esc(endReasonText(s.endReason) || tx('미기록', 'Not recorded'))}</td></tr>
+          <tr><th>${tx('계획 변조 주파수', 'Planned modulation rates')}</th><td>${esc((s.fmsPlan || []).join(' · '))} Hz (${tx(`${(s.rounds || []).length}바퀴`, `${(s.rounds || []).length} round(s)`)})</td></tr>
+          <tr><th>${tx('검사 후 집중도 자기보고', 'Self-reported focus')}</th><td>${s.focusEnd ? esc(focusName(s.focusEnd)) : tx('미선택', 'Not selected')}</td></tr>
         </tbody></table>
         <table class="kv"><tbody>
-          <tr><th>나이대 (선택)</th><td>${esc(AGE_LBL[info.age] || info.age || '미입력')}</td></tr>
-          <tr><th>해당 귀 인공와우 사용 기간</th><td>${esc(YEARS_LBL[info.ciYears] || info.ciYears || '미입력')}</td></tr>
-          <tr><th>난청 시작 시기</th><td>${esc(ONSET_LBL[info.onset] || info.onset || '미입력')}</td></tr>
-          <tr><th>음성처리기(인공와우 외부기기) 제조사</th><td>${esc(MAKER_LBL[info.maker] || info.maker || '미입력')}</td></tr>
-          <tr><th>참가자 메모</th><td>${esc(info.note || '없음')}</td></tr>
-          <tr><th>오디오 · 유지 신호</th><td>표본화 ${s.env?.audio?.sampleRate ?? '?'} Hz · baseLatency ${s.env?.audio?.baseLatencyMs ?? '?'} ms · outputLatency ${s.env?.audio?.outputLatencyMs ?? '?'} ms<br>유지 신호: ${esc(keepModeLabel(sessionKeepKey(s)))}${s.keepalive?.stateAtStart?.wall ? ` (시작 ${esc(localTime(s.keepalive.stateAtStart.wall))})` : ''}${s.keepalive?.warmupWaitedMs ? ` · 초기 대기 ${(s.keepalive.warmupWaitedMs / 1000).toFixed(1)} s` : ''}</td></tr>
-          <tr><th>네 번 소리 점검 (온셋)</th><td>${(() => {
+          <tr><th>${tx('나이대 (선택)', 'Age group (optional)')}</th><td>${esc(ageName(info.age) || tx('미입력', 'Not entered'))}</td></tr>
+          <tr><th>${tx('해당 귀 인공와우 사용 기간', 'CI duration (this ear)')}</th><td>${esc(yearsName(info.ciYears) || tx('미입력', 'Not entered'))}</td></tr>
+          <tr><th>${tx('난청 시작 시기', 'Hearing loss onset')}</th><td>${esc(onsetName(info.onset) || tx('미입력', 'Not entered'))}</td></tr>
+          <tr><th>${tx('음성처리기(인공와우 외부기기) 제조사', 'Sound processor brand')}</th><td>${esc(makerName(info.maker) || tx('미입력', 'Not entered'))}</td></tr>
+          <tr><th>${tx('참가자 메모', 'Participant note')}</th><td>${esc(info.note || tx('없음', 'None'))}</td></tr>
+          <tr><th>${tx('오디오 · 유지 신호', 'Audio & keepalive')}</th><td>${tx('표본화', 'SR')} ${s.env?.audio?.sampleRate ?? '?'} Hz · baseLatency ${s.env?.audio?.baseLatencyMs ?? '?'} ms · outputLatency ${s.env?.audio?.outputLatencyMs ?? '?'} ms<br>${tx('유지 신호', 'Keepalive')}: ${esc(keepModeLabel(sessionKeepKey(s)))}${s.keepalive?.stateAtStart?.wall ? ` (${tx('시작', 'started')} ${esc(localTime(s.keepalive.stateAtStart.wall))})` : ''}${s.keepalive?.warmupWaitedMs ? ` · ${tx('초기 대기', 'warmup')} ${(s.keepalive.warmupWaitedMs / 1000).toFixed(1)} s` : ''}</td></tr>
+          <tr><th>${tx('네 번 소리 점검 (온셋)', 'Four-beep onset check')}</th><td>${(() => {
             const oc = s.onsetCheck;
-            if (!oc) return '기록 없음 (v1 파일)';
-            if (oc.skipped) return `건너뜀${oc.trials?.length ? ` (일부 ${oc.trials.length}회 기록)` : ''}`;
+            if (!oc) return tx('기록 없음 (v1 파일)', 'Not recorded (v1 file)');
+            if (oc.skipped) return `${tx('건너뜀', 'Skipped')}${oc.trials?.length ? tx(` (일부 ${oc.trials.length}회 기록)`, ` (${oc.trials.length} partial check(s))`) : ''}`;
             const sum = oc.summary || summarizeOnset(oc.trials || []);
-            const det = (oc.trials || []).map((t, i) => `${i + 1}회(${t.silenceBeforeMs / 1000}s): ${t.resp}개/${t.first === 'yes' ? '첫소리약함' : t.first === 'no' ? '정상' : t.first || '-'}`).join(' · ');
-            return `<b>${esc(sum.verdict)}</b>${det ? ` — ${esc(det)}` : ''}`;
+            const det = (oc.trials || []).map((t, i) => `${tx(`${i + 1}회`, `#${i + 1}`)}(${t.silenceBeforeMs / 1000}s): ${tx(`${t.resp}개`, `${t.resp}/4`)}/${t.first === 'yes' ? tx('첫소리약함', '1st weak') : t.first === 'no' ? tx('정상', 'normal') : t.first || '-'}`).join(' · ');
+            return `<b>${esc(onsetVerdictText(sum.verdict))}</b>${det ? ` — ${esc(det)}` : ''}`;
           })()}</td></tr>
-          <tr><th>준비 · 연습 기록</th><td>기준 잡음 ${esc(noiseTxt)} · 데모 ${esc(demoTxt)} · 연습 ${prTr.length}시행 (직접 맞힘 ${prRight}, 모르겠음 ${prDunno}, ${s.practiceRounds || 0}회차)</td></tr>
-          <tr><th>브라우저 · 화면</th><td>${esc(s.env?.platform || '')} · 화면 ${esc(s.env?.screen || '')} · 창 ${esc(s.env?.window || '')}</td></tr>
+          <tr><th>${tx('준비 · 연습 기록', 'Setup & practice log')}</th><td>${tx('기준 잡음', 'Ref noise')} ${esc(noiseTxt)} · ${tx('데모', 'Demo')} ${esc(demoTxt)} · ${tx(`연습 ${prTr.length}시행 (직접 맞힘 ${prRight}, 모르겠음 ${prDunno}, ${s.practiceRounds || 0}회차)`, `Practice ${prTr.length} trials (${prRight} direct hits, ${prDunno} unsure, ${s.practiceRounds || 0} round(s))`)}</td></tr>
+          <tr><th>${tx('브라우저 · 화면', 'Browser & display')}</th><td>${esc(s.env?.platform || '')} · ${tx('화면', 'Screen')} ${esc(s.env?.screen || '')} · ${tx('창', 'Window')} ${esc(s.env?.window || '')}</td></tr>
         </tbody></table>
       </div>
     </section>
 
     <section class="sec">
-      <h2>2. 주파수별 종합 결과 (TMTF 요약 및 곡선)</h2>
+      <h2>${tx('2. 주파수별 종합 결과 (TMTF 요약 및 곡선)', '2. Summary Results & TMTF Curve')}</h2>
       <div class="tw">${sumTable}</div>
       ${reportChartSvg(s)}
     </section>
 
     <section class="sec">
-      <h2>3. 측정(Run)별 상세 결과 및 계단 궤적</h2>
-      ${runs.length ? `<div class="tw"><table class="dense"><thead><tr><th>#</th><th>바퀴</th><th>Hz</th><th>역치 (dB / %)</th><th>SD</th><th>판정</th><th>0 dB 맞힘</th><th>시행</th><th>모르겠음</th><th>반응(ms)</th><th>분</th><th>휴식(s)</th><th>자리별 맞힘 1·2·3 (모르겠음 제외)</th></tr></thead><tbody>${runRows}</tbody></table></div>
-      <p class="cap">반응(ms): 직접 고른 답(모르겠음 제외) 반응시간 중앙값 · 자리별 맞힘 1·2·3: 모르겠음 시행을 제외한 구간별 정답/출현 수.</p>
-      <div class="stairs">${stairFigs}</div>` : '<p class="muted">완료된 측정이 없습니다.</p>'}
+      <h2>${tx('3. 측정(Run)별 상세 결과 및 계단 궤적', '3. Per-Run Details & Staircase Trajectories')}</h2>
+      ${runs.length ? `<div class="tw"><table class="dense"><thead><tr><th>#</th><th>${tx('바퀴', 'Rnd')}</th><th>Hz</th><th>${tx('역치 (dB / %)', 'Threshold (dB / %)')}</th><th>SD</th><th>${tx('판정', 'Status')}</th><th>${tx('0 dB 맞힘', '0 dB hits')}</th><th>${tx('시행', 'Trials')}</th><th>${tx('모르겠음', 'Unsure')}</th><th>${tx('반응(ms)', 'RT (ms)')}</th><th>${tx('분', 'Min')}</th><th>${tx('휴식(s)', 'Break (s)')}</th><th>${tx('자리별 맞힘 1·2·3 (모르겠음 제외)', 'Interval 1·2·3 (excl. unsure)')}</th></tr></thead><tbody>${runRows}</tbody></table></div>
+      <p class="cap">${tx('반응(ms): 직접 고른 답(모르겠음 제외) 반응시간 중앙값 · 자리별 맞힘 1·2·3: 모르겠음 시행을 제외한 구간별 정답/출현 수.', 'RT (ms): median response time for direct choices (excluding “Not sure”) · Interval 1·2·3: correct/presented counts per interval excluding “Not sure” trials.')}</p>
+      <div class="stairs">${stairFigs}</div>` : `<p class="muted">${tx('완료된 측정이 없습니다.', 'No completed runs.')}</p>`}
     </section>
 
     <section class="sec">
-      <h2>4. 자극(Stimulus) 및 적응 계단(Staircase) 기술 명세</h2>
+      <h2>${tx('4. 자극(Stimulus) 및 적응 계단(Staircase) 기술 명세', '4. Stimulus & Adaptive Staircase Specifications')}</h2>
       <div class="kv-grid">
         <table class="kv"><tbody>
-          <tr><th colspan="2" class="subh">자극 생성 명세 (Stimulus)</th></tr>
-          <tr><th>과제 구조</th><td>${P.nAFC ?? 3}구간 강제선택 (${P.nAFC ?? 3}AFC oddity)</td></tr>
-          <tr><th>구간 길이 · 쉼(ISI)</th><td>구간 ${P.dur ?? 0.5} s × ${P.nAFC ?? 3}, 구간 간 쉼 ${P.isi ?? 0.5} s, 첫 구간 앞 무음(lead) ${P.leadS ?? LEAD_S} s</td></tr>
-          <tr><th>반송파</th><td>${bandTxt}</td></tr>
-          <tr><th>변조 수식 (SAM)</th><td>s(t) = [1 + m·sin(2π·fm·t + φ)]·n(t), m = 10^(D/20) (D: dB, 0 dB = 100%)</td></tr>
-          <tr><th>변조 시작 위상 φ</th><td>${phaseTxt}</td></tr>
-          <tr><th>켜짐 · 꺼짐 경사</th><td>${rampTxt}</td></tr>
-          <tr><th>구간 음압(RMS) 맞춤</th><td>경사 적용 후 구간별 RMS = 0.05 (−26.02 dBFS) 정확 정규화 · 레벨 흔들기(roving) ±${P.rove ?? 0} dB</td></tr>
-          <tr><th>자극 재현성</th><td>구간별 32비트 잡음 씨앗(mulberry32) 및 위상 기록 → 파형 사후 재현 가능</td></tr>
-          <tr><th>조건 식별 키 (procKey)</th><td class="mono">${esc(s.procKey || PROC_KEY)}</td></tr>
+          <tr><th colspan="2" class="subh">${tx('자극 생성 명세 (Stimulus)', 'Stimulus Specifications')}</th></tr>
+          <tr><th>${tx('과제 구조', 'Task paradigm')}</th><td>${tx(`${P.nAFC ?? 3}구간 강제선택 (${P.nAFC ?? 3}AFC oddity)`, `${P.nAFC ?? 3}-interval forced-choice (${P.nAFC ?? 3}AFC oddity)`)}</td></tr>
+          <tr><th>${tx('구간 길이 · 쉼(ISI)', 'Duration & ISI')}</th><td>${tx(`구간 ${P.dur ?? 0.5} s × ${P.nAFC ?? 3}, 구간 간 쉼 ${P.isi ?? 0.5} s, 첫 구간 앞 무음(lead) ${P.leadS ?? LEAD_S} s`, `Interval ${P.dur ?? 0.5} s × ${P.nAFC ?? 3}, ISI ${P.isi ?? 0.5} s, leading silence ${P.leadS ?? LEAD_S} s`)}</td></tr>
+          <tr><th>${tx('반송파', 'Carrier')}</th><td>${bandTxt}</td></tr>
+          <tr><th>${tx('변조 수식 (SAM)', 'Modulation (SAM)')}</th><td>s(t) = [1 + m·sin(2π·fm·t + φ)]·n(t), m = 10^(D/20) (D: dB, 0 dB = 100%)</td></tr>
+          <tr><th>${tx('변조 시작 위상 φ', 'Modulation phase φ')}</th><td>${phaseTxt}</td></tr>
+          <tr><th>${tx('켜짐 · 꺼짐 경사', 'Onset / offset ramps')}</th><td>${rampTxt}</td></tr>
+          <tr><th>${tx('구간 음압(RMS) 맞춤', 'Interval RMS normalization')}</th><td>${tx(`경사 적용 후 구간별 RMS = 0.05 (−26.02 dBFS) 정확 정규화 · 레벨 흔들기(roving) ±${P.rove ?? 0} dB`, `Exact per-interval RMS = 0.05 (−26.02 dBFS) after ramping · level roving ±${P.rove ?? 0} dB`)}</td></tr>
+          <tr><th>${tx('자극 재현성', 'Reproducibility')}</th><td>${tx('구간별 32비트 잡음 씨앗(mulberry32) 및 위상 기록 → 파형 사후 재현 가능', '32-bit mulberry32 noise seed and phase saved per interval for exact offline waveform reconstruction')}</td></tr>
+          <tr><th>${tx('조건 식별 키 (procKey)', 'Protocol key (procKey)')}</th><td class="mono">${esc(s.procKey || PROC_KEY)}</td></tr>
         </tbody></table>
         <table class="kv"><tbody>
-          <tr><th colspan="2" class="subh">적응 계단 · 채점 · 반복 규칙 (Staircase)</th></tr>
-          <tr><th>적응 절차</th><td>2-down 1-up (70.7% 정답률 지점 추적 · Levitt 1971)</td></tr>
-          <tr><th>시작 깊이 · 범위</th><td>${P.startDb ?? 0} dB (100%) 시작 · 허용 범위 −40 ~ 0 dB</td></tr>
-          <tr><th>보폭 (Step size)</th><td>초기 ${P.bigUntil ?? 4}회 반전까지 ${P.big ?? 4} dB, 이후 ${P.small ?? 2} dB (Won et al. 2011)</td></tr>
-          <tr><th>종료 · 역치 산출</th><td>총 ${P.totalRev ?? 14}회 반전 완료 시 종료 · 마지막 ${P.avgLast ?? 10}회 반전 깊이 산술 평균(dB) 및 SD · 최대 160시행(초과 시 미완)</td></tr>
-          <tr><th>천장(재지 못함) 규칙</th><td>${ceilTxt}</td></tr>
-          <tr><th>우연 수준 검정</th><td>0 dB 시행 수 n0 ≥ 6일 때 단측 이항검정 P(X ≥ k0 | n0, 1/${P.nAFC ?? 3}) &gt; 0.05이면 참고값(우연 수준) 표시</td></tr>
-          <tr><th>‘모르겠음’ 처리</th><td>3구간 중 균등 무작위 1개 선택(치우침 없는 찍기, p = 1/3) · 시행별 u=1 기록 · 자리별 맞힘 분석 제외</td></tr>
-          <tr><th>반복 · 3차 추가 규칙</th><td>전 주파수 무작위 1바퀴 → 선택 2바퀴 → 정상 두 값 차 &gt; 3 dB 주파수만 3차 추가 제안 (Won et al. 2011 Fig. 9 · Park et al. 2015)</td></tr>
-          <tr><th>피드백</th><td>${P.feedback === false ? '없음' : '시행마다 시각 피드백 제공 (맞음 · 틀림 · 모르겠음 구분 표시)'}</td></tr>
+          <tr><th colspan="2" class="subh">${tx('적응 계단 · 채점 · 반복 규칙 (Staircase)', 'Adaptive Staircase & Scoring Rules')}</th></tr>
+          <tr><th>${tx('적응 절차', 'Adaptive rule')}</th><td>${tx('2-down 1-up (70.7% 정답률 지점 추적 · Levitt 1971)', '2-down 1-up (tracks 70.7% correct · Levitt 1971)')}</td></tr>
+          <tr><th>${tx('시작 깊이 · 범위', 'Start depth & range')}</th><td>${tx(`${P.startDb ?? 0} dB (100%) 시작 · 허용 범위 −40 ~ 0 dB`, `Starts at ${P.startDb ?? 0} dB (100%) · clamped to −40 to 0 dB`)}</td></tr>
+          <tr><th>${tx('보폭 (Step size)', 'Step size')}</th><td>${tx(`초기 ${P.bigUntil ?? 4}회 반전까지 ${P.big ?? 4} dB, 이후 ${P.small ?? 2} dB (Won et al. 2011)`, `${P.big ?? 4} dB for the first ${P.bigUntil ?? 4} reversals, then ${P.small ?? 2} dB (Won et al. 2011)`)}</td></tr>
+          <tr><th>${tx('종료 · 역치 산출', 'Termination & threshold')}</th><td>${tx(`총 ${P.totalRev ?? 14}회 반전 완료 시 종료 · 마지막 ${P.avgLast ?? 10}회 반전 깊이 산술 평균(dB) 및 SD · 최대 160시행(초과 시 미완)`, `Stops after ${P.totalRev ?? 14} reversals · arithmetic mean (dB) and SD of last ${P.avgLast ?? 10} reversals · max 160 trials (incomplete if exceeded)`)}</td></tr>
+          <tr><th>${tx('천장(재지 못함) 규칙', 'Ceiling rule')}</th><td>${ceilTxt}</td></tr>
+          <tr><th>${tx('우연 수준 검정', 'Chance-level check')}</th><td>${tx(`0 dB 시행 수 n0 ≥ 6일 때 단측 이항검정 P(X ≥ k0 | n0, 1/${P.nAFC ?? 3}) &gt; 0.05이면 참고값(우연 수준) 표시`, `When n0 ≥ 6 at 0 dB, flagged as at-chance reference if one-sided binomial P(X ≥ k0 | n0, 1/${P.nAFC ?? 3}) &gt; 0.05`)}</td></tr>
+          <tr><th>${tx('‘모르겠음’ 처리', '“Not sure” handling')}</th><td>${tx('3구간 중 균등 무작위 1개 선택(치우침 없는 찍기, p = 1/3) · 시행별 u=1 기록 · 자리별 맞힘 분석 제외', 'Uniform random 1-of-3 guess (unbiased, p = 1/3) · logged as u=1 per trial · excluded from interval-bias analysis')}</td></tr>
+          <tr><th>${tx('반복 · 3차 추가 규칙', 'Repetition & 3rd-run rule')}</th><td>${tx('전 주파수 무작위 1바퀴 → 선택 2바퀴 → 정상 두 값 차 &gt; 3 dB 주파수만 3차 추가 제안 (Won et al. 2011 Fig. 9 · Park et al. 2015)', 'Randomized Round 1 → optional Round 2 → optional 3rd run for rates with &gt; 3 dB difference between normal runs (Won et al. 2011 Fig. 9; Park et al. 2015)')}</td></tr>
+          <tr><th>${tx('피드백', 'Feedback')}</th><td>${P.feedback === false ? tx('없음', 'None') : tx('시행마다 시각 피드백 제공 (맞음 · 틀림 · 모르겠음 구분 표시)', 'Trial-by-trial visual feedback (distinct states for correct, incorrect, and “Not sure”)')}</td></tr>
         </tbody></table>
       </div>
     </section>
 
     <section class="sec">
-      <h2>5. 데이터 품질 · 신뢰도 · 보안 및 코드 무결성 점검</h2>
+      <h2>${tx('5. 데이터 품질 · 신뢰도 · 보안 및 코드 무결성 점검', '5. Data Quality, Security & Code Integrity Checks')}</h2>
       <table class="kv"><tbody>
-        <tr><th>연결 보안 (HTTPS)</th><td>${(() => {
+        <tr><th>${tx('연결 보안 (HTTPS)', 'Transport security (HTTPS)')}</th><td>${(() => {
           const o = String(s.env?.origin || '');
-          if (o.startsWith('https://')) return `<span class="good">HTTPS 보안 연결</span> (${esc(o)})`;
-          if (o === 'file') return '로컬 파일 실행 (file://)';
+          if (o.startsWith('https://')) return `<span class="good">${tx('HTTPS 보안 연결', 'HTTPS secure connection')}</span> (${esc(o)})`;
+          if (o === 'file') return tx('로컬 파일 실행 (file://)', 'Local file execution (file://)');
           if (o.startsWith('http://')) {
             const h = o.replace(/^http:\/\//, '').split(':')[0];
-            return isLocalHost(h) ? `로컬 미리보기 (${esc(o)})` : `<span class="bad">비보안 HTTP 연결</span> (${esc(o)})`;
+            return isLocalHost(h) ? `${tx('로컬 미리보기', 'Local preview')} (${esc(o)})` : `<span class="bad">${tx('비보안 HTTP 연결', 'Insecure HTTP connection')}</span> (${esc(o)})`;
           }
-          return esc(o || '미기록');
+          return esc(o || tx('미기록', 'Not recorded'));
         })()}</td></tr>
-        <tr><th>계단 사후 재계산 (replayCheck)</th><td>${runs.length ? (rpPass === runs.length ? `<span class="good">전체 ${rpPass}/${runs.length}개 측정 일치</span> (기록된 정오열로 계단 깊이·반전·역치·중단 완전 재현)` : `<span class="bad">일치 ${rpPass}/${runs.length}</span> — 불일치: ${esc(rpBadList.join('; '))}`) : '측정 없음'}</td></tr>
-        <tr><th>구간 음압(RMS) 정합성</th><td>${runs.length ? (worstRms <= 0.1 && !scaledN ? `<span class="good">정상</span> (최대 구간 간 RMS 차 ${worstRms.toFixed(3)} dB, 피크 감쇠 0건)` : `<span class="bad">확인 필요</span> (최대 RMS 차 ${worstRms.toFixed(3)} dB, 피크 감쇠 ${scaledN}건)`) : '측정 없음'}</td></tr>
-        <tr><th>오디오 출력 · 18 Hz 감시 (1초)</th><td>${gapStarts.length ? `<span class="bad">출력 끊김/이탈 ${gapStarts.length}건</span> — ${esc(gapDetail)}` : `<span class="good">끊김 없음</span> (폴링 ${s.keepMonitor?.polls ?? '—'}회 중 정상 ${s.keepMonitor?.ok ?? '—'} · 버퍼 ${s.keepMonitor?.buffer ?? '—'}${s.keepMonitor?.db18Min !== null && s.keepMonitor?.db18Min !== undefined ? ` · 18 Hz ${s.keepMonitor.db18Min}~${s.keepMonitor.db18Max} dBFS` : ''})`}</td></tr>
-        <tr><th>타이밍 · 행동 품질</th><td>불빛-소리 어긋남(drift): ${driftMed !== null ? `중앙 ${Math.round(driftMed)} ms, 최대 |${Math.round(driftMax)}| ms` : '기록 없음'} · 예약 지연(late): ${lateN}건 · 이른 입력(early): ${earlySum}회 · 화면 가려짐: ${hidN}회 (재제시 ${voidN}시행)</td></tr>
-        <tr><th>중간 중단 · 버린 측정</th><td>${abEvs.length ? `${abEvs.length}건 — ${esc(abDetail)}` : '없음'}</td></tr>
-        <tr><th>앱 판 · 코드 무결성 (build)</th><td>앱 ${esc(s.app || '')} · <b>${esc(buildStatus)}</b>${df && df.length ? ` · 화면≠서버 파일: ${esc(df.join(', '))}` : ''}<br><span class="mono muted">SHA-256: ${esc(s.build?.sha256 || '미기록')} (자극·계단 코드는 독립 Python 기준 구현 및 Lean 4 형식 증명으로 6단계 검증됨)</span></td></tr>
+        <tr><th>${tx('계단 사후 재계산 (replayCheck)', 'Staircase replay check')}</th><td>${runs.length ? (rpPass === runs.length ? `<span class="good">${tx(`전체 ${rpPass}/${runs.length}개 측정 일치`, `All ${rpPass}/${runs.length} runs matched`)}</span> ${tx('(기록된 정오열로 계단 깊이·반전·역치·중단 완전 재현)', '(depths, reversals, thresholds, and stops exactly reproduced)')}` : `<span class="bad">${tx(`일치 ${rpPass}/${runs.length}`, `Matched ${rpPass}/${runs.length}`)}</span> — ${tx('불일치', 'Mismatch')}: ${esc(rpBadList.join('; '))}`) : tx('측정 없음', 'No runs')}</td></tr>
+        <tr><th>${tx('구간 음압(RMS) 정합성', 'Interval RMS consistency')}</th><td>${runs.length ? (worstRms <= 0.1 && !scaledN ? `<span class="good">${tx('정상', 'OK')}</span> (${tx(`최대 구간 간 RMS 차 ${worstRms.toFixed(3)} dB, 피크 감쇠 0건`, `max interval RMS diff ${worstRms.toFixed(3)} dB, 0 peak-scaled`)})` : `<span class="bad">${tx('확인 필요', 'Check needed')}</span> (${tx(`최대 RMS 차 ${worstRms.toFixed(3)} dB, 피크 감쇠 ${scaledN}건`, `max RMS diff ${worstRms.toFixed(3)} dB, ${scaledN} peak-scaled`)})`) : tx('측정 없음', 'No runs')}</td></tr>
+        <tr><th>${tx('오디오 출력 · 18 Hz 감시 (1초)', 'Audio output & 18 Hz monitor (1 s)')}</th><td>${gapStarts.length ? `<span class="bad">${tx(`출력 끊김/이탈 ${gapStarts.length}건`, `${gapStarts.length} audio gap(s)/drop(s)`)}</span> — ${esc(gapDetail)}` : `<span class="good">${tx('끊김 없음', 'No gaps')}</span> (${tx(`폴링 ${s.keepMonitor?.polls ?? '—'}회 중 정상 ${s.keepMonitor?.ok ?? '—'} · 버퍼 ${s.keepMonitor?.buffer ?? '—'}`, `polls ${s.keepMonitor?.polls ?? '—'}, ok ${s.keepMonitor?.ok ?? '—'}, buffer ${s.keepMonitor?.buffer ?? '—'}`)}${s.keepMonitor?.db18Min !== null && s.keepMonitor?.db18Min !== undefined ? ` · 18 Hz ${s.keepMonitor.db18Min}~${s.keepMonitor.db18Max} dBFS` : ''})`}</td></tr>
+        <tr><th>${tx('타이밍 · 행동 품질', 'Timing & behavioral quality')}</th><td>${tx('불빛-소리 어긋남(drift)', 'Visual-audio drift')}: ${driftMed !== null ? tx(`중앙 ${Math.round(driftMed)} ms, 최대 |${Math.round(driftMax)}| ms`, `median ${Math.round(driftMed)} ms, max |${Math.round(driftMax)}| ms`) : tx('기록 없음', 'not recorded')} · ${tx(`예약 지연(late): ${lateN}건 · 이른 입력(early): ${earlySum}회 · 화면 가려짐: ${hidN}회 (재제시 ${voidN}시행)`, `late schedule: ${lateN} · early inputs: ${earlySum} · tab hidden: ${hidN} (${voidN} replayed)`)}</td></tr>
+        <tr><th>${tx('중간 중단 · 버린 측정', 'Abandoned runs')}</th><td>${abEvs.length ? `${abEvs.length}${tx('건', '')} — ${esc(abDetail)}` : tx('없음', 'None')}</td></tr>
+        <tr><th>${tx('앱 판 · 코드 무결성 (build)', 'App version & code integrity (build)')}</th><td>${tx('앱', 'App')} ${esc(s.app || '')} · <b>${esc(buildStatus)}</b>${df && df.length ? ` · ${tx('화면≠서버 파일', 'loaded≠server files')}: ${esc(df.join(', '))}` : ''}<br><span class="mono muted">SHA-256: ${esc(s.build?.sha256 || tx('미기록', 'not recorded'))} (${tx('자극·계단 코드는 독립 Python 기준 구현 및 Lean 4 형식 증명으로 6단계 검증됨', 'stimulus & staircase code verified against independent Python reference and Lean 4 formal proofs')})</span></td></tr>
       </tbody></table>
     </section>
 
     <section class="sec">
-      <h2>6. 측정별 전체 시행 원시 기록 (상세 검토용)</h2>
-      ${runs.length ? rawDetails : '<p class="muted">시행 기록이 없습니다.</p>'}
+      <h2>${tx('6. 측정별 전체 시행 원시 기록 (상세 검토용)', '6. Full Raw Trial Logs (Detailed Review)')}</h2>
+      ${runs.length ? rawDetails : `<p class="muted">${tx('시행 기록이 없습니다.', 'No trial records.')}</p>`}
     </section>
   </article>`;
 }
 function specialistReportHtml(sessions, srcs = null) {
   const body = sessions.map((s, i) => reportSessionHtml(s, srcs ? srcs[i] : null, i, sessions.length)).join('');
-  const titleCode = sessions.length === 1 ? (sessions[0].code || '익명') : `${sessions.length}개 회기`;
+  const titleCode = sessions.length === 1 ? (sessions[0].code || tx('익명', 'Anonymous')) : tx(`${sessions.length}개 회기`, `${sessions.length} sessions`);
   return `<!doctype html>
-<html lang="ko">
+<html lang="${LANG}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
-<title>TMTF 검사 전문가 참고 보고서 — ${esc(titleCode)}</title>
+<title>${tx('TMTF 검사 전문가 참고 보고서', 'TMTF Test Specialist Reference Report')} — ${esc(titleCode)}</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f5f7fa;color:#111827;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.55;word-break:keep-all}
@@ -1963,32 +2027,32 @@ details.raw .tw{margin-top:8px}
 </head>
 <body>
 <div class="bar">
-  <span class="meta">전문가(청능사 · 인공와우 엔지니어) 전달용 참고 보고서 · 외부 전송 없는 오프라인 문서</span>
+  <span class="meta">${tx('전문가(청능사 · 인공와우 엔지니어) 전달용 참고 보고서 · 외부 전송 없는 오프라인 문서', 'Specialist reference report (audiologist / CI engineer) · Offline document with no external transmission')}</span>
   <div class="btns">
-    <button type="button" onclick="const ds=[...document.querySelectorAll('details.raw')];const o=ds.some(d=>!d.open);ds.forEach(d=>d.open=o)">시행 원시표 모두 펼치기/접기</button>
-    <button type="button" class="pri" onclick="window.print()">인쇄 / PDF 저장</button>
+    <button type="button" onclick="const ds=[...document.querySelectorAll('details.raw')];const o=ds.some(d=>!d.open);ds.forEach(d=>d.open=o)">${tx('시행 원시표 모두 펼치기/접기', 'Expand / Collapse all raw trial tables')}</button>
+    <button type="button" class="pri" onclick="window.print()">${tx('인쇄 / PDF 저장', 'Print / Save as PDF')}</button>
   </div>
 </div>
 <main class="sheet">
   <header class="head">
     <div>
-      <h1>TMTF 검사 전문가 참고 보고서</h1>
-      <p class="sub">Temporal Modulation Transfer Function · 청능사 · 인공와우 엔지니어 참고용</p>
+      <h1>${tx('TMTF 검사 전문가 참고 보고서', 'TMTF Test Specialist Reference Report')}</h1>
+      <p class="sub">${tx('Temporal Modulation Transfer Function · 청능사 · 인공와우 엔지니어 참고용', 'Temporal Modulation Transfer Function · Reference for audiologists & CI engineers')}</p>
     </div>
-    <div class="stamp">문서 생성: ${esc(localTime(iso()))}<br>앱 판: ${esc(APP_VERSION)}</div>
+    <div class="stamp">${tx('문서 생성', 'Generated')}: ${esc(localTime(iso()))}<br>${tx('앱 판', 'App version')}: ${esc(APP_VERSION)}</div>
   </header>
   <aside class="notice">
-    <strong>참고용 고지 — 진단 도구가 아닙니다</strong>
+    <strong>${tx('참고용 고지 — 진단 도구가 아닙니다', 'Reference Notice — Not a Diagnostic Tool')}</strong>
     <ul>
-      <li><b>본 도구는 연구 및 교육 목적으로 제작되었으며, 의료기기(디지털의료기기)가 아니고 공식적인 의학적 진단 기기를 대체하지 않습니다 (For research and educational purposes only — Not a medical device).</b> 인공와우 맵(MAP) 변경 및 임상 결정은 반드시 청능사·전문의의 표준 검사와 종합 평가로 판단해야 합니다.</li>
-      <li>결과는 <b>청취자 + 음성처리기(인공와우 외부기기: 프로그램·볼륨·전처리) + 소리 전달 경로 + 재생 기기</b>가 합쳐진 값이며, 제시 음압(dB SPL/dBA)은 보정되지 않은 자가 조절 볼륨 기준입니다.</li>
-      <li>본 절차(3AFC, 광대역 잡음, 0.5 s + ISI 0.5 s, 10 ms 직선 경사, 무작위 위상, Won 규칙 14반전/마지막 10반전, 0 dB 4오답 중단)는 Won et al. (2011), Park et al. (2015), De Ruiter et al. (2015)의 원절차와 다르므로 문헌 수치와 직접 순위 비교하지 마세요.</li>
-      <li>‘재지 못함’은 숫자가 아니므로 평균에 포함하지 않으며, 1회 측정값·‘우연 수준’·‘미완’은 참고 값입니다.</li>
+      <li>${tx('<b>본 도구는 연구 및 교육 목적으로 제작되었으며, 의료기기(디지털의료기기)가 아니고 공식적인 의학적 진단 기기를 대체하지 않습니다 (For research and educational purposes only — Not a medical device).</b> 인공와우 맵(MAP) 변경 및 임상 결정은 반드시 청능사·전문의의 표준 검사와 종합 평가로 판단해야 합니다.', '<b>For research and educational purposes only — Not a medical device.</b> This tool does not replace official medical diagnostic instruments or professional audiological evaluations. Any cochlear implant MAP changes or clinical decisions must be made by a qualified clinician.')}</li>
+      <li>${tx('결과는 <b>청취자 + 음성처리기(인공와우 외부기기: 프로그램·볼륨·전처리) + 소리 전달 경로 + 재생 기기</b>가 합쳐진 값이며, 제시 음압(dB SPL/dBA)은 보정되지 않은 자가 조절 볼륨 기준입니다.', 'Results reflect the combined system of <b>listener + sound processor (program, volume, preprocessing) + audio path + playback device</b> at an uncalibrated self-adjusted listening level.')}</li>
+      <li>${tx('본 절차(3AFC, 광대역 잡음, 0.5 s + ISI 0.5 s, 10 ms 직선 경사, 무작위 위상, Won 규칙 14반전/마지막 10반전, 0 dB 4오답 중단)는 Won et al. (2011), Park et al. (2015), De Ruiter et al. (2015)의 원절차와 다르므로 문헌 수치와 직접 순위 비교하지 마세요.', 'This protocol (3AFC, wideband noise, 0.5 s + 0.5 s ISI, 10 ms linear ramps, random phase, 14 reversals / last 10 averaged, 4-miss stop at 0 dB) differs from the original procedures of Won et al. (2011), Park et al. (2015), and De Ruiter et al. (2015); do not rank directly against published norms.')}</li>
+      <li>${tx('‘재지 못함’은 숫자가 아니므로 평균에 포함하지 않으며, 1회 측정값·‘우연 수준’·‘미완’은 참고 값입니다.', '“Not measured” is non-numeric and excluded from averages; single runs, at-chance flags, and incomplete runs are reference values only.')}</li>
     </ul>
   </aside>
   ${body}
   <footer class="foot">
-    <b>참고 문헌</b><br>
+    <b>${tx('참고 문헌', 'References')}</b><br>
     1. Levitt, H. (1971). Transformed up-down methods in psychoacoustics. <i>J. Acoust. Soc. Am.</i>, 49(2B), 467–477. doi:10.1121/1.1912375<br>
     2. Viemeister, N. F. (1979). Temporal modulation transfer functions based upon modulation thresholds. <i>J. Acoust. Soc. Am.</i>, 66(5), 1364–1380. doi:10.1121/1.383531<br>
     3. Won, J. H., Drennan, W. R., Nie, K., Jameyson, E. M., &amp; Rubinstein, J. T. (2011). Acoustic temporal modulation detection and speech perception in cochlear implant listeners. <i>J. Acoust. Soc. Am.</i>, 130(1), 376–388. doi:10.1121/1.3592521<br>
@@ -1996,14 +2060,14 @@ details.raw .tw{margin-top:8px}
     5. Park, M.-H., Won, J. H., Horn, D. L., &amp; Rubinstein, J. T. (2015). Acoustic temporal modulation detection in normal-hearing and cochlear implanted listeners: Effects of hearing mechanism and development. <i>J. Assoc. Res. Otolaryngol.</i>, 16(3), 389–399. doi:10.1007/s10162-014-0499-z<br>
     6. De Ruiter, A. M., Debruyne, J. A., Chenault, M. N., Francart, T., &amp; Brokx, J. P. L. (2015). Amplitude modulation detection and speech recognition in late-implanted prelingually and postlingually deafened cochlear implant users. <i>Ear Hear.</i>, 36(5), 557–566. doi:10.1097/AUD.0000000000000162<br>
     7. Goehring, T., &amp; Carlyon, R. P. (2026). A web-based listening test system for cochlear implant research and its validation for remote testing. <i>Trends Hear.</i>, 30, 23312165261416179. doi:10.1177/23312165261416179<br>
-    이 파일은 참가자 기기에서 로컬로 생성된 독립 HTML 문서이며 외부 네트워크 요청을 포함하지 않습니다. 원시 데이터 재검증(계단·자극 파형 재생성)에는 함께 저장된 .json 결과 파일과 tools/verify_result.py 를 사용하세요.
+    ${tx('이 파일은 참가자 기기에서 로컬로 생성된 독립 HTML 문서이며 외부 네트워크 요청을 포함하지 않습니다. 원시 데이터 재검증(계단·자극 파형 재생성)에는 함께 저장된 .json 결과 파일과 tools/verify_result.py 를 사용하세요.', 'This standalone HTML document was generated locally on the user’s device and makes no external network requests. For offline raw-data verification (staircase & stimulus waveform reconstruction), use the exported .json file with tools/verify_result.py.')}
   </footer>
 </main>
 </body>
 </html>`;
 }
 function saveSpecialistReport(sessions, kind, srcs = null, recordExport = true) {
-  if (!sessions.length) { alert('저장할 결과가 없습니다.'); return; }
+  if (!sessions.length) { alert(tx('저장할 결과가 없습니다.', 'There are no results to save.')); return; }
   const name = reportFileNameFor(sessions, kind);
   download(name, specialistReportHtml(sessions, srcs), 'text/html;charset=utf-8');
   if (recordExport) {
@@ -2018,7 +2082,7 @@ $('#vFiles').addEventListener('change', async e => {
   for (const f of files) {
     try {
       const o = JSON.parse(await f.text());
-      if (!o || o.format !== FORMAT || !Array.isArray(o.sessions)) throw new Error('이 검사의 결과 파일이 아님');
+      if (!o || o.format !== FORMAT || !Array.isArray(o.sessions)) throw new Error(tx('이 검사의 결과 파일이 아님', 'Not a result file from this test'));
       for (const s of o.sessions) if (!VIEW.sessions.some(x => x.s.id === s.id)) { VIEW.sessions.push({ s, src: f.name }); n++; }
     } catch (err) { bad.push(`${f.name}: ${err.message || err}`); }
   }
@@ -2035,29 +2099,35 @@ $('#vLocal').onclick = () => {
 $('#vHome').onclick = () => { renderHome(); showPage('pgHome'); };
 const csvCell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 $('#vCsvRuns').onclick = () => {
-  const head = ['파일', '번호', '귀', '듣는방법', '볼륨', '회기', '회기시작', '앱', 'build', '검산', '바퀴', '더', '순서', '변조Hz', '역치dB', '깊이%', '재지못함', '미완', '0dB시행', '0dB맞힘', '우연p', '우연수준',
-    '반전SD', '시행수', '모르겠음', '걸린초', '앞쉬는초', '표본화Hz', '출력지연ms', '계단다시', '구간세기차dB', '출력끊김', '절차', '나이', '사용기간', '난청시작', '회사', '집중', '받은파일다름', '유지신호', '온셋판정', '온셋응답'];
+  const head = LANG === 'en'
+    ? ['file', 'code', 'ear', 'path', 'volume', 'session', 'session_start', 'app', 'build', 'verified', 'round', 'extra', 'order', 'fm_hz', 'thr_db', 'depth_pct', 'ceiling', 'incomplete', 'n0', 'k0', 'p_chance', 'at_chance',
+      'rev_sd', 'n_trials', 'n_unsure', 'dur_s', 'break_before_s', 'sample_rate_hz', 'output_latency_ms', 'replay_ok', 'rms_diff_db', 'audio_gaps', 'proc_key', 'age', 'ci_years', 'onset', 'maker', 'focus', 'differ_files', 'keepalive', 'onset_verdict', 'onset_resp']
+    : ['파일', '번호', '귀', '듣는방법', '볼륨', '회기', '회기시작', '앱', 'build', '검산', '바퀴', '더', '순서', '변조Hz', '역치dB', '깊이%', '재지못함', '미완', '0dB시행', '0dB맞힘', '우연p', '우연수준',
+      '반전SD', '시행수', '모르겠음', '걸린초', '앞쉬는초', '표본화Hz', '출력지연ms', '계단다시', '구간세기차dB', '출력끊김', '절차', '나이', '사용기간', '난청시작', '회사', '집중', '받은파일다름', '유지신호', '온셋판정', '온셋응답'];
   const lines = [head.join(',')];
   for (const { s, src } of VIEW.sessions) for (const r of (s.runs || [])) {
     const rp = replayCheck(r, r.P || s.P || snapP(PR)), rm = rmsCheck(r);
     const oc = s.onsetCheck;
-    lines.push([src, s.code, EAR[s.ear] || s.ear, PATH[s.path] || s.path, s.osVolume, s.id, s.start, s.app, s.build?.sha256, s.build?.verified?.status, r.round, r.extra ? 1 : 0, r.order, r.fm, r.thr,
+    lines.push([src, s.code, earName(s.ear), pathName(s.path), s.osVolume, s.id, s.start, s.app, s.build?.sha256, s.build?.verified?.status, r.round, r.extra ? 1 : 0, r.order, r.fm, r.thr,
       r.thr === null || r.ceiling ? '' : pct(r.thr).toFixed(1), r.ceiling ? 1 : 0, r.incomplete ? 1 : 0, r.n0, r.k0, r.pChance === null || r.pChance === undefined ? '' : (+r.pChance).toFixed(4), r.atChance ? 1 : 0,
       r.sd, r.nTrials, r.nDunno, r.durS, r.breakBeforeS, r.audio?.sampleRate, r.audio?.outputLatencyMs, rp.ok ? 1 : 0, rm.worst, (r.keepMonitor?.gaps || []).length + (r.keepMonitor?.openAtEnd ? 1 : 0), s.procKey,
       s.info?.age, s.info?.ciYears, s.info?.onset, s.info?.maker, s.focusEnd, (s.build?.differ || []).join(' '),
-      sessionKeepKey(s), oc ? (oc.skipped ? '건너뜀' : (oc.summary?.verdict || '')) : '', oc?.summary?.resp ? oc.summary.resp.join(' ') : ''].map(csvCell).join(','));
+      sessionKeepKey(s), oc ? onsetVerdictText(oc.skipped ? '건너뜀' : (oc.summary?.verdict || '')) : '', oc?.summary?.resp ? oc.summary.resp.join(' ') : ''].map(csvCell).join(','));
   }
   download(`TMTF_runs_${stamp()}.csv`, '﻿' + lines.join('\n'), 'text/csv');
 };
 $('#vCsvTrials').onclick = () => {
-  const head = ['파일', '번호', '귀', '회기', '측정순서', '바퀴', '변조Hz', '시행', '일시', '깊이dB', '정답구간', '답구간', '정오', '모르겠음', '입력', '반응ms', '씨앗들', '변조위상', '구간RMSdBFS', '구간봉우리dBFS',
-    '앞무음s', '예약늦음', '출력지연ms', '불빛어긋남ms', '화면가려짐', '다시들려준횟수', '이른입력', '시행사건', '반전', '반전번호', '역치에쓴반전', '출력확인후ms', '출력끊김중'];
+  const head = LANG === 'en'
+    ? ['file', 'code', 'ear', 'session', 'run_order', 'round', 'fm_hz', 'trial', 'at', 'depth_db', 'target_iv', 'resp_iv', 'correct', 'unsure', 'input', 'rt_ms', 'seeds', 'mod_phase', 'iv_rms_dbfs', 'iv_peak_dbfs',
+      'lead_s', 'late', 'output_latency_ms', 'drift_ms', 'hidden', 'replays', 'early_inputs', 'trial_events', 'is_rev', 'rev_no', 'rev_used', 'keep_ok_age_ms', 'keep_gap']
+    : ['파일', '번호', '귀', '회기', '측정순서', '바퀴', '변조Hz', '시행', '일시', '깊이dB', '정답구간', '답구간', '정오', '모르겠음', '입력', '반응ms', '씨앗들', '변조위상', '구간RMSdBFS', '구간봉우리dBFS',
+      '앞무음s', '예약늦음', '출력지연ms', '불빛어긋남ms', '화면가려짐', '다시들려준횟수', '이른입력', '시행사건', '반전', '반전번호', '역치에쓴반전', '출력확인후ms', '출력끊김중'];
   const lines = [head.join(',')];
   for (const { s, src } of VIEW.sessions) for (const r of (s.runs || [])) {
     const revAt = r.revAt || [], nRev = revAt.length, nUse = r.ceiling || r.thr === null ? 0 : Math.min((r.P || s.P || PR).avgLast, nRev);
     (r.trials || []).forEach((t, i) => {
       const ri = revAt.indexOf(i);
-      lines.push([src, s.code, EAR[s.ear] || s.ear, s.id, r.order, r.round, r.fm, i + 1, t.at, t.d, t.tg + 1, t.a + 1, t.c, t.u || 0, t.inp, t.rt, (t.seeds || []).join(' '), t.phase ?? '',
+      lines.push([src, s.code, earName(s.ear), s.id, r.order, r.round, r.fm, i + 1, t.at, t.d, t.tg + 1, t.a + 1, t.c, t.u || 0, t.inp, t.rt, (t.seeds || []).join(' '), t.phase ?? '',
         (t.rms || []).join(' '), (t.pk || []).join(' '), t.lead ?? '', t.late ? 1 : 0, t.latMs ?? '', t.drift ?? '', t.hid ? 1 : 0, t.rep ?? '', t.early ?? '',
         (t.ev || []).map(e => e.type + (e.key !== undefined ? ':' + e.key : '') + (e.answer ? ':' + e.answer : '')).join(' '),
         ri < 0 ? 0 : 1, ri < 0 ? '' : ri + 1, ri < 0 ? '' : (ri + 1 > nRev - nUse ? 1 : 0), t.kOk ?? '', t.kGap === undefined ? '' : t.kGap ? 1 : 0].map(csvCell).join(','));
@@ -2097,7 +2167,7 @@ const UI_TEXT = {
       onsetBack: '소리 맞추기로', onsetAgain: '점검 다시 하기', onsetStart: '연습 시작하기',
       stopBtn: '잠시 멈춤', dunno: '모르겠음', keysHint: '키보드: 1 · 2 · 3, 모르겠음은 0',
       tGuide: '처음에는 쉽지만, 맞힐수록 떨림이 미세해져 점점 어려워집니다. 떨림이 아주 조금이라도 느껴지면 그 번호를 선택해 주세요. 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 눌러 주세요.',
-      bEnd: '여기까지만 하기', bPractice: '연습 한 번 더',
+      onTitle: '소리 점검 1 / 2', bEnd: '여기까지만 하기', bPractice: '연습 한 번 더', bNext: '다음', endTitle: '수고하셨습니다',
       againBtn: '한 번 더 하기', finishBtn: '여기서 마치기',
       hSend: '결과 저장 및 공유', sendDesc: '‘결과 파일 저장’은 전체 기록 파일(.json), ‘전문가용 보고서 저장’은 청능사·엔지니어께 보여드릴 참고 문서(.html, 인쇄·PDF 가능)입니다.',
       saveFile: '결과 파일 저장', saveReport: '전문가용 보고서 저장', shareFile: '파일 공유하기', shareReport: '보고서 공유하기', copyText: '요약 복사', toHome: '처음으로',
@@ -2126,6 +2196,7 @@ const UI_TEXT = {
     onFirst: { yes: '예', no: '아니오', unsure: '모르겠음' },
     ear: EAR, path: PATH, age: AGE_LBL, years: YEARS_LBL, onset: ONSET_LBL, maker: MAKER_LBL, none: '선택 안 함',
     codePh: '예: P02', ivAria: ['1번', '2번', '3번'], progAria: '진행률', onProgAria: '점검 진행률',
+    aria: { steps: '진행 순서', earPick: '듣는 귀', pathPick: '듣는 방법', codeIn: '참가 번호', onCountPick: '들린 소리 개수', onFirstPick: '첫 소리 비교', ivs: '소리 구간 선택' },
   },
   en: {
     title: 'TMTF Test',
@@ -2156,7 +2227,7 @@ const UI_TEXT = {
       onsetBack: 'Back to volume', onsetAgain: 'Check again', onsetStart: 'Start practice',
       stopBtn: 'Pause', dunno: 'Not sure', keysHint: 'Keyboard: 1 · 2 · 3, Not sure: 0',
       tGuide: 'It starts easy and gets harder as you get answers right. If you notice even a tiny flutter, pick that number. Only press “Not sure” when all three sounds feel completely identical.',
-      bEnd: 'Finish here', bPractice: 'Practice again',
+      onTitle: 'Sound check 1 / 2', bEnd: 'Finish here', bPractice: 'Practice again', bNext: 'Next', endTitle: 'All done! Thank you',
       againBtn: 'Do one more round', finishBtn: 'Finish here',
       hSend: 'Save & share results', sendDesc: '“Save result file” downloads the full data (.json). “Save specialist report” saves a printable/PDF reference report (.html) for your audiologist or CI engineer.',
       saveFile: 'Save result file', saveReport: 'Save specialist report', shareFile: 'Share file', shareReport: 'Share report', copyText: 'Copy summary', toHome: 'Home',
@@ -2185,6 +2256,7 @@ const UI_TEXT = {
     onFirst: { yes: 'Yes', no: 'No', unsure: 'Not sure' },
     ear: EAR_EN, path: PATH_EN, age: AGE_EN, years: YEARS_EN, onset: ONSET_EN, maker: MAKER_EN, none: 'Not selected',
     codePh: 'e.g. P02', ivAria: ['Sound 1', 'Sound 2', 'Sound 3'], progAria: 'Progress', onProgAria: 'Sound check progress',
+    aria: { steps: 'Progress steps', earPick: 'Ear to test', pathPick: 'Listening method', codeIn: 'Participant ID', onCountPick: 'Number of beeps heard', onFirstPick: 'First beep comparison', ivs: 'Choose sound interval' },
   },
 };
 function setSelectLabels(id, map, noneTxt) {
@@ -2220,14 +2292,27 @@ function applyLang(lang, rerender = true) {
   IV_BTNS.forEach((b, i) => b.setAttribute('aria-label', L.ivAria[i]));
   const pw = $('#progWrap'); if (pw) pw.setAttribute('aria-label', L.progAria);
   const opw = $('#onProgWrap'); if (opw) opw.setAttribute('aria-label', L.onProgAria);
+  $$('.steps').forEach(el => el.setAttribute('aria-label', L.aria.steps));
+  for (const [id, lbl] of Object.entries(L.aria)) { if (id === 'steps' || id === 'ivs') continue; const el = $('#' + id); if (el) el.setAttribute('aria-label', lbl); }
+  const ivsEl = $('.ivs'); if (ivsEl) ivsEl.setAttribute('aria-label', L.aria.ivs);
   renderFmInfo();
   renderKeepUi();
   if (rerender) {
     renderHome();
     syncSetup();
-    if (PRE.onset && $('#pgOnset').classList.contains('on') && !$('#onsetResCard').hidden) renderOnsetResult();
-    if (SHOWN && $('#pgEnd').classList.contains('on')) showEnd(SHOWN, { offers: !!(S && S.session === SHOWN && S.offer), noScroll: true, noFocus: true, keepState: true });
-    if (VIEW.sessions.length) renderViewer(true);
+    if (noiseTimer) $('#noiseState').textContent = tx('소리가 재생되는 중입니다 (10초)', 'Playing sound (10 s)');
+    if ($('#pgOnset').classList.contains('on')) {
+      if (!$('#onsetResCard').hidden && PRE.onset) renderOnsetResult();
+      else renderOnsetLive();
+    }
+    if ($('#pgTest').classList.contains('on') && S?.cur) renderTestLive();
+    if ($('#pgBreak').classList.contains('on') && S && LAST_BREAK) renderBreakContent(LAST_BREAK.kind, LAST_BREAK.info);
+    $('#sendState').textContent = '';
+    if (SHOWN && $('#pgEnd').classList.contains('on')) showEnd(SHOWN, { offers: !!(S && S.session === SHOWN && S.offer), noScroll: true, noFocus: true, keepState: false });
+    if (VIEW.sessions.length) {
+      renderViewer(true);
+      if ($('#vState').textContent) $('#vState').textContent = tx(`검사 ${VIEW.sessions.length}개를 열었습니다.`, `Opened ${VIEW.sessions.length} session(s).`);
+    } else $('#vState').textContent = '';
   }
 }
 $('#langToggle').onclick = () => applyLang(LANG === 'en' ? 'ko' : 'en', true);
