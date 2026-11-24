@@ -1,21 +1,21 @@
 {
  "last": {
-  "at": "2026-11-24T21:03:19+09:00",
+  "at": "2026-11-24T21:20:42+09:00",
   "ok": true,
-  "seconds": 88.7,
-  "buildSha256": "cb92f7e5182b8374c43eb8c5f12487f9d3a7b2f279381f4bd43df88d9a25c7fd",
+  "seconds": 75.5,
+  "buildSha256": "1ceb1075488fe442ba088332934dfcf64eec89383875b6c38f8eb856dea5a226",
   "buildSame": true,
   "files": {
-   "index.html": "fa01f8dd813e49df3e9212e33ceaefc1fbcb5b4e3364e8b4b9cdc9ccf5762f7e",
-   "style.css": "7c2d49b8838702d6db33e0d3ee9e8cb4d4caf63601111027dae6b3006eb92557",
+   "index.html": "93ce88870b00543e47392c3a36d67d62672377ded505dd077dfd2cd7908cf510",
+   "style.css": "50b565a07fcaca27e5f59f7118d8d0b9cbb9a53d41d0113e9dd85d57f650b019",
    "js/protocols.js": "6a90fbc0f550518b7303ad4143107688602787e96b12d0686693f557542b243c",
    "js/stim.js": "af01df5b315ac4dafadb1c45bebf2e9bce42bdc4f33bc81fc225289be8dda838",
    "js/track.js": "5e10e37654d0c977eaa34ad994978c765e9756c31666442ea06173c7a3a1f6ba",
-   "js/app.js": "4b53faf6866892522011bb1fb41201cca37ac8eefe68c58d390f785e2bfc09db"
+   "js/app.js": "c86e27be3c72729e46855f39aa91a3ffe5e74202aaa676eb15a8f271fbd7be78"
   },
   "tools": {
    "tools/app_check.js": "e2ab58c599b16848e21a811cdeac479f64bc7833ccb8f9237e1aa0064c9737f8",
-   "tools/app_check_scope.js": "b950ecd718cd809a8405ce27c805f1b0219c286d7827a4c890959eeb5a94ff42",
+   "tools/app_check_scope.js": "2795128dc3077b01987d708200aa09e631aefa79082cb9a3f8bb4fc20b9f7ff1",
    "tools/cross_check.js": "db5546693b950acab53f2d85847585c808065a5005295759aa1f9c94a4ceecfd",
    "tools/cross_check.py": "8fd7d05dd12ebf841b903ef6517a20a73c5e4b82f0f06b15a431d4a47125fe03",
    "tools/run_checks.py": "8f9714b4a221fba6fa0722711c773064a210db0f4d70fbe9732976fa70c4ae3e",
@@ -46,46 +46,46 @@
     "no": 1,
     "name": "자극 · 계단 JS = 파이썬 (tools/cross_check.py)",
     "ok": true,
-    "seconds": 7.6,
+    "seconds": 6.6,
     "detail": "자극 750개 (줄임 250개): 최대 차 RMS 2.44e-11 dB · 봉우리 3.55e-15 dB · 표본 0.00e+00 · 합 1.49e-08\r\n계단 210개 (측정 불가 4 · 미완 6): 깊이 · 반전 · 반전 시행 · 역치 · SD · 우연 판정 대조\r\n판정: 통과 — 자극 750개 · 계단 210개 JS = 파이썬"
    },
    {
     "no": 2,
     "name": "화면 코드 점검 (tools/app_check.js)",
     "ok": true,
-    "seconds": 40.9,
-    "detail": "판정: 통과 — 86개 중 86개 통과 (문법 · DOM id · 올리기 · 흐름 · 기록 · 파일)"
+    "seconds": 40.1,
+    "detail": "판정: 통과 — 91개 중 91개 통과 (문법 · DOM id · 올리기 · 흐름 · 기록 · 파일)"
    },
    {
     "no": 3,
     "name": "결과 파일 다시 만들기 (tools/verify_result.py)",
     "ok": true,
-    "seconds": 3.6,
-    "detail": "계단: 회기 1개 · 측정 11개 중 11개 같음 · 버린 측정 1개 중 1개 이어짐\r\n자극: 시행 407개 · 구간 1221개 다시 만듦 — 봉우리 최대 차 0.0050 dB (기록 0.01 반올림) · RMS 최대 차 0.00040 dB (0.001 반올림)\r\n판정: 통과 (읽기만 — 파일 1개)"
+    "seconds": 3.9,
+    "detail": "계단: 회기 1개 · 측정 11개 중 11개 같음 · 버린 측정 1개 중 1개 이어짐\r\n자극: 시행 427개 · 구간 1281개 다시 만듦 — 봉우리 최대 차 0.0050 dB (기록 0.01 반올림) · RMS 최대 차 0.00040 dB (0.001 반올림)\r\n판정: 통과 (읽기만 — 파일 1개)"
    },
    {
     "no": 4,
     "name": "Lean 4 빌드 (tools/lean, 처음부터)",
     "ok": true,
-    "seconds": 13.9,
+    "seconds": 8.5,
     "detail": "Build completed successfully (27 jobs)."
    },
    {
     "no": 5,
     "name": "Lean 공리 감사 (MyAudit.lean)",
     "ok": true,
-    "seconds": 18.8,
+    "seconds": 12.9,
     "detail": "SUMMARY consts=396 theorems=287 axiomDecls=0 others=109 · UNION Classical.choice,Quot.sound,propext · NONSTANDARD 0"
    },
    {
     "no": 6,
     "name": "JS ↔ Lean 대조 (cross_check.js · crosscheck)",
     "ok": true,
-    "seconds": 3.3,
+    "seconds": 3.4,
     "detail": "RNG      307/307 · RAMP     120/120 · BINS     60/60 · SPEC     12/12 · GAIN     140/140 · FLAT     8/8 · DUR      30/30 · GRID     1/1 · CHOICES  3/3 · PAPER    2/2 · TRACK    360/360 · PV       131/131 · 허용 오차 안 가장 큰 상대 차: PV 8.55e-16 (허용 1e-9) · GAIN 8.42e-7 (허용 0.00002) · 변조 RNG      잡음 · 판정: 통과"
    }
   ],
-  "appVersion": "1.0.8 (2026-11-24)"
+  "appVersion": "1.1.0 (2026-11-24)"
  },
  "history": [
   {
@@ -141,6 +141,12 @@
    "buildSha256": "cb92f7e5182b8374c43eb8c5f12487f9d3a7b2f279381f4bd43df88d9a25c7fd",
    "appVersion": "1.0.8 (2026-11-24)",
    "seconds": 88.7
+  },
+  {
+   "at": "2026-11-24T21:20:42+09:00",
+   "buildSha256": "1ceb1075488fe442ba088332934dfcf64eec89383875b6c38f8eb856dea5a226",
+   "appVersion": "1.1.0 (2026-11-24)",
+   "seconds": 75.5
   }
  ]
 }

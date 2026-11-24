@@ -146,6 +146,34 @@ b{font-weight:700}
   padding:28px 20px 10px;
   text-align:center;
 }
+.top-bar{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+}
+.langbtn{
+  position:absolute;
+  right:0;
+  top:50%;
+  transform:translateY(-50%);
+  font-family:inherit;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:.04em;
+  padding:6px 11px;
+  min-height:34px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:var(--panel);
+  color:var(--dim);
+  cursor:pointer;
+  transition:border-color .15s, color .15s, background-color .15s;
+}
+.langbtn:hover{border-color:var(--acc); color:var(--acc-ink); background:var(--acc-soft)}
+.langbtn:focus-visible{outline:3px solid var(--acc); outline-offset:3px}
+h2[tabindex="-1"]:focus,.ttl[tabindex="-1"]:focus{outline:none}
 .top h1{
   font-size:27px;
   line-height:1.25;
@@ -799,6 +827,10 @@ details.more[open] summary::before{transform:rotate(90deg)}
   content:'떨린 소리';
   color:var(--acc-ink);
 }
+:root[lang="en"] .iv.playing::after{content:'Sound'}
+:root[lang="en"] .iv.right::after{content:'Flutter'}
+:root[lang="en"] .run:has(#fb.ok) .iv.right::after{content:'✓ Right'}
+:root[lang="en"] .run:has(#fb.mid) .iv.right::after{content:'Flutter'}
 .iv.wrong{
   background:var(--err-soft);
   border-color:var(--err);
@@ -899,6 +931,14 @@ svg.chart{width:100%; height:auto; display:block; margin-top:18px}
 .vsess{margin-bottom:20px}
 .vsess h3{font-size:19.5px; margin:0 0 8px; letter-spacing:-.02em}
 .vsess .meta{font-size:14.5px; color:var(--dim); line-height:1.65; margin:0 0 12px}
+.vcomp{border-color:var(--acc-border); background:var(--panel)}
+.vcomp .legend{display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:10px; font-size:14px; color:var(--dim)}
+.vcomp .leg-item{display:inline-flex; align-items:center; gap:6px; font-variant-numeric:tabular-nums}
+.vcomp .leg-swatch{width:18px; height:3px; border-radius:2px; display:inline-block}
+.vcomp .leg-sym{font-weight:800; font-size:13px}
+.cs0{color:#1366d6} .cs1{color:#0e7a48} .cs2{color:#b45309} .cs3{color:#7c3aed}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .cs0{color:#58a6ff} :root:not([data-theme="light"]) .cs1{color:#3dd68c} :root:not([data-theme="light"]) .cs2{color:#fbbf24} :root:not([data-theme="light"]) .cs3{color:#c084fc} }
+:root[data-theme="dark"] .cs0{color:#58a6ff} :root[data-theme="dark"] .cs1{color:#3dd68c} :root[data-theme="dark"] .cs2{color:#fbbf24} :root[data-theme="dark"] .cs3{color:#c084fc}
 .stairs{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
@@ -924,7 +964,8 @@ svg.chart{width:100%; height:auto; display:block; margin-top:18px}
 @media (max-width:560px){
   body{font-size:17.5px}
   .top{padding:18px 14px 6px}
-  .top h1{font-size:23px}
+  .top-bar{padding-right:44px; padding-left:44px}
+  .top h1{font-size:22px}
   .top .sub{font-size:14.5px}
   main{padding:10px 12px 56px}
   .card{padding:18px 16px; border-radius:18px; margin-bottom:14px}

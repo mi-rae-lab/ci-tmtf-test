@@ -8,42 +8,45 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
 <meta name="description" content="인공와우 사용자를 위한 소리 떨림 검사 (시간 변조 탐지, TMTF)">
 <title>소리 떨림 검사</title>
-<link rel="stylesheet" href="style.css?v=1.0.8">
+<link rel="stylesheet" href="style.css?v=1.1.0">
 </head>
 <body>
 <header class="top">
-  <h1>소리 떨림 검사 <span class="en">TMTF</span></h1>
-  <p class="sub">인공와우 사용자를 위한 검사</p>
+  <div class="top-bar">
+    <h1><span id="appTitle">소리 떨림 검사</span> <span class="en">TMTF</span></h1>
+    <button id="langToggle" class="langbtn" type="button" aria-label="언어 전환 (한국어 / English)">EN</button>
+  </div>
+  <p id="appSub" class="sub">인공와우 사용자를 위한 검사</p>
 </header>
 
 <main>
 <!-- ───────────── 처음 ───────────── -->
 <section id="pgHome" class="page on">
-  <div id="envWarn" class="warn" hidden></div>
+  <div id="envWarn" class="warn" role="alert" hidden></div>
   <div class="card">
-    <h2>어떤 검사인가요?</h2>
-    <p>잡음 소리 <b>세 개</b>를 차례로 들려 드립니다. 그중 <b>하나만 떨립니다.</b></p>
-    <p>떨리는 소리가 <b>몇 번째</b>인지 고르면 됩니다.</p>
-    <p>처음에는 쉽고, 맞힐수록 떨림이 약해져 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 누르세요.</p>
+    <h2 id="hWhat">어떤 검사인가요?</h2>
+    <p id="hWhat1">잡음 소리 <b>세 개</b>를 차례로 들려 드립니다. 그중 <b>하나만 떨립니다.</b></p>
+    <p id="hWhat2">떨리는 소리가 <b>몇 번째</b>인지 고르면 됩니다.</p>
+    <p id="hWhat3">처음에는 쉽고, 맞힐수록 떨림이 약해져 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 누르세요.</p>
   </div>
   <div class="card">
-    <h2>준비할 것</h2>
+    <h2 id="hPrep">준비할 것</h2>
     <ul class="list">
-      <li>조용한 곳</li>
+      <li id="hPrep1">조용한 곳</li>
       <li id="homeTime">20분쯤 (중간에 쉴 수 있어요)</li>
-      <li>평소 쓰는 처리기 프로그램과 볼륨</li>
-      <li>컴퓨터를 권합니다. 휴대폰·태블릿도 됩니다.</li>
+      <li id="hPrep3">평소 쓰는 처리기 프로그램과 볼륨</li>
+      <li id="hPrep4">컴퓨터를 권합니다. 휴대폰·태블릿도 됩니다.</li>
     </ul>
   </div>
   <div class="card soft">
-    <p>이 검사는 <b>진단이 아닙니다.</b> 결과를 보고 처리기 설정을 바꾸려면 청능사와 상의하세요.</p>
-    <p>이름이나 연락처는 묻지 않습니다. 결과는 이 기기의 브라우저에만 저장되고, <b>‘결과 파일 저장’을 직접 눌러야만</b> 밖으로 나갑니다.</p>
+    <p id="hNotice1">이 검사는 <b>진단이 아닙니다.</b> 결과를 보고 처리기 설정을 바꾸려면 청능사와 상의하세요.</p>
+    <p id="hNotice2">이름이나 연락처는 묻지 않습니다. 결과는 이 기기의 브라우저에만 저장되고, <b>‘결과 파일 저장’을 직접 눌러야만</b> 밖으로 나갑니다.</p>
   </div>
   <div class="actions">
     <button id="goSetup" class="btn primary big">시작하기</button>
   </div>
   <div id="homeSaved" class="card" hidden>
-    <h2>이 기기에 저장된 검사</h2>
+    <h2 id="hSaved">이 기기에 저장된 검사</h2>
     <div id="homeSavedList"></div>
     <div class="row wrap gap mt"><button id="homeSaveAll" class="btn">모두 파일로 저장</button></div>
   </div>
@@ -53,47 +56,47 @@
 <!-- ───────────── 준비 ───────────── -->
 <section id="pgSetup" class="page">
   <ol class="steps" aria-label="진행 순서">
-    <li class="on" aria-current="step"><span class="dot">1</span>준비</li>
-    <li><span class="dot">2</span>소리 맞추기</li>
-    <li><span class="dot">3</span>연습 · 검사</li>
+    <li class="on" aria-current="step"><span class="dot">1</span><span class="st-l1">준비</span></li>
+    <li><span class="dot">2</span><span class="st-l2">소리 맞추기</span></li>
+    <li><span class="dot">3</span><span class="st-l3">연습 · 검사</span></li>
   </ol>
   <div class="card">
-    <h2><span class="qnum">1</span> 어느 쪽 귀로 듣나요?</h2>
+    <h2><span class="qnum">1</span> <span id="qEar">어느 쪽 귀로 듣나요?</span></h2>
     <div class="choices three" id="earPick" role="group" aria-label="듣는 귀">
-      <button class="choice" data-v="L">왼쪽</button>
-      <button class="choice" data-v="R">오른쪽</button>
-      <button class="choice" data-v="B">양쪽</button>
+      <button class="choice" data-v="L" aria-pressed="false">왼쪽</button>
+      <button class="choice" data-v="R" aria-pressed="false">오른쪽</button>
+      <button class="choice" data-v="B" aria-pressed="false">양쪽</button>
     </div>
-    <p class="hint">한쪽만 할 때는 반대쪽 처리기나 보청기를 빼 주세요.</p>
+    <p id="earHint" class="hint">한쪽만 할 때는 반대쪽 처리기나 보청기를 빼 주세요.</p>
   </div>
   <div class="card">
-    <h2><span class="qnum">2</span> 소리를 어떻게 듣나요?</h2>
+    <h2><span class="qnum">2</span> <span id="qPath">소리를 어떻게 듣나요?</span></h2>
     <div class="choices col" id="pathPick" role="group" aria-label="듣는 방법">
-      <button class="choice" data-v="speaker">컴퓨터·휴대폰 스피커</button>
-      <button class="choice" data-v="headphone">이어폰·헤드폰</button>
-      <button class="choice" data-v="wired">선으로 처리기에 연결 (오디오 케이블·유선 스트리머)</button>
-      <button class="choice" data-v="bt">블루투스로 처리기에 연결</button>
-      <button class="choice" data-v="other">그 밖의 방법</button>
+      <button class="choice" data-v="speaker" aria-pressed="false">컴퓨터·휴대폰 스피커</button>
+      <button class="choice" data-v="headphone" aria-pressed="false">이어폰·헤드폰</button>
+      <button class="choice" data-v="wired" aria-pressed="false">선으로 처리기에 연결 (오디오 케이블·유선 스트리머)</button>
+      <button class="choice" data-v="bt" aria-pressed="false">블루투스로 처리기에 연결</button>
+      <button class="choice" data-v="other" aria-pressed="false">그 밖의 방법</button>
     </div>
-    <p id="btNote" class="hint warn" hidden>블루투스는 소리 앞부분이 잘릴 수 있어요. 할 수 있으면 선으로 연결해 주세요. 그대로 해도 됩니다.</p>
+    <p id="btNote" class="hint warn" role="note" hidden>블루투스는 소리 앞부분이 잘릴 수 있어요. 할 수 있으면 선으로 연결하거나 스피커를 써 주세요. 그대로 해도 됩니다.</p>
   </div>
   <div class="card">
-    <h2><span class="qnum">3</span> 참가 번호 <span class="opt">(받은 번호가 있을 때만)</span></h2>
+    <h2><span class="qnum">3</span> <span id="qCode">참가 번호</span> <span id="qCodeOpt" class="opt">(받은 번호가 있을 때만)</span></h2>
     <input id="codeIn" class="field" type="text" maxlength="20" autocomplete="off" placeholder="예: P02" aria-label="참가 번호">
-    <p class="hint">이름은 적지 마세요.</p>
+    <p id="codeHint" class="hint">이름은 적지 마세요.</p>
     <details id="moreBox" class="more">
-      <summary>더 알려 주기 (안 해도 됩니다)</summary>
+      <summary id="moreSum">더 알려 주기 (안 해도 됩니다)</summary>
       <div class="grid">
-        <label>나이
+        <label><span id="lblAge">나이</span>
           <select id="infoAge"><option value="">고르지 않음</option><option value="-19">10대 이하</option><option value="20s">20대</option><option value="30s">30대</option><option value="40s">40대</option><option value="50s">50대</option><option value="60s">60대</option><option value="70+">70대 이상</option></select></label>
-        <label>이 귀로 인공와우를 쓴 지
+        <label><span id="lblYears">이 귀로 인공와우를 쓴 지</span>
           <select id="infoYears"><option value="">고르지 않음</option><option value="<1">1년이 안 됨</option><option value="1-5">1–5년</option><option value="5-10">5–10년</option><option value="10+">10년 넘음</option><option value="unknown">모름</option></select></label>
-        <label>잘 안 들리게 된 때
+        <label><span id="lblOnset">잘 안 들리게 된 때</span>
           <select id="infoOnset"><option value="">고르지 않음</option><option value="pre">말을 배우기 전</option><option value="post">말을 배운 뒤</option><option value="unknown">모름</option></select></label>
-        <label>처리기 회사
+        <label><span id="lblMaker">처리기 회사</span>
           <select id="infoMaker"><option value="">고르지 않음</option><option value="cochlear">코클리어</option><option value="medel">메드엘</option><option value="ab">어드밴스드 바이오닉스</option><option value="oticon">오티콘</option><option value="todoc">토닥</option><option value="other">그 밖</option><option value="unknown">모름</option></select></label>
       </div>
-      <label class="mt">하고 싶은 말 (짧게)
+      <label class="mt"><span id="lblNote">하고 싶은 말 (짧게)</span>
         <input id="infoNote" class="field" type="text" maxlength="120" autocomplete="off"></label>
     </details>
   </div>
@@ -108,35 +111,36 @@
 <!-- ───────────── 소리 크기 ───────────── -->
 <section id="pgSound" class="page">
   <ol class="steps" aria-label="진행 순서">
-    <li class="done"><span class="dot">✓</span>준비</li>
-    <li class="on" aria-current="step"><span class="dot">2</span>소리 맞추기</li>
-    <li><span class="dot">3</span>연습 · 검사</li>
+    <li class="done"><span class="dot">✓</span><span class="st-l1">준비</span></li>
+    <li class="on" aria-current="step"><span class="dot">2</span><span class="st-l2">소리 맞추기</span></li>
+    <li><span class="dot">3</span><span class="st-l3">연습 · 검사</span></li>
   </ol>
   <div class="card">
-    <h2>소리 크기 맞추기</h2>
+    <h2 id="hSound">소리 크기 맞추기</h2>
     <ol class="list">
-      <li>‘잡음 틀기’를 누르세요. 10초 동안 잡음이 나옵니다.</li>
-      <li>컴퓨터(휴대폰) 볼륨을 움직여 <b>편하게 잘 들리는 크기</b>로 맞추세요. 너무 크게 하지 마세요.</li>
-      <li>맞춘 뒤에는 검사가 끝날 때까지 볼륨을 바꾸지 마세요.</li>
+      <li id="snd1">‘잡음 틀기’를 누르세요. 10초 동안 잡음이 나옵니다.</li>
+      <li id="snd2">컴퓨터(휴대폰) 볼륨을 움직여 <b>편하게 잘 들리는 크기</b>로 맞추세요. 너무 크게 하지 마세요.</li>
+      <li id="snd3">맞춘 뒤에는 검사가 끝날 때까지 볼륨을 바꾸지 마세요.</li>
     </ol>
     <div class="row wrap gap">
       <button id="noisePlay" class="btn primary">잡음 틀기</button>
       <button id="noiseStop" class="btn">멈춤</button>
       <span id="noiseState" class="hint" aria-live="polite"></span>
     </div>
-    <label class="mt inline-field">지금 볼륨 숫자 (알면 적어 주세요)
+    <label class="mt inline-field"><span id="lblOsVol">지금 볼륨 숫자 (알면 적어 주세요)</span>
       <input id="osVol" class="field short" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
-    <p class="hint">아이폰은 옆의 무음 스위치를 꺼야 소리가 납니다.</p>
+    <p id="iphoneHint" class="hint">아이폰은 옆의 무음 스위치를 꺼야 소리가 납니다.</p>
   </div>
   <div class="card">
-    <h2>떨리는 소리 들어 보기</h2>
+    <h2 id="hDemo">떨리는 소리 들어 보기</h2>
     <div class="row wrap gap">
       <button id="demoMod" class="btn">떨리는 소리</button>
       <button id="demoFlat" class="btn">떨리지 않는 소리</button>
     </div>
-    <p class="hint">떨림이 빠르면 ‘거칠게’ 또는 ‘웅웅’ 하게 들리기도 합니다. 다른 두 소리와 다르게 들리는 것을 고르면 됩니다.</p>
+    <p id="demoHint" class="hint">떨림이 빠르면 ‘거칠게’ 또는 ‘웅웅’ 하게 들리기도 합니다. 다른 두 소리와 다르게 들리는 것을 고르면 됩니다.</p>
+    <p id="soundBtNote" class="hint warn" role="note" hidden>블루투스로 연결되어 있어요. ‘떨리는 소리’를 눌렀을 때 소리 앞부분이 뚝 끊기거나 약하게 들리면, 가능하면 선으로 연결하거나 스피커를 써 주세요.</p>
   </div>
-  <label class="check"><input type="checkbox" id="volOk"> <span>편한 크기로 맞췄어요</span></label>
+  <label class="check"><input type="checkbox" id="volOk"> <span id="volOkLbl">편한 크기로 맞췄어요</span></label>
   <div class="actions">
     <button id="soundBack" class="btn">뒤로</button>
     <button id="soundNext" class="btn primary big" disabled>연습하러 가기</button>
@@ -150,17 +154,17 @@
       <span id="tTitle" class="ttl"></span>
       <button id="stopBtn" class="btn small">그만</button>
     </div>
-    <div class="prog" aria-hidden="true"><div id="progBar"></div></div>
+    <div id="progWrap" class="prog" role="progressbar" aria-label="진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progBar"></div></div>
     <p class="ask" id="askText">세 소리 중 <b>떨리는 소리</b>는 몇 번째인가요?</p>
-    <div class="ivs">
+    <div class="ivs" role="group" aria-label="소리 구간 선택">
       <button class="iv" data-i="0" disabled aria-label="1번">1</button>
       <button class="iv" data-i="1" disabled aria-label="2번">2</button>
       <button class="iv" data-i="2" disabled aria-label="3번">3</button>
     </div>
     <div class="center"><button id="dunno" class="btn big" disabled>모르겠음</button></div>
     <div id="fb" class="fb" aria-live="polite"></div>
-    <p id="tNote" class="hint center"></p>
-    <p class="hint center keys">키보드: 1 · 2 · 3, 모르겠음은 0</p>
+    <p id="tNote" class="hint center" aria-live="polite"></p>
+    <p id="keysHint" class="hint center keys">키보드: 1 · 2 · 3, 모르겠음은 0</p>
   </div>
 </section>
 
@@ -194,12 +198,13 @@
     </div>
   </div>
   <div id="sendBox" class="card">
-    <h2>결과 보내기</h2>
-    <p>‘결과 파일 저장’은 전체 기록 파일(.json), ‘전문가용 보고서 저장’은 청능사·엔지니어께 보여 드릴 참고 문서(.html, 인쇄·PDF 가능)입니다.</p>
+    <h2 id="hSend">결과 보내기</h2>
+    <p id="sendDesc">‘결과 파일 저장’은 전체 기록 파일(.json), ‘전문가용 보고서 저장’은 청능사·엔지니어께 보여 드릴 참고 문서(.html, 인쇄·PDF 가능)입니다.</p>
     <div class="row wrap gap">
       <button id="saveFile" class="btn primary big">결과 파일 저장</button>
       <button id="saveReport" class="btn big">전문가용 보고서 저장</button>
       <button id="shareFile" class="btn big" hidden>바로 보내기</button>
+      <button id="shareReport" class="btn big" hidden>보고서 바로 보내기</button>
       <button id="copyText" class="btn">결과 글 복사</button>
     </div>
     <p id="sendState" class="hint" aria-live="polite"></p>
@@ -210,10 +215,10 @@
 <!-- ───────────── 받은 결과 보기 (검사를 보낸 분용) ───────────── -->
 <section id="pgViewer" class="page">
   <div class="card">
-    <h2>받은 결과 파일 보기</h2>
-    <p class="hint">참가자가 보낸 결과 파일(.json)을 고르면 여기서 열어 봅니다. 파일은 이 화면 안에서만 읽고, 어디로도 보내지 않습니다.</p>
+    <h2 id="hViewer">받은 결과 파일 보기</h2>
+    <p id="vDesc" class="hint">참가자가 보낸 결과 파일(.json)을 고르면 여기서 열어 봅니다. 파일은 이 화면 안에서만 읽고, 어디로도 보내지 않습니다.</p>
     <div class="row wrap gap">
-      <label class="btn primary filebtn">파일 고르기<input id="vFiles" type="file" accept=".json,application/json" multiple></label>
+      <label class="btn primary filebtn"><span id="vFilesLbl">파일 고르기</span><input id="vFiles" type="file" accept=".json,application/json" multiple></label>
       <button id="vLocal" class="btn">이 기기에 저장된 검사</button>
       <button id="vReport" class="btn" disabled>전문가용 보고서 저장</button>
       <button id="vCsvRuns" class="btn" disabled>측정 CSV 저장</button>
@@ -221,15 +226,16 @@
     </div>
     <p id="vState" class="hint" aria-live="polite"></p>
   </div>
+  <div id="vCompare"></div>
   <div id="vList"></div>
   <div class="actions"><button id="vHome" class="btn">처음으로</button></div>
 </section>
 </main>
 
 <!-- ?v= 는 js/app.js 의 APP_VERSION 앞 번호와 같게 (판을 바꿀 때 함께 올려야 브라우저가 옛 파일을 쓰지 않음 — tools/app_check.js 가 확인) -->
-<script src="js/protocols.js?v=1.0.8"></script>
-<script src="js/stim.js?v=1.0.8"></script>
-<script src="js/track.js?v=1.0.8"></script>
-<script src="js/app.js?v=1.0.8"></script>
+<script src="js/protocols.js?v=1.1.0"></script>
+<script src="js/stim.js?v=1.1.0"></script>
+<script src="js/track.js?v=1.1.0"></script>
+<script src="js/app.js?v=1.1.0"></script>
 </body>
 </html>

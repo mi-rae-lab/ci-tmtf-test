@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.0.8 (2026-11-24)';   // 1.0.8: computeBuild() 7개 파일 네트워크 요청 병렬화(Promise.all)로 시작 지연 단축
+const APP_VERSION = '1.1.0 (2026-11-24)';   // 1.1.0: 인앱 브라우저 안내 · 접근성 · 블루투스 안내 · 보고서 공유 · KEEPMON 절전 · 지연 저장/용량 경고 · 결과 보기 증분/비교 · 한/영 전환
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const STORE_KEY = 'ciTmtf.v1';
@@ -20,7 +20,7 @@ const fmtPct = p => p >= 10 ? `${Math.round(p)}%` : `${p.toFixed(1)}%`;
 // 정답 자리: 32비트 난수 % n (tools/lean/TMTF/Grid.lean — 3구간 치우침 2/(3·2³²))
 const randInt = n => { try { return crypto.getRandomValues(new Uint32Array(1))[0] % n; } catch { return Math.floor(Math.random() * n); } };
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = randInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-const localTime = t => { try { return new Date(t).toLocaleString('ko-KR'); } catch { return String(t); } };
+const localTime = t => { try { return new Date(t).toLocaleString(LANG === 'en' ? 'en-US' : 'ko-KR'); } catch { return String(t); } };
 
 /* ───────────── HTTPS 보안 연결 확인 ───────────── */
 const isLocalHost = h => {
@@ -55,19 +55,42 @@ const PRACTICE_N = 3;
 const DEFAULT_FMS = [10, 50, 100, 150, 200];   // Won 2011 · Park 2015 의 변조 주파수 가운데 다섯
 const FM_OK = fmChoices(PR);                   // 링크(?hz=)로 고를 수 있는 변조 주파수 = 와우TMTF 직접 정하기의 칸
 const EAR = { L: '왼쪽', R: '오른쪽', B: '양쪽' };
+const EAR_EN = { L: 'Left', R: 'Right', B: 'Both' };
 const PATH = { speaker: '컴퓨터·휴대폰 스피커', headphone: '이어폰·헤드폰', wired: '선으로 처리기에 연결', bt: '블루투스로 처리기에 연결', other: '그 밖의 방법' };
+const PATH_EN = { speaker: 'Computer / phone speaker', headphone: 'Earphones / headphones', wired: 'Wired to processor (audio cable / wired streamer)', bt: 'Bluetooth to processor', other: 'Other' };
 const FOCUS = { good: '잘 됨', mid: '보통', bad: '잘 안 됨' };
+const FOCUS_EN = { good: 'Good', mid: 'Okay', bad: 'Hard to focus' };
 const AGE_LBL = { '-19': '10대 이하', '20s': '20대', '30s': '30대', '40s': '40대', '50s': '50대', '60s': '60대', '70+': '70대 이상' };
+const AGE_EN = { '-19': 'Under 20', '20s': '20s', '30s': '30s', '40s': '40s', '50s': '50s', '60s': '60s', '70+': '70+' };
 const YEARS_LBL = { '<1': '1년이 안 됨', '1-5': '1–5년', '5-10': '5–10년', '10+': '10년 넘음', unknown: '모름' };
+const YEARS_EN = { '<1': 'Under 1 year', '1-5': '1–5 years', '5-10': '5–10 years', '10+': 'Over 10 years', unknown: 'Not sure' };
 const ONSET_LBL = { pre: '말을 배우기 전', post: '말을 배운 뒤', unknown: '모름' };
+const ONSET_EN = { pre: 'Before learning speech', post: 'After learning speech', unknown: 'Not sure' };
 const MAKER_LBL = { cochlear: '코클리어', medel: '메드엘', ab: '어드밴스드 바이오닉스', oticon: '오티콘', todoc: '토닥', other: '그 밖', unknown: '모름' };
+const MAKER_EN = { cochlear: 'Cochlear', medel: 'MED-EL', ab: 'Advanced Bionics', oticon: 'Oticon', todoc: 'TODOC', other: 'Other', unknown: 'Not sure' };
 function snapP(P) {
   return { id: P.id, nAFC: P.nAFC, dur: P.dur, isi: P.isi, rampMs: P.rampMs, rampShape: P.rampShape, band: P.band, phase: P.phase, startDb: P.startDb,
     bigUntil: P.bigUntil, big: P.big, small: P.small, totalRev: P.totalRev, avgLast: P.avgLast, ceiling: P.ceiling, rove: P.rove || 0, leadS: LEAD_S, feedback: !!P.feedback };
 }
 
-/* ───────────── 링크로 받는 값 (?id=P02&hz=10,50,100) ───────────── */
+/* ───────────── 링크로 받는 값 (?id=P02&hz=10,50,100&lang=en) ───────────── */
 const QS = (() => { try { return new URLSearchParams(location.search || ''); } catch { return new URLSearchParams(''); } })();
+let LANG = /^en\b/i.test(QS.get('lang') || '') ? 'en' : 'ko';
+const tx = (ko, en) => LANG === 'en' ? en : ko;
+const earName = k => (LANG === 'en' ? EAR_EN[k] : EAR[k]) || k || '';
+const pathName = k => (LANG === 'en' ? PATH_EN[k] : PATH[k]) || k || '';
+const focusName = k => (LANG === 'en' ? FOCUS_EN[k] : FOCUS[k]) || k || '';
+function inAppBrowser(ua = navigator.userAgent) {
+  const s = String(ua || '');
+  if (/KAKAOTALK/i.test(s)) return tx('카카오톡', 'KakaoTalk');
+  if (/NAVER\(/i.test(s) || /\bNAVER\b/i.test(s)) return tx('네이버 앱', 'Naver app');
+  if (/Instagram/i.test(s)) return tx('인스타그램', 'Instagram');
+  if (/FBAN|FBAV/i.test(s)) return tx('페이스북', 'Facebook');
+  if (/Line\//i.test(s)) return tx('라인', 'LINE');
+  if (/DaumApps/i.test(s)) return tx('다음 앱', 'Daum app');
+  if (/Everytime/i.test(s)) return tx('에브리타임', 'Everytime');
+  return null;
+}
 const cleanCode = s => String(s || '').normalize('NFC').replace(/[^0-9A-Za-z가-힣_-]/g, '').slice(0, 20);
 // 하나라도 못 읽으면 통째로 버리고 기본값 (일부만 읽어 엉뚱한 주파수로 재는 일이 없게)
 function parseFms(s) {
@@ -85,11 +108,14 @@ const estMin = n => Math.max(5, Math.round(n * 45 * perTrialS / 60 / 5) * 5);
 
 /* ───────────── 기록 (이 기기 브라우저) ───────────── */
 let DB = { format: FORMAT, formatVersion: 1, sessions: [], decisions: [] };
-const STORE = { ok: true, error: null, blocked: false, moved: null };
+const STORE = { ok: true, error: null, blocked: false, moved: null, bytes: 0 };
+const STORE_WARN_BYTES = 3 * 1024 * 1024;
+let saveTimer = null, saveDirty = false;
 function loadStore() {
   let raw = null;
   try { raw = localStorage.getItem(STORE_KEY); } catch (e) { STORE.ok = false; STORE.error = String(e && e.name || e); return; }
   if (!raw) return;
+  STORE.bytes = raw.length * 2;
   try {
     const o = JSON.parse(raw);
     if (!o || !Array.isArray(o.sessions)) throw new Error('형식이 다름');
@@ -102,13 +128,25 @@ function loadStore() {
   }
 }
 function saveStore() {
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  saveDirty = false;
   if (STORE.blocked) return false;
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(DB));
-    if (!STORE.ok) { STORE.ok = true; STORE.error = null; renderEnvWarn(); }
+    const raw = JSON.stringify(DB);
+    const wasHigh = STORE.bytes >= STORE_WARN_BYTES;
+    localStorage.setItem(STORE_KEY, raw);
+    STORE.bytes = raw.length * 2;
+    if (!STORE.ok || (!wasHigh && STORE.bytes >= STORE_WARN_BYTES)) { STORE.ok = true; STORE.error = null; renderEnvWarn(); }
     return true;
   } catch (e) { STORE.ok = false; STORE.error = String(e && e.name || e); renderEnvWarn(); return false; }
 }
+// 시행 중 잦은 저장은 피드백 대기 시간(150 ms)으로 묶어 응답 지연 감소 — 창 닫힘 · 숨김 시 즉시 저장
+function scheduleSave(ms = 150) {
+  saveDirty = true;
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => { saveTimer = null; if (saveDirty) saveStore(); }, ms);
+}
+function flushSave() { if (saveDirty) saveStore(); }
 // 화면이 닫혀 끝나지 않은 회기 — 다음에 열 때 끝난 것으로 표시하고, 하던 측정은 버린 측정으로 남김 (2분 안에 고친 회기는 다른 창일 수 있어 그대로)
 function closeOrphans() {
   let n = 0;
@@ -228,7 +266,7 @@ function audioEnv() {
 }
 function systemEnv() {
   let tz = ''; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { }
-  return { app: APP_VERSION, ua: navigator.userAgent, platform: navigator.userAgentData?.platform || navigator.platform || '', lang: navigator.language, tz,
+  return { app: APP_VERSION, ua: navigator.userAgent, platform: navigator.userAgentData?.platform || navigator.platform || '', lang: navigator.language, uiLang: LANG, tz,
     cores: navigator.hardwareConcurrency || null, touch: navigator.maxTouchPoints || 0, screen: `${screen.width}x${screen.height}@${devicePixelRatio}`, window: `${innerWidth}x${innerHeight}`,
     origin: location.protocol === 'file:' ? 'file' : location.origin, secure: isSecureOrigin() };
 }
@@ -237,17 +275,21 @@ function systemEnv() {
    시행 사이에 따로 소리를 내지 않고, 오디오를 처음 켠 뒤 닫거나 멈추지 않음. 회기 중 1초마다 출력 바로 앞(분석기)을 보아
    오디오가 돌고(running) 시계가 흐르는지(실제 시간 대비 1 ± 0.05) 확인하고, 끊기면 시각 · 까닭 · 길이를 회기 사건 · 측정 · 회기에 남김. */
 let mbuf = null, mlast = null;
-function monitor() {
+function monitor(needRms = true) {
   if (!ctx || !mon) return null;
   const N = mon.fftSize, fs = ctx.sampleRate;
-  if (!mbuf || mbuf.length !== N) mbuf = new Float32Array(N);
-  mon.getFloatTimeDomainData(mbuf);
-  let ss = 0;
-  for (let n = 0; n < N; n++) ss += mbuf[n] * mbuf[n];
-  const rms = Math.sqrt(ss / N), now = ctx.currentTime, perf = performance.now(), winS = N / fs;
+  let rms = 0;
+  if (needRms) {
+    if (!mbuf || mbuf.length !== N) mbuf = new Float32Array(N);
+    mon.getFloatTimeDomainData(mbuf);
+    let ss = 0;
+    for (let n = 0; n < N; n++) ss += mbuf[n] * mbuf[n];
+    rms = Math.sqrt(ss / N);
+  }
+  const now = ctx.currentTime, perf = performance.now(), winS = N / fs;
   const rate = mlast && perf - mlast.perf > 200 ? (now - mlast.ctx) / ((perf - mlast.perf) / 1000) : null;
   mlast = { ctx: now, perf };
-  return { rmsDb: rms > 1e-7 ? +(20 * Math.log10(rms)).toFixed(2) : null, state: ctx.state, rate: rate === null ? null : +rate.toFixed(4), winS,
+  return { rmsDb: needRms && rms > 1e-7 ? +(20 * Math.log10(rms)).toFixed(2) : null, state: ctx.state, rate: rate === null ? null : +rate.toFixed(4), winS,
     inBuffer: wins.some(b => b.t0 < now && b.tEnd > now - winS), perf };
 }
 const KEEPMON = { page: uid(), since: null, polls: 0, ok: 0, buffer: 0, off: 0, gaps: [], open: null, last: null, lastOkAt: null, lastOkPerf: null };
@@ -260,9 +302,9 @@ function keepMonSince(k0) {
     gaps: KEEPMON.gaps.slice(b.gaps), openAtEnd: KEEPMON.open ? { ...KEEPMON.open } : null, lastOkAt: KEEPMON.lastOkAt, spansReload: !same };
 }
 function keepMonTick() {
-  const m = monitor();
-  if (!m) return null;
   const exp = S ? 'keep' : null;
+  const m = monitor(!!exp);
+  if (!m) return null;
   let cls, why = null;
   if (!exp) cls = 'off';
   else if (m.state !== 'running') { cls = 'gap'; why = `오디오가 ${m.state}`; }
@@ -284,7 +326,8 @@ function keepMonTick() {
   }
   return KEEPMON.last;
 }
-const KEEPMON_TIMER = setInterval(() => { try { keepMonTick(); } catch (e) { console.error(e); } }, 1000);
+// 회기 중이 아니고 열린 끊김도 없을 때는 32,768샘플 오디오 복사 · RMS 연산을 건너뛰어 배터리 절약
+const KEEPMON_TIMER = setInterval(() => { if (!S && !KEEPMON.open) return; try { keepMonTick(); } catch (e) { console.error(e); } }, 1000);
 
 /* ───────────── 화면이 꺼지지 않게 (지원하는 브라우저만) ───────────── */
 let wake = null;
@@ -299,26 +342,43 @@ async function wakeOn() {
 function wakeOff() { try { if (wake) wake.release(); } catch { } wake = null; }
 
 /* ───────────── 화면 ───────────── */
-function showPage(id) { $$('.page').forEach(p => p.classList.toggle('on', p.id === id)); try { window.scrollTo(0, 0); } catch { } }
+function showPage(id, opt = {}) {
+  $$('.page').forEach(p => p.classList.toggle('on', p.id === id));
+  if (!opt.noScroll) { try { window.scrollTo(0, 0); } catch { } }
+  if (!opt.noFocus) {
+    const pg = $('#' + id), hd = pg && (pg.querySelector('h2') || pg.querySelector('.ttl'));
+    if (hd) { try { hd.setAttribute('tabindex', '-1'); hd.focus({ preventScroll: true }); } catch { } }
+  }
+}
 function renderEnvWarn() {
   const m = [];
-  if (isInsecureHttp()) m.push('보안 연결(HTTPS)이 아닙니다. 주소가 https:// 로 시작하는지 확인해 주세요.');
-  if (AUDIO_ERR) m.push('이 브라우저에서는 소리를 낼 수 없습니다. 크롬이나 엣지, 사파리 최신판으로 열어 주세요.');
-  if (STORE.blocked || !STORE.ok) m.push('이 브라우저는 결과를 저장하지 못합니다. 검사가 끝나면 꼭 ‘결과 파일 저장’을 눌러 주세요.');
-  if (STORE.error && STORE.moved) m.push('전에 저장된 기록 하나를 읽지 못해 따로 보관했습니다.');
-  if (LINK.hz && String(LINK.hz).trim() && !LINK.fms) m.push('링크에 적힌 떨림 빠르기를 읽지 못해 기본값으로 검사합니다.');
+  const inApp = inAppBrowser();
+  if (inApp) m.push(tx(`${inApp} 안에서 열면 결과 파일 저장이 안 될 수 있어요. 메뉴에서 Safari(아이폰)나 Chrome(안드로이드)으로 열어 주세요.`, `Opening inside ${inApp} may block saving result files. Please open this link in Safari (iPhone) or Chrome (Android).`));
+  if (isInsecureHttp()) m.push(tx('보안 연결(HTTPS)이 아닙니다. 주소가 https:// 로 시작하는지 확인해 주세요.', 'This connection is not HTTPS. Please make sure the address starts with https://.'));
+  if (AUDIO_ERR) m.push(tx('이 브라우저에서는 소리를 낼 수 없습니다. 크롬이나 엣지, 사파리 최신판으로 열어 주세요.', 'This browser cannot play sound. Please open in the latest Chrome, Edge, or Safari.'));
+  if (STORE.blocked || !STORE.ok) m.push(tx('이 브라우저는 결과를 저장하지 못합니다. 검사가 끝나면 꼭 ‘결과 파일 저장’을 눌러 주세요.', 'This browser cannot save records locally. Please be sure to tap “Save result file” when done.'));
+  if (STORE.error && STORE.moved) m.push(tx('전에 저장된 기록 하나를 읽지 못해 따로 보관했습니다.', 'An earlier saved record could not be read and was kept separately.'));
+  if (STORE.bytes >= STORE_WARN_BYTES) m.push(tx('이 브라우저에 저장된 검사 기록이 많습니다. 먼저 ‘모두 파일로 저장’으로 백업해 두세요.', 'Many test records are stored in this browser. Please back them up using “Save all to file”.'));
+  if (LINK.hz && String(LINK.hz).trim() && !LINK.fms) m.push(tx('링크에 적힌 떨림 빠르기를 읽지 못해 기본값으로 검사합니다.', 'Could not read the test rates in the link; using the default rates instead.'));
   const el = $('#envWarn'); if (!el) return;
   el.hidden = !m.length; el.innerHTML = m.map(esc).join('<br>');
 }
 
 /* ── 처음 화면 ── */
+function renderFmInfo() {
+  $('#fmInfo').textContent = tx(
+    `검사할 떨림 빠르기: ${PLAN_FMS.join(' · ')} Hz${LINK.fms ? ' (받은 링크에 적힌 값)' : ''}`,
+    `Flutter rates to test: ${PLAN_FMS.join(' · ')} Hz${LINK.fms ? ' (from link)' : ''}`
+  );
+}
 function renderHome() {
-  $('#homeTime').textContent = `${estMin(PLAN_FMS.length)}분쯤 (중간에 쉴 수 있어요)`;
+  $('#homeTime').textContent = tx(`${estMin(PLAN_FMS.length)}분쯤 (중간에 쉴 수 있어요)`, `About ${estMin(PLAN_FMS.length)} min (you can take breaks)`);
   const ss = DB.sessions.filter(s => (s.runs || []).length).slice().sort((a, b) => String(b.start).localeCompare(String(a.start)));
   $('#homeSaved').hidden = !ss.length;
   $('#homeSavedList').innerHTML = ss.slice(0, 12).map(s => `<div class="row wrap gap saved">
-    <span>${esc(localTime(s.start))} · ${esc(EAR[s.ear] || '')} · 측정 ${s.runs.length}개${s.code ? ' · ' + esc(s.code) : ''}</span>
-    <button class="btn small" data-open="${esc(s.id)}">결과 보기</button></div>`).join('') + (ss.length > 12 ? `<p class="hint">그 전 검사 ${ss.length - 12}개는 ‘모두 파일로 저장’에 들어 있습니다.</p>` : '');
+    <span>${esc(localTime(s.start))} · ${esc(earName(s.ear))} · ${tx(`측정 ${s.runs.length}개`, `${s.runs.length} runs`)}${s.code ? ' · ' + esc(s.code) : ''}</span>
+    <button class="btn small" data-open="${esc(s.id)}">${tx('결과 보기', 'View results')}</button></div>`).join('')
+    + (ss.length > 12 ? `<p class="hint">${tx(`그 전 검사 ${ss.length - 12}개는 ‘모두 파일로 저장’에 들어 있습니다.`, `${ss.length - 12} older sessions are included in “Save all to file”.`)}</p>` : '');
   renderEnvWarn();
 }
 $('#homeSavedList').addEventListener('click', e => { const id = e.target?.dataset?.open; if (!id) return; const s = DB.sessions.find(x => x.id === id); if (s) showEnd(s, { offers: false }); });
@@ -333,18 +393,20 @@ function pick(groupSel, key) {
     const b = e.target.closest ? e.target.closest('.choice') : e.target;
     if (!b || !b.dataset || !b.dataset.v) return;
     PRE[key] = b.dataset.v;
-    $$(groupSel + ' .choice').forEach(x => x.classList.toggle('on', x.dataset.v === PRE[key]));
+    $$(groupSel + ' .choice').forEach(x => { const on = x.dataset.v === PRE[key]; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     syncSetup();
   });
 }
 pick('#earPick', 'ear'); pick('#pathPick', 'path');
 function syncSetup() {
-  $('#btNote').hidden = PRE.path !== 'bt';
+  const isBt = PRE.path === 'bt';
+  $('#btNote').hidden = !isBt;
+  if ($('#soundBtNote')) $('#soundBtNote').hidden = !isBt;
   const ready = !!(PRE.ear && PRE.path);
   $('#setupNext').disabled = !ready; $('#setupNeed').hidden = ready;
 }
 $('#setupBack').onclick = () => showPage('pgHome');
-$('#setupNext').onclick = () => { if (PRE.ear && PRE.path) showPage('pgSound'); };
+$('#setupNext').onclick = () => { if (PRE.ear && PRE.path) { syncSetup(); showPage('pgSound'); } };
 const optVal = id => { const v = $(id).value; return v === '' ? null : v; };
 function infoNow() {
   const note = $('#infoNote').value.trim();
@@ -359,7 +421,7 @@ $('#noisePlay').onclick = () => {
   const m = stim(PRACTICE_FM, null, 10);
   play(m.data, ctx.currentTime + 0.05);
   PRE.noise.push({ at: iso(), seed: m.seed, durS: 10, rmsDb: +m.rmsDb.toFixed(3), sampleRate: ctx.sampleRate });
-  $('#noiseState').textContent = '잡음이 나오는 중 (10초)';
+  $('#noiseState').textContent = tx('잡음이 나오는 중 (10초)', 'Playing noise (10 s)');
   noiseTimer = setTimeout(() => { $('#noiseState').textContent = ''; }, 10200);
 };
 $('#noiseStop').onclick = () => { stopAll(); clearTimeout(noiseTimer); $('#noiseState').textContent = ''; const L = PRE.noise[PRE.noise.length - 1]; if (L && !L.stoppedAt) L.stoppedAt = iso(); };
@@ -418,6 +480,7 @@ async function startSession() {
   PRE.noise = []; PRE.demo = []; PRE.volOkAt = null; PRE.setupAt = null; $('#volOk').checked = false; $('#soundNext').disabled = true;
   JUST = null;
   S = { session, plan: [], idx: 0, cur: null, token: null, t0: performance.now(), lastEnd: null, practiceRound: 0, offer: null };
+  mlast = null;
   session.keepMonAtStart = keepMonSnap();
   addRound(PLAN_FMS, false);
   logEv('session-start', { fms: PLAN_FMS.slice(), practiceN: PRACTICE_N, build: session.build.sha256, verified: session.build.verified?.status ?? null, differ });
@@ -434,19 +497,25 @@ function addRound(fms, extra) {
   return round;
 }
 const roundsOf = () => S.session.rounds.length;
+const IV_BTNS = $$('.iv');
 function setTitle(t) { $('#tTitle').textContent = t; }
-function setProg(v) { $('#progBar').style.width = (100 * Math.max(0, Math.min(1, v))).toFixed(1) + '%'; }
+function setProg(v) {
+  const c = Math.max(0, Math.min(1, v));
+  $('#progBar').style.width = (100 * c).toFixed(1) + '%';
+  const w = $('#progWrap'); if (w) w.setAttribute('aria-valuenow', String(Math.round(c * 100)));
+}
 function setFb(cls, t) { const el = $('#fb'); el.className = 'fb' + (cls ? ' ' + cls : ''); el.textContent = t; }
 function startPractice() {
   S.practiceRound++; S.session.practiceRounds = S.practiceRound;
   S.cur = { practice: true, fm: PRACTICE_FM, left: PRACTICE_N, k: 0, u: 0, startIso: iso(), startPt: performance.now(), replays: 0, phase: 'idle', keepMonAtStart: keepMonSnap() };
   logEv('practice-start', { fm: PRACTICE_FM, n: PRACTICE_N, round: S.practiceRound });
-  showPage('pgTest'); setTitle(`연습 1 / ${PRACTICE_N}`); setProg(0); $('#tNote').textContent = '연습은 결과에 들어가지 않습니다.';
+  showPage('pgTest'); setTitle(tx(`연습 1 / ${PRACTICE_N}`, `Practice 1 / ${PRACTICE_N}`)); setProg(0);
+  $('#tNote').textContent = tx('연습은 결과에 들어가지 않습니다.', 'Practice trials are not counted in your results.');
   nextTrial();
 }
 function trackTitle() {
   const item = S.plan[S.idx], inRound = S.plan.filter(x => x.round === item.round), k = inRound.indexOf(item) + 1;
-  const head = item.extra ? '한 번 더' : item.round > 1 ? `${item.round}번째 바퀴` : '검사';
+  const head = item.extra ? tx('한 번 더', 'Extra check') : item.round > 1 ? tx(`${item.round}번째 바퀴`, `Round ${item.round}`) : tx('검사', 'Test');
   return `${head} ${k} / ${inRound.length}`;
 }
 function startTrack() {
@@ -455,17 +524,17 @@ function startTrack() {
     breakS: S.lastEnd !== null ? +((now - S.lastEnd) / 1000).toFixed(1) : null, replays: 0, phase: 'idle', keepMonAtStart: keepMonSnap() };
   logEv('track-start', { fm: item.fm, round: item.round, extra: !!item.extra, order: S.idx + 1 });
   showPage('pgTest'); setTitle(trackTitle()); setProg(0); $('#tNote').textContent = '';
-  saveCurrent();
+  saveCurrent(true);
   nextTrial();
 }
 // 하던 측정을 회기 기록에 — 화면이 닫혀도 그때까지의 시행이 남게 (다음에 열 때 버린 측정으로 옮김)
-function saveCurrent() {
+function saveCurrent(immediate = false) {
   const C = S?.cur;
   if (!C || C.practice) return;
   S.session.current = { fm: C.fm, round: C.round, extra: C.extra, order: S.idx + 1, startedAt: C.startIso, trialList: C.track.trials, reversals: C.track.reversals, revAt: C.track.revAt,
     depthNow: C.track.depth, P: snapP(PR) };
   S.session.updated = iso();
-  saveStore();
+  if (immediate) saveStore(); else scheduleSave();
 }
 let awaiting = null;
 function nextTrial() {
@@ -473,13 +542,13 @@ function nextTrial() {
   if (document.hidden) { C.needReplay = true; return; }
   const depth = C.practice ? 0 : C.track.depth;
   setFb('', '');
-  const btns = $$('.iv');
-  btns.forEach(b => { b.className = 'iv'; b.disabled = true; });
+  const btns = IV_BTNS;
+  btns.forEach(b => { b.className = 'iv'; b.disabled = true; b.removeAttribute('aria-busy'); });
   $('#dunno').disabled = true;
   const tg = randInt(n);
   let made;
   try { made = btns.map((_, i) => stim(C.fm, i === tg ? depth : null)); }
-  catch (e) { logEv('stim-error', { fm: C.fm, d: depth, msg: String(e && e.message || e) }); setFb('no', '소리를 만들지 못했습니다. 화면을 새로 고침 해 주세요.'); return; }
+  catch (e) { logEv('stim-error', { fm: C.fm, d: depth, msg: String(e && e.message || e) }); setFb('no', tx('소리를 만들지 못했습니다. 화면을 새로 고침 해 주세요.', 'Could not generate sound. Please refresh the page.')); return; }
   const t0 = ctx.currentTime + LEAD_S, step = PR.dur + PR.isi;
   made.forEach((m, i) => play(m.data, t0 + i * step));
   const h0 = heardTime(), p0 = performance.now();
@@ -501,12 +570,12 @@ function nextTrial() {
     let on = -1;
     for (let i = 0; i < n; i++) if (h >= t0 + i * step && h < t0 + i * step + PR.dur) on = i;
     if (on !== lit) {
-      btns.forEach((b, i) => b.classList.toggle('playing', i === on));
+      btns.forEach((b, i) => { b.classList.toggle('playing', i === on); if (i === on) b.setAttribute('aria-busy', 'true'); else b.removeAttribute('aria-busy'); });
       if (on === 0 && C.tm.drift === null) C.tm.drift = Math.round(performance.now() - expect0);
       lit = on;
     }
     if (h >= t0 + (n - 1) * step + PR.dur) {
-      btns.forEach(b => { b.classList.remove('playing'); b.disabled = false; b.classList.add('ready'); });
+      btns.forEach(b => { b.classList.remove('playing'); b.removeAttribute('aria-busy'); b.disabled = false; b.classList.add('ready'); });
       $('#dunno').disabled = false;
       C.phase = 'awaiting';
       awaiting = { tg, depth, t: performance.now(), n };
@@ -535,14 +604,14 @@ function answer(i, dunno, inp) {
   const a = awaiting; awaiting = null;
   if (dunno) i = randInt(a.n);   // 모르겠음 = 구간 가운데 무작위 하나로 침 (특정 번호 쪽으로 치우치지 않는 찍기)
   const correct = i === a.tg, rt = Math.round(performance.now() - a.t);
-  const btns = $$('.iv');
+  const btns = IV_BTNS;
   btns.forEach(b => { b.disabled = true; b.classList.remove('ready'); try { b.blur(); } catch { } });
   $('#dunno').disabled = true;
   if (PR.feedback) {
     btns[a.tg].classList.add('right');
-    if (dunno) setFb('mid', `떨리는 소리는 ${a.tg + 1}번이었어요`);
-    else if (correct) setFb('ok', '맞았어요');
-    else { btns[i].classList.add('wrong'); setFb('no', `아니에요. ${a.tg + 1}번이었어요`); }
+    if (dunno) setFb('mid', tx(`떨리는 소리는 ${a.tg + 1}번이었어요`, `The fluttering sound was #${a.tg + 1}`));
+    else if (correct) setFb('ok', tx('맞았어요', 'Correct'));
+    else { btns[i].classList.add('wrong'); setFb('no', tx(`아니에요. ${a.tg + 1}번이었어요`, `Not quite. It was #${a.tg + 1}`)); }
   }
   const C = S.cur; C.phase = 'feedback';
   const meta = { a: i, tg: a.tg, u: dunno ? 1 : 0, rt, inp, ...C.tm };
@@ -551,17 +620,17 @@ function answer(i, dunno, inp) {
     if (correct && !dunno) C.k++;
     if (dunno) C.u++;
     C.left--; setProg((PRACTICE_N - C.left) / PRACTICE_N);
-    S.session.updated = iso(); saveStore();
-    setTimeout(() => { if (S?.cur !== C) return; if (C.left > 0) { setTitle(`연습 ${PRACTICE_N - C.left + 1} / ${PRACTICE_N}`); nextTrial(); } else practiceDone(); }, 1000);
+    S.session.updated = iso(); scheduleSave();
+    setTimeout(() => { if (S?.cur !== C) return; if (C.left > 0) { setTitle(tx(`연습 ${PRACTICE_N - C.left + 1} / ${PRACTICE_N}`, `Practice ${PRACTICE_N - C.left + 1} / ${PRACTICE_N}`)); nextTrial(); } else practiceDone(); }, 1000);
     return;
   }
   C.track.respond(correct, meta);
   C.replays = 0;
   setProg(C.track.reversals.length / C.track.P.totalRev);
-  saveCurrent();
+  saveCurrent(false);
   setTimeout(() => { if (S?.cur !== C) return; if (C.track.done) finishTrack(); else nextTrial(); }, 900);
 }
-$$('.iv').forEach(b => b.addEventListener('click', () => answer(+b.dataset.i, false, 'click')));
+IV_BTNS.forEach(b => b.addEventListener('click', () => answer(+b.dataset.i, false, 'click')));
 $('#dunno').onclick = () => answer(-1, true, 'click');
 // 받지 않는 때 누른 응답 키: 소리가 나는 동안 → 그 시행의 이른 입력, 그 밖 → 회기 사건 ignored-input
 function notTaken(key, how) {
@@ -584,6 +653,7 @@ document.addEventListener('keydown', e => {
 });
 // 소리가 나는 동안 화면(탭)이 가려지면: 그 시행은 버리고, 돌아오면 같은 깊이로 다시 들려줌
 document.addEventListener('visibilitychange', () => {
+  if (document.hidden) flushSave();
   if (!S) return;
   logEv(document.hidden ? 'hidden' : 'visible', { phase: S.cur?.phase || 'break' });
   if (!document.hidden) wakeOn();
@@ -595,11 +665,12 @@ document.addEventListener('visibilitychange', () => {
     } else if (C.phase === 'awaiting' && C.tm) C.tm.hid = true;
   } else if (C.needReplay) {
     C.needReplay = false;
-    $('#tNote').textContent = '다른 화면으로 가 있어서 소리를 다시 들려 드립니다.';
-    setTimeout(() => { if (S?.cur === C && !document.hidden) { $('#tNote').textContent = C.practice ? '연습은 결과에 들어가지 않습니다.' : ''; nextTrial(); } }, 700);
+    $('#tNote').textContent = tx('다른 화면으로 가 있어서 소리를 다시 들려 드립니다.', 'You switched away, so we will play that sound again.');
+    setTimeout(() => { if (S?.cur === C && !document.hidden) { $('#tNote').textContent = C.practice ? tx('연습은 결과에 들어가지 않습니다.', 'Practice trials are not counted in your results.') : ''; nextTrial(); } }, 700);
   }
 });
-window.addEventListener('beforeunload', e => { if (S && !S.session.end) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('pagehide', () => flushSave());
+window.addEventListener('beforeunload', e => { flushSave(); if (S && !S.session.end) { e.preventDefault(); e.returnValue = ''; } });
 function finishTrack() {
   const C = S.cur, r = C.track.result(), endPt = performance.now();
   const run = {
@@ -630,24 +701,36 @@ function showBreak(kind, info = {}) {
   $('#bPractice').hidden = kind !== 'practice';
   $('#bNext').hidden = false;
   if (kind === 'practice') {
-    title = '연습 끝';
-    h = info.n ? `<p>${info.n}번 가운데 <b>${info.k}번</b> 맞았어요.</p>` : '<p>연습을 건너뛰었어요.</p>';
-    if (info.n && info.k < 2) h += '<p class="hint">떨리는 소리가 잘 구별되지 않으면 볼륨을 조금 키우거나 ‘연습 한 번 더’를 눌러 보세요. 그래도 어려우면 그대로 시작해도 됩니다.</p>';
-    h += '<p>이제 검사를 시작합니다. 맞힐수록 떨림이 약해져 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 누르세요.</p>';
-    h += '<p class="hint">검사가 끝날 때까지 볼륨은 바꾸지 마세요.</p>';
-    $('#bNext').textContent = '검사 시작';
+    title = tx('연습 끝', 'Practice complete');
+    h = info.n
+      ? tx(`<p>${info.n}번 가운데 <b>${info.k}번</b> 맞았어요.</p>`, `<p>You got <b>${info.k}</b> out of ${info.n} right.</p>`)
+      : tx('<p>연습을 건너뛰었어요.</p>', '<p>Practice skipped.</p>');
+    if (info.n && info.k < 2) {
+      h += tx('<p class="hint">떨리는 소리가 잘 구별되지 않으면 볼륨을 조금 키우거나 ‘연습 한 번 더’를 눌러 보세요. 그래도 어려우면 그대로 시작해도 됩니다.</p>',
+        '<p class="hint">If the fluttering sound was hard to tell apart, try raising the volume slightly or tap “Practice again”. You can also start as is.</p>');
+      if (S.session.path === 'bt') {
+        h += tx('<p class="hint warn">블루투스 때문에 소리 앞부분이 잘렸다면 가능하면 선으로 연결하거나 스피커를 써 보세요.</p>',
+          '<p class="hint warn">If Bluetooth clipped the start of the sound, try using a wired connection or speaker if possible.</p>');
+      }
+    }
+    h += tx('<p>이제 검사를 시작합니다. 맞힐수록 떨림이 약해져 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 누르세요.</p>',
+      '<p>Now the test begins. The flutter gets softer as you get answers right. <b>If you notice even a tiny flutter, pick that number.</b> Only press “Not sure” when all three sounds feel completely identical.</p>');
+    h += tx('<p class="hint">검사가 끝날 때까지 볼륨은 바꾸지 마세요.</p>', '<p class="hint">Please do not change your volume until the test finishes.</p>');
+    $('#bNext').textContent = tx('검사 시작', 'Start test');
   } else if (kind === 'stopped') {
-    title = '멈췄어요';
-    h = '<p>하던 것은 처음부터 다시 합니다. 끝난 것은 저장되어 있어요.</p>';
-    $('#bNext').textContent = '다시 시작';
+    title = tx('멈췄어요', 'Paused');
+    h = tx('<p>하던 것은 처음부터 다시 합니다. 끝난 것은 저장되어 있어요.</p>', '<p>This part will restart from the beginning. Finished parts are saved.</p>');
+    $('#bNext').textContent = tx('다시 시작', 'Restart');
   } else if (kind === 'round') {
-    title = info.extra ? '차이가 큰 것만 한 번 더' : `${info.round}번째 바퀴`;
-    h = `<p>${info.extra ? '두 번 잰 값이 많이 다른 소리만 한 번 더 합니다.' : '같은 소리들을 다른 순서로 한 번 더 합니다.'} ${left}개, ${estMin(left)}분쯤 걸립니다.</p><p class="hint">준비되면 ‘다음’을 누르세요.</p>`;
-    $('#bNext').textContent = '다음';
+    title = info.extra ? tx('차이가 큰 것만 한 번 더', 'Extra check for larger differences') : tx(`${info.round}번째 바퀴`, `Round ${info.round}`);
+    h = tx(`<p>${info.extra ? '두 번 잰 값이 많이 다른 소리만 한 번 더 합니다.' : '같은 소리들을 다른 순서로 한 번 더 합니다.'} ${left}개, ${estMin(left)}분쯤 걸립니다.</p><p class="hint">준비되면 ‘다음’을 누르세요.</p>`,
+      `<p>${info.extra ? 'We will repeat only the rates where your two runs differed most.' : 'We will test the same sounds again in a new order.'} ${left} left, about ${estMin(left)} min.</p><p class="hint">Press “Next” when ready.</p>`);
+    $('#bNext').textContent = tx('다음', 'Next');
   } else {
-    title = '잘하셨어요';
-    h = `<p>${total - left} / ${total}개 끝났어요. 남은 것 ${left}개.</p><p class="hint">잠시 쉬었다가 준비되면 ‘다음’을 누르세요.</p>`;
-    $('#bNext').textContent = '다음';
+    title = tx('잘하셨어요', 'Nice work');
+    h = tx(`<p>${total - left} / ${total}개 끝났어요. 남은 것 ${left}개.</p><p class="hint">잠시 쉬었다가 준비되면 ‘다음’을 누르세요.</p>`,
+      `<p>${total - left} / ${total} done. ${left} left.</p><p class="hint">Take a short break and press “Next” when ready.</p>`);
+    $('#bNext').textContent = tx('다음', 'Next');
   }
   $('#bTitle').textContent = title; $('#bBody').innerHTML = h;
   showPage('pgBreak');
@@ -707,9 +790,11 @@ function makeOffer() {
 }
 function offerText(o) {
   if (!o) return '';
-  const tail = '<p class="hint">한 번 더 하면, 다 끝난 뒤에 결과 파일을 저장해 주세요.</p>';
-  if (o.kind === 'again') return `<p><b>시간이 되시면 한 번 더 해 주세요.</b> 같은 소리들을 다른 순서로 다시 합니다 (${estMin(o.fms.length)}분쯤). 두 번 하면 결과가 더 정확해집니다.</p>` + tail;
-  return `<p><b>두 번 잰 값이 많이 다른 소리가 ${o.fms.length}개 있습니다.</b> 그것만 한 번 더 하면 더 정확해집니다 (${estMin(o.fms.length)}분쯤).</p>` + tail;
+  const tail = tx('<p class="hint">한 번 더 하면, 다 끝난 뒤에 결과 파일을 저장해 주세요.</p>', '<p class="hint">If you do another round, please save your result file after finishing.</p>');
+  if (o.kind === 'again') return tx(`<p><b>시간이 되시면 한 번 더 해 주세요.</b> 같은 소리들을 다른 순서로 다시 합니다 (${estMin(o.fms.length)}분쯤). 두 번 하면 결과가 더 정확해집니다.</p>`,
+    `<p><b>If you have time, please do one more round.</b> We will test the same sounds in a new order (about ${estMin(o.fms.length)} min). Two rounds give more reliable results.</p>`) + tail;
+  return tx(`<p><b>두 번 잰 값이 많이 다른 소리가 ${o.fms.length}개 있습니다.</b> 그것만 한 번 더 하면 더 정확해집니다 (${estMin(o.fms.length)}분쯤).</p>`,
+    `<p><b>${o.fms.length} sound rate(s) differed noticeably between your two rounds.</b> Repeating just those will improve accuracy (about ${estMin(o.fms.length)} min).</p>`) + tail;
 }
 $('#againBtn').onclick = () => {
   if (!S?.offer) return;
@@ -740,7 +825,7 @@ function endSession(reason) {
   closeSession();
   showEnd(sess, { offers: false });
 }
-function closeSession() { if (!S) return; logEv('session-close'); S.session.updated = iso(); saveStore(); S = null; wakeOff(); }
+function closeSession() { if (!S) return; logEv('session-close'); S.session.updated = iso(); saveStore(); S = null; if (KEEPMON.open) { try { keepMonTick(); } catch { } } wakeOff(); }
 $('#toHome').onclick = () => {
   if (S && S.offer) { S.session.decisions.push({ at: iso(), what: S.offer.kind === 'again' ? 'again-offer' : 'extra-offer', answer: 'left-page', fms: S.offer.fms.slice() }); S.offer = null; }
   if (S) closeSession();
@@ -749,10 +834,12 @@ $('#toHome').onclick = () => {
 
 /* ───────────── 결과 (참가자) ───────────── */
 function verdict(r) {
-  if (r.ceiling) return { kind: 'ceil', main: '재지 못함', sub: r.n0 >= 6 && !r.atChance ? '가장 큰 떨림은 알아챘지만 그보다 약한 떨림은 어려웠어요' : '가장 큰 떨림에서도 자주 틀렸어요' };
-  if (r.thr === null || r.thr === undefined) return { kind: 'none', main: '재지 못함', sub: '숫자를 낼 만큼 진행되지 않았어요' };
+  if (r.ceiling) return { kind: 'ceil', main: tx('재지 못함', 'Not measured'), sub: r.n0 >= 6 && !r.atChance
+    ? tx('가장 큰 떨림은 알아챘지만 그보다 약한 떨림은 어려웠어요', 'Detected the strongest flutter, but softer flutter was too hard')
+    : tx('가장 큰 떨림에서도 자주 틀렸어요', 'Frequently missed even the strongest flutter') };
+  if (r.thr === null || r.thr === undefined) return { kind: 'none', main: tx('재지 못함', 'Not measured'), sub: tx('숫자를 낼 만큼 진행되지 않았어요', 'Not enough responses to estimate a value') };
   const ref = !!(r.atChance || r.incomplete);
-  return { kind: 'num', main: fmtPct(pct(r.thr)), sub: `${r.thr.toFixed(1)} dB${ref ? ' · 참고 값' : ''}`, ref };
+  return { kind: 'num', main: fmtPct(pct(r.thr)), sub: `${r.thr.toFixed(1)} dB${ref ? tx(' · 참고 값', ' · reference only') : ''}`, ref };
 }
 function byFm(runs) {
   const m = new Map();
@@ -762,9 +849,9 @@ function byFm(runs) {
 const meanOf = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
 function endTableHtml(sess) {
   const rows = byFm(sess.runs || []);
-  if (!rows.length) return '<p>끝난 측정이 없습니다.</p>';
+  if (!rows.length) return `<p>${tx('끝난 측정이 없습니다.', 'No completed runs.')}</p>`;
   const maxN = Math.max(...rows.map(x => x.rs.length));
-  const head = `<tr><th>떨림 빠르기</th>${Array.from({ length: maxN }, (_, i) => `<th>${maxN > 1 ? `${i + 1}번째` : '알아챈 가장 약한 떨림'}</th>`).join('')}${maxN > 1 ? '<th>평균</th>' : ''}</tr>`;
+  const head = `<tr><th>${tx('떨림 빠르기', 'Flutter rate')}</th>${Array.from({ length: maxN }, (_, i) => `<th>${maxN > 1 ? tx(`${i + 1}번째`, `Run ${i + 1}`) : tx('알아챈 가장 약한 떨림', 'Softest flutter detected')}</th>`).join('')}${maxN > 1 ? `<th>${tx('평균', 'Average')}</th>` : ''}</tr>`;
   const body = rows.map(({ fm, rs }) => {
     const cells = Array.from({ length: maxN }, (_, i) => { const r = rs[i]; if (!r) return '<td></td>'; const v = verdict(r); return `<td>${esc(v.main)}<small>${esc(v.sub)}</small></td>`; }).join('');
     const nums = rs.filter(r => !r.ceiling && r.thr !== null && !r.atChance && !r.incomplete).map(r => r.thr);
@@ -784,10 +871,10 @@ function chartHtml(sess) {
   const minDb = Math.min(-30, Math.floor(Math.min(0, ...allThr) / 6) * 6);
   const x = f => L + (W - L - R) * (Math.log(f) - lo) / (hi - lo || 1);
   const y = d => T + (H - T - B) * (1 - d / minDb);   // 0 dB(100%) 아래, 약한 떨림일수록 위
-  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="떨림 빠르기에 따른 결과 그림">`;
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${tx('떨림 빠르기에 따른 결과 그림', 'Results chart by flutter rate')}">`;
   for (let d = 0; d >= minDb; d -= 6) s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}"/><text class="tick" x="${L - 8}" y="${y(d) + 4}" text-anchor="end">${esc(fmtPct(pct(d)))}</text>`;
   for (const f of fms) s += `<line class="grid" x1="${x(f)}" x2="${x(f)}" y1="${T}" y2="${H - B}"/><text class="tick" x="${x(f)}" y="${H - B + 18}" text-anchor="middle">${f}</text>`;
-  s += `<text class="axl" x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle">떨림 빠르기 (Hz)</text>`;
+  s += `<text class="axl" x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle">${tx('떨림 빠르기 (Hz)', 'Flutter rate (Hz)')}</text>`;
   const pts = [];
   for (const { fm, rs } of rows) {
     const nums = rs.filter(r => !r.ceiling && r.thr !== null).map(r => r.thr);
@@ -797,28 +884,29 @@ function chartHtml(sess) {
   }
   if (pts.length > 1) s += `<polyline class="ln" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
   for (const p of pts) s += `<circle class="pt" cx="${p[0]}" cy="${p[1]}" r="6.5"/>`;
-  return s + '</svg><p class="hint">위로 갈수록 약한 떨림까지 알아챈 것입니다. 빈 동그라미 = 한 번 잰 값, 채운 동그라미 = 평균, ▽ = 재지 못함.</p>';
+  return s + `</svg><p class="hint">${tx('위로 갈수록 약한 떨림까지 알아챈 것입니다. 빈 동그라미 = 한 번 잰 값, 채운 동그라미 = 평균, ▽ = 재지 못함.', 'Higher means detecting softer flutter. Open circle = single run, filled circle = average, ▽ = not measured.')}</p>`;
 }
 let SHOWN = null;
 function showEnd(sess, opt = {}) {
   SHOWN = sess;
   const offers = !!(opt.offers && S && S.session === sess && S.offer);
-  $('#endTitle').textContent = offers ? '한 바퀴 끝! 수고하셨습니다' : '수고하셨습니다';
-  $('#endWho').textContent = [sess.code || '번호 없음', EAR[sess.ear] || '', PATH[sess.path] || '', localTime(sess.start)].filter(Boolean).join(' · ');
+  $('#endTitle').textContent = offers ? tx('한 바퀴 끝! 수고하셨습니다', 'Round 1 complete! Well done') : tx('수고하셨습니다', 'All done! Thank you');
+  $('#endWho').textContent = [sess.code || tx('번호 없음', 'No ID'), earName(sess.ear), pathName(sess.path), localTime(sess.start)].filter(Boolean).join(' · ');
   $('#endTable').innerHTML = endTableHtml(sess);
   $('#endChart').innerHTML = chartHtml(sess);
   const single = byFm(sess.runs || []).some(x => x.rs.length < 2);
-  const notes = ['% 가 작을수록 약한 떨림까지 알아챈 것입니다.'];
-  if (single) notes.push('한 번만 잰 값은 참고용입니다.');
-  if ((sess.runs || []).some(r => r.ceiling || r.thr === null)) notes.push('‘재지 못함’은 가장 큰 떨림에서도 자주 틀려 숫자를 내지 못했다는 뜻입니다.');
-  if ((sess.runs || []).some(r => r.atChance || r.incomplete)) notes.push('‘참고 값’은 숫자는 나왔지만 믿기 어려운 값입니다.');
-  notes.push('이 결과는 진단이 아닙니다. 처리기 설정은 청능사와 상의하세요.');
+  const notes = [tx('% 가 작을수록 약한 떨림까지 알아챈 것입니다.', 'A smaller % means you detected softer flutter.')];
+  if (single) notes.push(tx('한 번만 잰 값은 참고용입니다.', 'Values from a single run are for reference only.'));
+  if ((sess.runs || []).some(r => r.ceiling || r.thr === null)) notes.push(tx('‘재지 못함’은 가장 큰 떨림에서도 자주 틀려 숫자를 내지 못했다는 뜻입니다.', '“Not measured” means even the strongest flutter was frequently missed.'));
+  if ((sess.runs || []).some(r => r.atChance || r.incomplete)) notes.push(tx('‘참고 값’은 숫자는 나왔지만 믿기 어려운 값입니다.', '“Reference only” values are less reliable estimates.'));
+  notes.push(tx('이 결과는 진단이 아닙니다. 처리기 설정은 청능사와 상의하세요.', 'These results are not a medical diagnosis. Talk to your audiologist before changing any processor settings.'));
   $('#endNotes').innerHTML = notes.map(t => `<p>${esc(t)}</p>`).join('') + focusHtml(sess);
   $('#againBox').hidden = !offers;
   $('#againText').innerHTML = offers ? offerText(S.offer) : '';
-  $('#sendState').textContent = '';
-  $('#shareFile').hidden = !canShareFile();
-  showPage('pgEnd');
+  if (!opt.keepState) $('#sendState').textContent = '';
+  $('#shareFile').hidden = !canShareFile('TMTF.json', 'application/json');
+  $('#shareReport').hidden = !canShareFile('TMTF_report.html', 'text/html');
+  showPage('pgEnd', opt);
 }
 // 끝 질문(고르지 않으면 null) — 이 화면에서 방금 끝낸 회기에만, 화면에 보였을 때만 답으로 침
 let JUST = null;
@@ -826,13 +914,13 @@ const evTo = (sess, type, detail = {}) => { sess.events.push({ t: iso(), s: null
 function focusHtml(sess) {
   if (JUST !== sess) return '';
   sess.focusEndShown = true;
-  return `<div class="mt"><p><b>오늘 집중은 어땠나요?</b> <span class="opt">(안 골라도 됩니다)</span></p><div class="choices three" id="focusPick">${Object.entries(FOCUS).map(([k, t]) => `<button class="choice${sess.focusEnd === k ? ' on' : ''}" data-v="${k}">${esc(t)}</button>`).join('')}</div></div>`;
+  return `<div class="mt"><p><b>${tx('오늘 집중은 어땠나요?', 'How was your focus today?')}</b> <span class="opt">${tx('(안 골라도 됩니다)', '(optional)')}</span></p><div class="choices three" id="focusPick" role="group" aria-label="${tx('집중도', 'Focus')}">${Object.keys(FOCUS).map(k => `<button class="choice${sess.focusEnd === k ? ' on' : ''}" data-v="${k}" aria-pressed="${sess.focusEnd === k ? 'true' : 'false'}">${esc(focusName(k))}</button>`).join('')}</div></div>`;
 }
 $('#endNotes').addEventListener('click', e => {
   const b = e.target.closest ? e.target.closest('.choice') : e.target;
   if (!b || !b.dataset || !b.dataset.v || !SHOWN || JUST !== SHOWN) return;
   SHOWN.focusEnd = b.dataset.v; SHOWN.focusEndAt = iso();
-  $$('#focusPick .choice').forEach(x => x.classList.toggle('on', x.dataset.v === SHOWN.focusEnd));
+  $$('#focusPick .choice').forEach(x => { const on = x.dataset.v === SHOWN.focusEnd; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); });
   if (S && S.session === SHOWN) logEv('focus-end', { v: SHOWN.focusEnd }); else evTo(SHOWN, 'focus-end', { v: SHOWN.focusEnd });
   saveStore();
 });
@@ -853,36 +941,45 @@ function download(name, text, type) {
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 function saveFile(sessions, kind) {
-  if (!sessions.length) { alert('저장할 결과가 없습니다.'); return; }
+  if (!sessions.length) { alert(tx('저장할 결과가 없습니다.', 'There are no results to save.')); return; }
   const name = fileNameFor(sessions, kind);
   download(name, JSON.stringify(exportObj(sessions), null, 1), 'application/json');
   for (const s of sessions) { (s.exports ||= []).push({ at: iso(), how: kind === 'all' ? 'file-all' : 'file', name }); }
   saveStore();
   return name;
 }
-function canShareFile() {
-  try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [new File(['{}'], 'TMTF.json', { type: 'application/json' })] })); } catch { return false; }
+function canShareFile(name = 'TMTF.json', type = 'application/json') {
+  try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [new File(['{}'], name, { type })] })); } catch { return false; }
 }
 function summaryText(sess) {
-  const lines = ['소리 떨림 검사 결과 (TMTF)', [sess.code || '번호 없음', EAR[sess.ear] || '', PATH[sess.path] || '', localTime(sess.start)].filter(Boolean).join(' · ')];
+  const lines = [tx('소리 떨림 검사 결과 (TMTF)', 'Sound Flutter Test Results (TMTF)'), [sess.code || tx('번호 없음', 'No ID'), earName(sess.ear), pathName(sess.path), localTime(sess.start)].filter(Boolean).join(' · ')];
   for (const { fm, rs } of byFm(sess.runs || [])) lines.push(`${fm} Hz: ` + rs.map(r => { const v = verdict(r); return v.kind === 'num' ? `${v.main} (${v.sub})` : v.main; }).join(' / '));
-  lines.push(`(앱 ${APP_VERSION})`);
+  lines.push(`(${tx('앱', 'App')} ${APP_VERSION})`);
   return lines.join('\n');
 }
-$('#saveFile').onclick = () => { if (!SHOWN) return; const name = saveFile([SHOWN], 'one'); if (name) $('#sendState').textContent = `저장했습니다: ${name} (다운로드 폴더)`; };
+$('#saveFile').onclick = () => { if (!SHOWN) return; const name = saveFile([SHOWN], 'one'); if (name) $('#sendState').textContent = tx(`저장했습니다: ${name} (다운로드 폴더)`, `Saved: ${name} (Downloads folder)`); };
 $('#saveReport').onclick = () => {
   if (!SHOWN) return;
   const name = saveSpecialistReport([SHOWN], 'one', null, true);
-  if (name) $('#sendState').textContent = `저장했습니다: ${name} (브라우저에서 열어 인쇄·PDF로 저장해 전문가께 전달할 수 있습니다)`;
+  if (name) $('#sendState').textContent = tx(`저장했습니다: ${name} (브라우저에서 열어 인쇄·PDF로 저장해 전문가께 전달할 수 있습니다)`, `Saved: ${name} (open in a browser to print or save as PDF for your audiologist or CI engineer)`);
 };
 $('#shareFile').onclick = async () => {
   if (!SHOWN) return;
   const name = fileNameFor([SHOWN], 'one'), file = new File([JSON.stringify(exportObj([SHOWN]), null, 1)], name, { type: 'application/json' });
   try {
-    await navigator.share({ files: [file], title: '소리 떨림 검사 결과', text: summaryText(SHOWN) });
+    await navigator.share({ files: [file], title: tx('소리 떨림 검사 결과', 'Sound Flutter Test Results'), text: summaryText(SHOWN) });
     (SHOWN.exports ||= []).push({ at: iso(), how: 'share', name }); saveStore();
-    $('#sendState').textContent = '보냈습니다.';
-  } catch (e) { $('#sendState').textContent = e && e.name === 'AbortError' ? '' : '바로 보내기가 되지 않습니다. ‘결과 파일 저장’을 눌러 주세요.'; }
+    $('#sendState').textContent = tx('보냈습니다.', 'Shared.');
+  } catch (e) { $('#sendState').textContent = e && e.name === 'AbortError' ? '' : tx('바로 보내기가 되지 않습니다. ‘결과 파일 저장’을 눌러 주세요.', 'Direct sharing is unavailable. Please tap “Save result file”.'); }
+};
+$('#shareReport').onclick = async () => {
+  if (!SHOWN) return;
+  const name = reportFileNameFor([SHOWN], 'one'), file = new File([specialistReportHtml([SHOWN])], name, { type: 'text/html' });
+  try {
+    await navigator.share({ files: [file], title: tx('소리 떨림 검사 전문가 참고 보고서', 'Sound Flutter Test Specialist Reference Report'), text: summaryText(SHOWN) });
+    (SHOWN.exports ||= []).push({ at: iso(), how: 'share-report', name }); saveStore();
+    $('#sendState').textContent = tx('전문가용 보고서를 보냈습니다.', 'Specialist report shared.');
+  } catch (e) { $('#sendState').textContent = e && e.name === 'AbortError' ? '' : tx('바로 보내기가 되지 않습니다. ‘전문가용 보고서 저장’을 눌러 주세요.', 'Direct sharing is unavailable. Please tap “Save specialist report”.'); }
 };
 $('#copyText').onclick = async () => {
   if (!SHOWN) return;
@@ -893,11 +990,29 @@ $('#copyText').onclick = async () => {
     try { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch { }
   }
   if (ok) { (SHOWN.exports ||= []).push({ at: iso(), how: 'copy-text' }); saveStore(); }
-  $('#sendState').textContent = ok ? '결과 글을 복사했습니다. 카톡 창에 붙여 넣으세요. (자세한 기록은 파일에만 있습니다)' : '복사가 되지 않습니다. ‘결과 파일 저장’을 눌러 주세요.';
+  $('#sendState').textContent = ok ? tx('결과 글을 복사했습니다. 카톡 창에 붙여 넣으세요. (자세한 기록은 파일에만 있습니다)', 'Summary copied. Paste it into a message. (Full trial data is only in the saved file.)') : tx('복사가 되지 않습니다. ‘결과 파일 저장’을 눌러 주세요.', 'Copy failed. Please tap “Save result file”.');
 };
 
 /* ───────────── 받은 결과 보기 (검사를 보낸 분용) ───────────── */
-const VIEW = { sessions: [] };
+const VIEW = { sessions: [], rendered: new Set() };
+// 공통 헬퍼: 모르겠음(u=1) 제외 자리별 맞힘 · build 무결성 문자열 · 주파수별 대표값
+function posStats(run) {
+  const chosen = (run.trials || []).filter(t => !t.u);
+  return [0, 1, 2].map(k => { const tt = chosen.filter(t => t.tg === k); return tt.length ? `${tt.filter(t => t.c).length}/${tt.length}` : '-'; }).join(' · ');
+}
+function buildStatusHtml(s) {
+  const vs = s.build?.verified?.status, df = s.build?.differ;
+  return (vs === 'pass' || vs === 'pass-code' ? `<span class="good">${esc(VERIFIED_TXT[vs])}</span>` : s.build?.sha256 ? esc(VERIFIED_TXT[vs] || '검산 기록과 다른 코드') + (s.build.verified?.differ?.length ? ` (${esc(s.build.verified.differ.join(', '))})` : '') : '코드 확인 못 함(파일로 연 화면 등)')
+    + (df && df.length ? ` · 화면이 받은 파일 ≠ 서버 파일: ${esc(df.join(', '))}` : '');
+}
+function repThrOf(rs) {
+  if (!rs || !rs.length) return null;
+  if (rs.some(r => r.ceiling || r.thr === null || r.thr === undefined)) return { kind: 'ceil', n: rs.length };
+  const norm = rs.filter(r => !r.atChance && !r.incomplete).map(r => r.thr);
+  if (norm.length === rs.length) return { kind: 'num', thr: meanOf(norm), n: norm.length };
+  const nums = rs.map(r => r.thr);
+  return { kind: 'ref', thr: meanOf(nums), n: nums.length };
+}
 // 기록된 답으로 계단을 다시 돌려 깊이 · 반전 · 역치 · 멈춤이 저장값과 같은지
 function replayCheck(run, P) {
   try {
@@ -934,35 +1049,122 @@ function stairSvg(run) {
 function viewSessHtml(s, src) {
   const runs = (s.runs || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
   const P = s.P || snapP(PR);
-  const vs = s.build?.verified?.status, df = s.build?.differ;
-  const vf = (vs === 'pass' || vs === 'pass-code' ? `<span class="good">${esc(VERIFIED_TXT[vs])}</span>` : s.build?.sha256 ? esc(VERIFIED_TXT[vs] || '검산 기록과 다른 코드') + (s.build.verified?.differ?.length ? ` (${esc(s.build.verified.differ.join(', '))})` : '') : '코드 확인 못 함(파일로 연 화면 등)')
-    + (df && df.length ? ` · 화면이 받은 파일 ≠ 서버 파일: ${esc(df.join(', '))}` : '');
+  const vf = buildStatusHtml(s);
   const rowsH = runs.map(r => {
     const v = verdict(r), rp = replayCheck(r, r.P || P), rm = rmsCheck(r);
-    const chosen = (r.trials || []).filter(t => !t.u);
-    const pos = [0, 1, 2].map(k => { const tt = chosen.filter(t => t.tg === k); return tt.length ? `${tt.filter(t => t.c).length}/${tt.length}` : '-'; }).join(' · ');
-    return `<tr><td>${r.round || 1}${r.extra ? '+' : ''}</td><td>${r.fm}</td><td>${r.thr ?? ''}</td><td>${esc(v.main)}</td><td>${r.ceiling ? '재지 못함' : r.atChance ? '우연 수준' : r.incomplete ? '미완' : ''}</td>
+    const pos = posStats(r);
+    return `<tr><td>${r.round || 1}${r.extra ? '+' : ''}</td><td>${r.fm}</td><td>${r.thr ?? ''}</td><td>${esc(v.main)}</td><td>${r.ceiling ? tx('재지 못함', 'Ceiling') : r.atChance ? tx('우연 수준', 'At chance') : r.incomplete ? tx('미완', 'Incomplete') : ''}</td>
       <td>${r.k0}/${r.n0}${r.pChance !== null && r.pChance !== undefined ? ` (p ${(+r.pChance).toFixed(3)})` : ''}</td><td>${r.sd ?? ''}</td><td>${r.nTrials}</td><td>${r.nDunno}</td><td>${r.durS !== undefined ? (r.durS / 60).toFixed(1) : ''}</td>
-      <td class="${rp.ok ? 'good' : 'bad'}">${rp.ok ? '같음' : esc(rp.why)}</td><td class="${rm.ok ? 'good' : 'bad'}">${rm.ok ? '같음' : `차 ${rm.worst} dB${rm.scaled ? ` · 줄임 ${rm.scaled}` : ''}`}</td><td>${pos}</td></tr>`;
+      <td class="${rp.ok ? 'good' : 'bad'}">${rp.ok ? tx('같음', 'Match') : esc(rp.why)}</td><td class="${rm.ok ? 'good' : 'bad'}">${rm.ok ? tx('같음', 'Match') : `차 ${rm.worst} dB${rm.scaled ? ` · 줄임 ${rm.scaled}` : ''}`}</td><td>${pos}</td></tr>`;
   }).join('');
   const ab = (s.events || []).filter(e => e.type === 'track-abandoned').length, gaps = (s.events || []).filter(e => e.type === 'keep-gap-start').length;
-  const meta = [`${esc(localTime(s.start))} – ${s.end ? esc(localTime(s.end)) : '끝 없음'}`, esc(s.endReason || ''), `앱 ${esc(s.app || '')}`, vf,
-    `표본화 ${s.env?.audio?.sampleRate ?? '?'} Hz`, `볼륨 ${s.osVolume ?? '모름'}`, `연습 ${(s.practiceTrials || []).length}번`, ab ? `버린 측정 ${ab}` : '', gaps ? `<span class="bad">출력 끊김 ${gaps}번</span>` : '',
-    s.focusEnd ? `집중 ${esc(FOCUS[s.focusEnd] || s.focusEnd)}` : '', s.info && (s.info.age || s.info.ciYears || s.info.onset || s.info.maker) ? `나이 ${esc(s.info.age || '-')} · 사용 ${esc(s.info.ciYears || '-')} · 시작 ${esc(s.info.onset || '-')} · 회사 ${esc(s.info.maker || '-')}` : '',
-    s.info?.note ? `메모: ${esc(s.info.note)}` : '', src ? `파일 ${esc(src)}` : ''].filter(Boolean).join(' · ');
-  return `<div class="card vsess"><h3>${esc(s.code || '번호 없음')} · ${esc(EAR[s.ear] || s.ear || '')} · ${esc(PATH[s.path] || s.path || '')}</h3><p class="meta">${meta}</p>
-    <div class="tablewrap"><table class="tbl dense"><tr><th>바퀴</th><th>Hz</th><th>역치 dB</th><th>깊이</th><th>표시</th><th>0 dB 맞힘</th><th>반전 SD</th><th>시행</th><th>모르겠음</th><th>분</th><th>계단 다시</th><th>구간 세기</th><th>자리별 맞힘 1·2·3 (모르겠음 제외)</th></tr>${rowsH}</table></div>
+  const meta = [`${esc(localTime(s.start))} – ${s.end ? esc(localTime(s.end)) : tx('끝 없음', 'no end')}`, esc(s.endReason || ''), `${tx('앱', 'App')} ${esc(s.app || '')}`, vf,
+    `${tx('표본화', 'SR')} ${s.env?.audio?.sampleRate ?? '?'} Hz`, `${tx('볼륨', 'Vol')} ${s.osVolume ?? tx('모름', '?')}`, `${tx('연습', 'Practice')} ${(s.practiceTrials || []).length}`, ab ? `${tx('버린 측정', 'Abandoned')} ${ab}` : '', gaps ? `<span class="bad">${tx('출력 끊김', 'Audio gaps')} ${gaps}</span>` : '',
+    s.focusEnd ? `${tx('집중', 'Focus')} ${esc(focusName(s.focusEnd))}` : '', s.info && (s.info.age || s.info.ciYears || s.info.onset || s.info.maker) ? `나이 ${esc(s.info.age || '-')} · 사용 ${esc(s.info.ciYears || '-')} · 시작 ${esc(s.info.onset || '-')} · 회사 ${esc(s.info.maker || '-')}` : '',
+    s.info?.note ? `${tx('메모', 'Note')}: ${esc(s.info.note)}` : '', src ? `${tx('파일', 'File')} ${esc(src)}` : ''].filter(Boolean).join(' · ');
+  return `<div class="card vsess"><h3>${esc(s.code || tx('번호 없음', 'No ID'))} · ${esc(earName(s.ear))} · ${esc(pathName(s.path))}</h3><p class="meta">${meta}</p>
+    <div class="tablewrap"><table class="tbl dense"><tr><th>${tx('바퀴', 'Rnd')}</th><th>Hz</th><th>${tx('역치 dB', 'Thr dB')}</th><th>${tx('깊이', 'Depth')}</th><th>${tx('표시', 'Flag')}</th><th>${tx('0 dB 맞힘', '0 dB')}</th><th>${tx('반전 SD', 'SD')}</th><th>${tx('시행', 'Trials')}</th><th>${tx('모르겠음', 'Unsure')}</th><th>${tx('분', 'Min')}</th><th>${tx('계단 다시', 'Replay')}</th><th>${tx('구간 세기', 'RMS')}</th><th>${tx('자리별 맞힘 1·2·3 (모르겠음 제외)', 'Interval 1·2·3 (excl. unsure)')}</th></tr>${rowsH}</table></div>
     ${chartHtml(s)}
-    <div class="stairs">${runs.map(r => `<figure>${stairSvg(r)}<figcaption>${r.fm} Hz · ${r.round || 1}바퀴${r.extra ? '(더)' : ''} · ${esc(verdict(r).main)}</figcaption></figure>`).join('')}</div></div>`;
+    <div class="stairs">${runs.map(r => `<figure>${stairSvg(r)}<figcaption>${r.fm} Hz · ${r.round || 1}${tx('바퀴', 'R')}${r.extra ? tx('(더)', '+') : ''} · ${esc(verdict(r).main)}</figcaption></figure>`).join('')}</div></div>`;
 }
-function renderViewer() {
-  $('#vList').innerHTML = VIEW.sessions.map(x => viewSessHtml(x.s, x.src)).join('');
+// 같은 참가 번호 회기 묶어 비교 (색 + 선 모양 + 기호를 함께 구분)
+const COMP_STYLES = [
+  { col: '#1366d6', dash: '', sym: '●', mk: (x, y, c) => `<circle cx="${x}" cy="${y}" r="5.5" fill="${c}" stroke="var(--panel)" stroke-width="1.5"/>` },
+  { col: '#0e7a48', dash: '6 4', sym: '■', mk: (x, y, c) => `<rect x="${x - 4.8}" y="${y - 4.8}" width="9.6" height="9.6" fill="${c}" stroke="var(--panel)" stroke-width="1.5"/>` },
+  { col: '#b45309', dash: '2 3', sym: '▲', mk: (x, y, c) => `<path d="M${x},${y - 6} L${x + 6},${y + 5} L${x - 6},${y + 5} Z" fill="${c}" stroke="var(--panel)" stroke-width="1.5"/>` },
+  { col: '#7c3aed', dash: '8 3 2 3', sym: '◆', mk: (x, y, c) => `<path d="M${x},${y - 6} L${x + 6},${y} L${x},${y + 6} L${x - 6},${y} Z" fill="${c}" stroke="var(--panel)" stroke-width="1.5"/>` },
+];
+function compareChartSvg(items, fms) {
+  if (!fms.length) return '';
+  const W = 680, H = 290, L = 62, R = 20, T = 18, B = 48;
+  const lo = Math.log(Math.min(...fms) / 1.5), hi = Math.log(Math.max(...fms) * 1.5);
+  const allThr = items.flatMap(it => (it.s.runs || []).filter(r => !r.ceiling && r.thr !== null && r.thr !== undefined).map(r => r.thr));
+  const minDb = Math.min(-30, Math.floor(Math.min(0, ...allThr) / 6) * 6);
+  const x = f => L + (W - L - R) * (Math.log(f) - lo) / (hi - lo || 1);
+  const y = d => T + (H - T - B) * (1 - d / minDb);
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${tx('같은 참가 번호 회기 비교 그림', 'Session comparison chart')}">`;
+  for (let d = 0; d >= minDb; d -= 6) s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}"/><text class="tick" x="${L - 8}" y="${y(d) + 4}" text-anchor="end">${d} dB</text>`;
+  for (const f of fms) s += `<line class="grid" x1="${x(f)}" x2="${x(f)}" y1="${T}" y2="${H - B}"/><text class="tick" x="${x(f)}" y="${H - B + 18}" text-anchor="middle">${f}</text>`;
+  s += `<text class="axl" x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle">${tx('떨림 빠르기 (Hz)', 'Flutter rate (Hz)')}</text>`;
+  items.forEach((it, idx) => {
+    const st = COMP_STYLES[idx % COMP_STYLES.length], map = new Map(byFm(it.s.runs || []).map(x => [x.fm, x.rs])), pts = [];
+    for (const fm of fms) {
+      const rep = repThrOf(map.get(fm));
+      if (!rep) continue;
+      if (rep.kind === 'num') pts.push([x(fm), y(rep.thr)]);
+      else if (rep.kind === 'ceil') { const cx = x(fm), cy = y(0) - 2 - idx * 3; s += `<path d="M${cx - 6},${cy - 10} L${cx + 6},${cy - 10} L${cx},${cy} Z" fill="none" stroke="${st.col}" stroke-width="2"/>`; }
+    }
+    if (pts.length > 1) s += `<polyline fill="none" stroke="${st.col}" stroke-width="2.4" ${st.dash ? `stroke-dasharray="${st.dash}"` : ''} points="${pts.map(p => p.join(',')).join(' ')}"/>`;
+    for (const p of pts) s += st.mk(p[0], p[1], st.col);
+  });
+  return s + '</svg>';
+}
+function groupCompareHtml(code, items) {
+  const fms = [...new Set(items.flatMap(it => (it.s.runs || []).map(r => r.fm)))].sort((a, b) => a - b);
+  const maps = items.map(it => new Map(byFm(it.s.runs || []).map(x => [x.fm, x.rs])));
+  const showDiff = items.length === 2;
+  const cols = items.map((it, i) => {
+    const st = COMP_STYLES[i % COMP_STYLES.length];
+    return `<th><span class="cs${i % 4}">${st.sym}</span> #${i + 1} · ${esc(earName(it.s.ear))}<small>${esc(localTime(it.s.start))}</small></th>`;
+  }).join('');
+  const body = fms.map(fm => {
+    const reps = maps.map(m => repThrOf(m.get(fm)));
+    const cells = reps.map(rep => {
+      if (!rep) return '<td>—</td>';
+      if (rep.kind === 'ceil') return `<td>${tx('재지 못함', 'Not measured')}</td>`;
+      const tag = rep.kind === 'ref' ? tx(' · 참고값', ' · ref') : rep.n === 1 ? tx(' (1회)', ' (1 run)') : ` (${rep.n}${tx('회 평균', ' avg')})`;
+      return `<td><b>${rep.thr.toFixed(1)} dB</b><small>${esc(fmtPct(pct(rep.thr)))}${tag}</small></td>`;
+    }).join('');
+    let diffCell = '';
+    if (showDiff) {
+      if (reps[0]?.kind === 'num' && reps[1]?.kind === 'num') {
+        const d = reps[1].thr - reps[0].thr;
+        diffCell = `<td><b>${d >= 0 ? '+' : ''}${d.toFixed(1)} dB</b></td>`;
+      } else diffCell = '<td>—</td>';
+    }
+    return `<tr><td class="hz">${fm} Hz</td>${cells}${diffCell}</tr>`;
+  }).join('');
+  const legend = items.map((it, i) => {
+    const st = COMP_STYLES[i % COMP_STYLES.length];
+    return `<span class="leg-item"><span class="leg-sym cs${i % 4}">${st.sym}</span> #${i + 1} ${esc(earName(it.s.ear))} · ${esc(pathName(it.s.path))} (${esc(localTime(it.s.start))})</span>`;
+  }).join('');
+  return `<div class="card vcomp"><h3>${tx(`참가 번호 ${esc(code)} 묶어 비교 (${items.length}개 회기)`, `Participant ${esc(code)} comparison (${items.length} sessions)`)}</h3>
+    <p class="hint">${tx('정상 측정값만 비교합니다. ‘재지 못함’은 숫자가 아니므로 차이나 평균을 내지 않습니다. (참고용 · 진단 아님)', 'Only normal thresholds are compared. “Not measured” is not numeric and excluded from averages/differences. (Reference only, not a diagnosis.)')}</p>
+    <div class="tablewrap"><table class="tbl dense"><tr><th>Hz</th>${cols}${showDiff ? `<th>${tx('차이 (#2−#1)', 'Diff (#2−#1)')}</th>` : ''}</tr>${body}</table></div>
+    ${compareChartSvg(items, fms)}<div class="legend">${legend}</div></div>`;
+}
+function renderViewerCompare() {
+  const box = $('#vCompare'); if (!box) return;
+  const groups = new Map();
+  for (const it of VIEW.sessions) {
+    const c = String(it.s.code || '').trim();
+    if (!c) continue;
+    if (!groups.has(c)) groups.set(c, []);
+    groups.get(c).push(it);
+  }
+  const multi = [...groups.entries()].filter(([, arr]) => arr.length >= 2);
+  box.innerHTML = multi.map(([code, arr]) => groupCompareHtml(code, arr.slice().sort((a, b) => String(a.s.start).localeCompare(String(b.s.start))))).join('');
+}
+function renderViewer(forceAll = false) {
+  const list = $('#vList');
+  if (forceAll) { VIEW.rendered.clear(); list.innerHTML = ''; }
+  const added = VIEW.sessions.filter(x => !VIEW.rendered.has(x.s.id));
+  if (added.length) {
+    const htmls = added.map(x => { VIEW.rendered.add(x.s.id); return viewSessHtml(x.s, x.src); });
+    if (!list.children.length) list.innerHTML = htmls.join('');
+    else {
+      const w = document.createElement('div');
+      w.innerHTML = htmls.join('');
+      while (w.children.length) list.appendChild(w.children[0]);
+    }
+  }
+  renderViewerCompare();
   $('#vReport').disabled = $('#vCsvRuns').disabled = $('#vCsvTrials').disabled = !VIEW.sessions.length;
 }
 $('#vReport').onclick = () => {
   if (!VIEW.sessions.length) return;
   const name = saveSpecialistReport(VIEW.sessions.map(x => x.s), VIEW.sessions.length > 1 ? 'all' : 'one', VIEW.sessions.map(x => x.src), false);
-  if (name) $('#vState').textContent = `전문가용 보고서를 저장했습니다: ${name}`;
+  if (name) $('#vState').textContent = tx(`전문가용 보고서를 저장했습니다: ${name}`, `Saved specialist report: ${name}`);
 };
 
 /* ───────────── 전문가용 참고 보고서 (.html, 청능사 · 인공와우 엔지니어 전달용 · 참고용) ───────────── */
@@ -1087,7 +1289,7 @@ function reportSessionHtml(s, src, idx, total) {
       if (t.late) lateN++;
       earlySum += t.early || 0;
     }
-    const pos = [0, 1, 2].map(k => { const tt = chosen.filter(t => t.tg === k); return tt.length ? `${tt.filter(t => t.c).length}/${tt.length}` : '-'; }).join(' · ');
+    const pos = posStats(r);
     const rtMed = medianOf(chosen.map(t => t.rt).filter(v => typeof v === 'number' && isFinite(v)));
     const dunnoPct = r.nTrials ? ((100 * (r.nDunno || 0)) / r.nTrials).toFixed(0) + '%' : '0%';
     const thrCell = r.ceiling || r.thr === null || r.thr === undefined ? '재지 못함' : `${r.thr.toFixed(2)} dB (${esc(fmtPct(pct(r.thr)))})`;
@@ -1386,13 +1588,13 @@ $('#vFiles').addEventListener('change', async e => {
     } catch (err) { bad.push(`${f.name}: ${err.message || err}`); }
   }
   e.target.value = '';
-  $('#vState').textContent = `검사 ${n}개를 열었습니다.` + (bad.length ? ` 열지 못한 파일: ${bad.join(' / ')}` : '');
+  $('#vState').textContent = tx(`검사 ${n}개를 열었습니다.`, `Opened ${n} session(s).`) + (bad.length ? tx(` 열지 못한 파일: ${bad.join(' / ')}`, ` Could not open: ${bad.join(' / ')}`) : '');
   renderViewer();
 });
 $('#vLocal').onclick = () => {
   let n = 0;
-  for (const s of DB.sessions) if ((s.runs || []).length && !VIEW.sessions.some(x => x.s.id === s.id)) { VIEW.sessions.push({ s, src: '이 기기' }); n++; }
-  $('#vState').textContent = `이 기기의 검사 ${n}개를 열었습니다.`;
+  for (const s of DB.sessions) if ((s.runs || []).length && !VIEW.sessions.some(x => x.s.id === s.id)) { VIEW.sessions.push({ s, src: tx('이 기기', 'This device') }); n++; }
+  $('#vState').textContent = tx(`이 기기의 검사 ${n}개를 열었습니다.`, `Opened ${n} session(s) from this device.`);
   renderViewer();
 };
 $('#vHome').onclick = () => { renderHome(); showPage('pgHome'); };
@@ -1427,10 +1629,140 @@ $('#vCsvTrials').onclick = () => {
   download(`TMTF_trials_${stamp()}.csv`, '﻿' + lines.join('\n'), 'text/csv');
 };
 
+/* ───────────── 한/영 언어 전환 (?lang=en 또는 상단 단추) ───────────── */
+const UI_TEXT = {
+  ko: {
+    title: '소리 떨림 검사',
+    txt: {
+      appTitle: '소리 떨림 검사', appSub: '인공와우 사용자를 위한 검사',
+      hWhat: '어떤 검사인가요?', hPrep: '준비할 것', hPrep1: '조용한 곳',
+      hPrep3: '평소 쓰는 처리기 프로그램과 볼륨', hPrep4: '컴퓨터를 권합니다. 휴대폰·태블릿도 됩니다.',
+      goSetup: '시작하기', hSaved: '이 기기에 저장된 검사', homeSaveAll: '모두 파일로 저장',
+      goViewer: '받은 결과 파일 보기 (검사를 보낸 분용)',
+      qEar: '어느 쪽 귀로 듣나요?', earHint: '한쪽만 할 때는 반대쪽 처리기나 보청기를 빼 주세요.',
+      qPath: '소리를 어떻게 듣나요?',
+      btNote: '블루투스는 소리 앞부분이 잘릴 수 있어요. 할 수 있으면 선으로 연결하거나 스피커를 써 주세요. 그대로 해도 됩니다.',
+      qCode: '참가 번호', qCodeOpt: '(받은 번호가 있을 때만)', codeHint: '이름은 적지 마세요.',
+      moreSum: '더 알려 주기 (안 해도 됩니다)', lblAge: '나이', lblYears: '이 귀로 인공와우를 쓴 지',
+      lblOnset: '잘 안 들리게 된 때', lblMaker: '처리기 회사', lblNote: '하고 싶은 말 (짧게)',
+      setupBack: '뒤로', setupNext: '다음', setupNeed: '1번과 2번을 골라 주세요.',
+      hSound: '소리 크기 맞추기', snd1: '‘잡음 틀기’를 누르세요. 10초 동안 잡음이 나옵니다.',
+      snd3: '맞춘 뒤에는 검사가 끝날 때까지 볼륨을 바꾸지 마세요.',
+      noisePlay: '잡음 틀기', noiseStop: '멈춤', lblOsVol: '지금 볼륨 숫자 (알면 적어 주세요)',
+      iphoneHint: '아이폰은 옆의 무음 스위치를 꺼야 소리가 납니다.',
+      hDemo: '떨리는 소리 들어 보기', demoMod: '떨리는 소리', demoFlat: '떨리지 않는 소리',
+      demoHint: '떨림이 빠르면 ‘거칠게’ 또는 ‘웅웅’ 하게 들리기도 합니다. 다른 두 소리와 다르게 들리는 것을 고르면 됩니다.',
+      soundBtNote: '블루투스로 연결되어 있어요. ‘떨리는 소리’를 눌렀을 때 소리 앞부분이 뚝 끊기거나 약하게 들리면, 가능하면 선으로 연결하거나 스피커를 써 주세요.',
+      volOkLbl: '편한 크기로 맞췄어요', soundBack: '뒤로', soundNext: '연습하러 가기',
+      stopBtn: '그만', dunno: '모르겠음', keysHint: '키보드: 1 · 2 · 3, 모르겠음은 0',
+      bEnd: '오늘은 여기까지', bPractice: '연습 한 번 더',
+      againBtn: '한 번 더 하기', finishBtn: '여기서 마치기',
+      hSend: '결과 보내기', sendDesc: '‘결과 파일 저장’은 전체 기록 파일(.json), ‘전문가용 보고서 저장’은 청능사·엔지니어께 보여 드릴 참고 문서(.html, 인쇄·PDF 가능)입니다.',
+      saveFile: '결과 파일 저장', saveReport: '전문가용 보고서 저장', shareFile: '바로 보내기', shareReport: '보고서 바로 보내기', copyText: '결과 글 복사', toHome: '처음으로',
+      hViewer: '받은 결과 파일 보기', vDesc: '참가자가 보낸 결과 파일(.json)을 고르면 여기서 열어 봅니다. 파일은 이 화면 안에서만 읽고, 어디로도 보내지 않습니다.',
+      vFilesLbl: '파일 고르기', vLocal: '이 기기에 저장된 검사', vReport: '전문가용 보고서 저장', vCsvRuns: '측정 CSV 저장', vCsvTrials: '시행 CSV 저장', vHome: '처음으로',
+    },
+    html: {
+      hWhat1: '잡음 소리 <b>세 개</b>를 차례로 들려 드립니다. 그중 <b>하나만 떨립니다.</b>',
+      hWhat2: '떨리는 소리가 <b>몇 번째</b>인지 고르면 됩니다.',
+      hWhat3: '처음에는 쉽고, 맞힐수록 떨림이 약해져 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 고르세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 누르세요.',
+      hNotice1: '이 검사는 <b>진단이 아닙니다.</b> 결과를 보고 처리기 설정을 바꾸려면 청능사와 상의하세요.',
+      hNotice2: '이름이나 연락처는 묻지 않습니다. 결과는 이 기기의 브라우저에만 저장되고, <b>‘결과 파일 저장’을 직접 눌러야만</b> 밖으로 나갑니다.',
+      snd2: '컴퓨터(휴대폰) 볼륨을 움직여 <b>편하게 잘 들리는 크기</b>로 맞추세요. 너무 크게 하지 마세요.',
+      askText: '세 소리 중 <b>떨리는 소리</b>는 몇 번째인가요?',
+    },
+    steps: ['준비', '소리 맞추기', '연습 · 검사'],
+    ear: EAR, path: { ...PATH, wired: '선으로 처리기에 연결 (오디오 케이블·유선 스트리머)' }, age: AGE_LBL, years: YEARS_LBL, onset: ONSET_LBL, maker: MAKER_LBL, none: '고르지 않음',
+    codePh: '예: P02', ivAria: ['1번', '2번', '3번'], progAria: '진행률',
+  },
+  en: {
+    title: 'Sound Flutter Test',
+    txt: {
+      appTitle: 'Sound Flutter Test', appSub: 'A listening test for cochlear implant users',
+      hWhat: 'How does it work?', hPrep: 'Before you start', hPrep1: 'A quiet room',
+      hPrep3: 'Your everyday processor program and volume', hPrep4: 'A computer works best. Phones and tablets also work.',
+      goSetup: 'Start', hSaved: 'Saved tests on this device', homeSaveAll: 'Save all to file',
+      goViewer: 'View received result files (for clinicians / researchers)',
+      qEar: 'Which ear are you testing?', earHint: 'If testing one ear, please take off the processor or hearing aid on the other side.',
+      qPath: 'How are you listening?',
+      btNote: 'Bluetooth may clip the start of sounds. Use a wired connection or speaker if you can, though Bluetooth still works.',
+      qCode: 'Participant ID', qCodeOpt: '(only if you were given one)', codeHint: 'Please do not enter your name.',
+      moreSum: 'Optional info (you can skip this)', lblAge: 'Age group', lblYears: 'Years using CI in this ear',
+      lblOnset: 'When hearing loss started', lblMaker: 'Processor brand', lblNote: 'Short note (optional)',
+      setupBack: 'Back', setupNext: 'Next', setupNeed: 'Please choose answers for 1 and 2.',
+      hSound: 'Set a comfortable volume', snd1: 'Tap “Play noise”. A steady noise plays for 10 seconds.',
+      snd3: 'Once set, please keep the volume the same until the test finishes.',
+      noisePlay: 'Play noise', noiseStop: 'Stop', lblOsVol: 'Current device volume number (if known)',
+      iphoneHint: 'On iPhone, switch off the side silent toggle so sound can play.',
+      hDemo: 'Hear an example', demoMod: 'Fluttering sound', demoFlat: 'Steady sound',
+      demoHint: 'Faster flutter can sound rough or buzzing. Just pick whichever sound feels different from the other two.',
+      soundBtNote: 'You selected Bluetooth. If the beginning of “Fluttering sound” feels cut off or quiet, please try a wired connection or speaker if possible.',
+      volOkLbl: 'Volume is comfortable', soundBack: 'Back', soundNext: 'Go to practice',
+      stopBtn: 'Stop', dunno: 'Not sure', keysHint: 'Keyboard: 1 · 2 · 3, Not sure: 0',
+      bEnd: 'Finish for today', bPractice: 'Practice again',
+      againBtn: 'Do one more round', finishBtn: 'Finish here',
+      hSend: 'Share your results', sendDesc: '“Save result file” downloads the full data (.json). “Save specialist report” saves a printable/PDF reference report (.html) for your audiologist or CI engineer.',
+      saveFile: 'Save result file', saveReport: 'Save specialist report', shareFile: 'Share file', shareReport: 'Share report', copyText: 'Copy summary text', toHome: 'Home',
+      hViewer: 'View received result files', vDesc: 'Open participant .json result files here. Everything stays in your browser and is never uploaded.',
+      vFilesLbl: 'Choose files', vLocal: 'Saved on this device', vReport: 'Save specialist report', vCsvRuns: 'Export runs CSV', vCsvTrials: 'Export trials CSV', vHome: 'Home',
+    },
+    html: {
+      hWhat1: 'You will hear <b>three</b> noise sounds in a row. Only <b>one of them flutters.</b>',
+      hWhat2: 'Pick <b>which one</b> was the fluttering sound.',
+      hWhat3: 'It starts easy and gets harder as you get answers right. <b>If you notice even a tiny flutter, pick that number.</b> Only press “Not sure” when all three sounds feel completely identical.',
+      hNotice1: 'This test is <b>not a medical diagnosis.</b> Talk to your audiologist before changing any processor settings.',
+      hNotice2: 'We never ask for your name or contact details. Results stay only in this browser and leave <b>only when you tap “Save result file”.</b>',
+      snd2: 'Adjust your device volume to a <b>comfortable, clearly audible level</b>. Do not make it too loud.',
+      askText: 'Which of the three sounds was <b>fluttering</b>?',
+    },
+    steps: ['Setup', 'Volume', 'Practice & test'],
+    ear: EAR_EN, path: PATH_EN, age: AGE_EN, years: YEARS_EN, onset: ONSET_EN, maker: MAKER_EN, none: 'Not selected',
+    codePh: 'e.g. P02', ivAria: ['Sound 1', 'Sound 2', 'Sound 3'], progAria: 'Progress',
+  },
+};
+function setSelectLabels(id, map, noneTxt) {
+  const el = $('#' + id); if (!el) return;
+  for (const o of el.querySelectorAll('option')) {
+    const v = o.getAttribute('value');
+    if (v === '') o.textContent = noneTxt;
+    else if (map[v]) o.textContent = map[v];
+  }
+}
+function applyLang(lang, rerender = true) {
+  LANG = lang === 'en' ? 'en' : 'ko';
+  const L = UI_TEXT[LANG];
+  if (document.documentElement) document.documentElement.setAttribute('lang', LANG);
+  document.title = L.title;
+  const lt = $('#langToggle');
+  if (lt) { lt.textContent = LANG === 'en' ? 'KO' : 'EN'; lt.setAttribute('aria-label', LANG === 'en' ? 'Switch to Korean' : 'Switch to English'); }
+  for (const [id, v] of Object.entries(L.txt)) { const el = $('#' + id); if (el) el.textContent = v; }
+  for (const [id, v] of Object.entries(L.html)) { const el = $('#' + id); if (el) el.innerHTML = v; }
+  $$('.st-l1').forEach(el => { el.textContent = L.steps[0]; });
+  $$('.st-l2').forEach(el => { el.textContent = L.steps[1]; });
+  $$('.st-l3').forEach(el => { el.textContent = L.steps[2]; });
+  $$('#earPick .choice').forEach(b => { if (L.ear[b.dataset.v]) b.textContent = L.ear[b.dataset.v]; });
+  $$('#pathPick .choice').forEach(b => { if (L.path[b.dataset.v]) b.textContent = L.path[b.dataset.v]; });
+  setSelectLabels('infoAge', L.age, L.none);
+  setSelectLabels('infoYears', L.years, L.none);
+  setSelectLabels('infoOnset', L.onset, L.none);
+  setSelectLabels('infoMaker', L.maker, L.none);
+  const ci = $('#codeIn'); if (ci) ci.setAttribute('placeholder', L.codePh);
+  IV_BTNS.forEach((b, i) => b.setAttribute('aria-label', L.ivAria[i]));
+  const pw = $('#progWrap'); if (pw) pw.setAttribute('aria-label', L.progAria);
+  renderFmInfo();
+  if (rerender) {
+    renderHome();
+    syncSetup();
+    if (SHOWN && $('#pgEnd').classList.contains('on')) showEnd(SHOWN, { offers: !!(S && S.session === SHOWN && S.offer), noScroll: true, noFocus: true, keepState: true });
+    if (VIEW.sessions.length) renderViewer(true);
+  }
+}
+$('#langToggle').onclick = () => applyLang(LANG === 'en' ? 'ko' : 'en', true);
+
 /* ───────────── 처음 ───────────── */
 loadStore();
 closeOrphans();
 if (LINK.code) $('#codeIn').value = LINK.code;
-$('#fmInfo').textContent = `검사할 떨림 빠르기: ${PLAN_FMS.join(' · ')} Hz${LINK.fms ? ' (받은 링크에 적힌 값)' : ''}`;
+if (LANG === 'en') applyLang('en', false); else renderFmInfo();
 renderHome();
 (async () => { BUILD_LOAD = await computeBuild('force-cache'); })();

@@ -536,6 +536,86 @@ globalThis.__scope = (async () => {
       globalThis.fetch = oFetch;
     }
   });
+  await tryOk('1.1.0 인앱 브라우저 감지 · 블루투스 소리 맞추기 안내 · 접근성(aria-pressed · progressbar)', () => {
+    const inK = inAppBrowser('Mozilla/5.0 KAKAOTALK 10.0') === '카카오톡';
+    const inN = inAppBrowser('Mozilla/5.0 NAVER(inapp)') === '네이버 앱';
+    const inC = inAppBrowser('Mozilla/5.0 Chrome/120.0 Safari/537.36') === null;
+    const earPressed = $$('#earPick .choice').filter(b => b.getAttribute('aria-pressed') === 'true').length === 1;
+    const pw = $('#progWrap');
+    const progOk = pw && pw.getAttribute('role') === 'progressbar' && pw.getAttribute('aria-valuenow') !== null;
+    const prevPath = PRE.path;
+    PRE.path = 'bt'; syncSetup();
+    const btShown = !$('#btNote').hidden && !$('#soundBtNote').hidden;
+    PRE.path = prevPath; syncSetup();
+    const btHidden = $('#btNote').hidden && $('#soundBtNote').hidden;
+    return [inK && inN && inC && earPressed && progOk && btShown && btHidden, `${inK} ${inN} ${inC} ${earPressed} ${progOk} ${btShown} ${btHidden}`];
+  });
+  await tryOk('1.1.0 모바일 보고서 공유(#shareReport) · 저장 용량 경고 · 지연 저장(scheduleSave/flushSave)', async () => {
+    const oCan = navigator.canShare, oSh = navigator.share;
+    let sharedName = null;
+    try {
+      Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true, writable: true });
+      Object.defineProperty(navigator, 'share', { value: async o => { sharedName = o.files?.[0]?.name || null; }, configurable: true, writable: true });
+      SHOWN = sess;
+      const canHtml = canShareFile('TMTF_report.html', 'text/html');
+      await $('#shareReport').onclick();
+      const logged = sess.exports.some(x => x.how === 'share-report' && x.name === sharedName);
+      // 용량 경고 확인
+      const keepB = STORE.bytes;
+      STORE.bytes = STORE_WARN_BYTES + 100; renderEnvWarn();
+      const sizeWarned = !$('#envWarn').hidden && $('#envWarn').textContent.includes('모두 파일로 저장');
+      STORE.bytes = keepB; renderEnvWarn();
+      // 지연 저장 → flushSave 즉시 반영
+      scheduleSave(60000);
+      const dirtyBefore = saveDirty;
+      flushSave();
+      const dirtyAfter = saveDirty;
+      return [canHtml && /^TMTF_report_P02_R_.*\.html$/.test(sharedName || '') && logged && sizeWarned && $('#envWarn').hidden && dirtyBefore && !dirtyAfter, `${sharedName} ${logged} ${sizeWarned}`];
+    } finally {
+      Object.defineProperty(navigator, 'canShare', { value: oCan, configurable: true, writable: true });
+      Object.defineProperty(navigator, 'share', { value: oSh, configurable: true, writable: true });
+    }
+  });
+  await tryOk('1.1.0 유휴 시 KEEPMON 절전(S 없을 때 32,768샘플 오디오 복사 건너뜀)', () => {
+    let copied = 0;
+    const oGet = mon.getFloatTimeDomainData;
+    mon.getFloatTimeDomainData = buf => { copied++; return oGet.call(mon, buf); };
+    try {
+      const m = monitor(false);
+      keepMonTick();   // S === null 이므로 needRms = false
+      return [S === null && m !== null && copied === 0, `copied=${copied}`];
+    } finally {
+      mon.getFloatTimeDomainData = oGet;
+    }
+  });
+  await tryOk('1.1.0 받은 결과 보기: 증분 렌더링 + 같은 참가 번호 묶어 비교(#vCompare · 차이 dB · 겹침 SVG · 재지 못함 제외)', () => {
+    const prevCount = $('#vList').children.length;
+    const firstChildBefore = $('#vList').children[0];
+    const s2 = {
+      id: 'p02-second', code: 'P02', ear: 'L', path: 'wired', start: '2026-11-25T10:00:00+09:00', end: '2026-11-25T10:20:00+09:00',
+      app: APP_VERSION, P: snapP(PR), events: [],
+      runs: [
+        { order: 1, round: 1, fm: 10, thr: -20, sd: 1.2, ceiling: false, n0: 2, k0: 2, nTrials: 30, nDunno: 0, trials: [{ d: 0, tg: 0, a: 0, c: 1, u: 0 }] },
+        { order: 2, round: 1, fm: 200, thr: 0, sd: null, ceiling: true, n0: 4, k0: 0, nTrials: 4, nDunno: 0, trials: [{ d: 0, tg: 0, a: 1, c: 0, u: 0 }] },
+      ],
+    };
+    VIEW.sessions.push({ s: s2, src: 'P02_L.json' });
+    renderViewer();
+    const incOk = $('#vList').children.length === prevCount + 1 && $('#vList').children[0] === firstChildBefore;
+    const cmp = $('#vCompare').innerHTML;
+    const cmpOk = cmp.includes('참가 번호 P02 묶어 비교 (2개 회기)') && cmp.includes('차이 (#2−#1)') && cmp.includes('<svg class="chart"') && cmp.includes('재지 못함');
+    VIEW.sessions.pop(); renderViewer(true);
+    return [incOk && cmpOk && $('#vCompare').innerHTML === '', `inc=${incOk} cmp=${cmpOk}`];
+  });
+  await tryOk('1.1.0 한/영 언어 전환(applyLang · #langToggle): 영어 UI 전환 및 한국어 원복', () => {
+    $('#langToggle').click();
+    const enOk = LANG === 'en' && document.documentElement.getAttribute('lang') === 'en' && $('#goSetup').textContent === 'Start'
+      && $('#dunno').textContent === 'Not sure' && $('#langToggle').textContent === 'KO' && $('#fmInfo').textContent.includes('Flutter rates');
+    $('#langToggle').click();
+    const koOk = LANG === 'ko' && document.documentElement.getAttribute('lang') === 'ko' && $('#goSetup').textContent === '시작하기'
+      && $('#dunno').textContent === '모르겠음' && $('#langToggle').textContent === 'EN' && $('#fmInfo').textContent.includes('검사할 떨림 빠르기');
+    return [enOk && koOk, `en=${enOk} ko=${koOk}`];
+  });
   ok('경고창은 새 판 하나뿐(지문만 다른 것은 경고 없음) · 확인 창은 멈춤 둘뿐', H.dialogs.filter(d => d[0] === 'alert').length === 1 && H.dialogs.filter(d => d[0] === 'confirm').length === 2, JSON.stringify(H.dialogs).slice(0, 200));
   clearInterval(KEEPMON_TIMER);
 })();
