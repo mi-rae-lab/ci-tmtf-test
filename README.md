@@ -133,6 +133,14 @@ tools\전수검산.bat        (또는 python -I -X utf8 tools/run_checks.py)
 | `js/protocols.js` · `js/stim.js` · `js/track.js` | 절차, 자극(씨앗으로 되풀이되는 잡음), 적응 계단 |
 | `tools/` | 전수 검산 (`run_checks.py`, `cross_check.*`, `tmtf_ref.py`, `app_check*.js`, `verify_result.py`, `lean/`) |
 
+## 웹 표준
+
+별도 빌드 도구나 외부 프레임워크 없이 웹 표준을 준수해 제작했습니다.
+
+- **시맨틱 HTML5 · 표준 CSS3:** `<header>`, `<main>`, `<section>`, `<footer>`, `<details>` 등 의미 있는 마크업과 반응형 레이아웃, 시스템 다크 모드(`prefers-color-scheme`), 동작 줄이기(`prefers-reduced-motion`)를 지원합니다.
+- **표준 Web API:** 별도 플러그인이나 외부 스크립트 없이 브라우저 내장 표준 API(Web Audio API, Web Crypto API, Web Storage, Screen Wake Lock, Content Security Policy)만으로 동작합니다.
+- **웹 접근성(WAI-ARIA):** 키보드 조작, 포커스 표시, `role`·`aria-label`·`aria-live`·`aria-pressed`·`aria-current` 속성을 적용하고 색상만으로 정보를 전달하지 않습니다.
+
 ## 참고 문헌
 
 자극·계단 절차의 원문 대조와 차이점은 [방법.md](방법.md)에 정리되어 있습니다.
