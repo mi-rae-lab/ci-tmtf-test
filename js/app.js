@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.0.7 (2026-11-24)';   // 1.0.7: nextFrame() 미해제 타이머·애니메이션 프레임 즉시 해제 최적화
+const APP_VERSION = '1.0.8 (2026-11-24)';   // 1.0.8: computeBuild() 7개 파일 네트워크 요청 병렬화(Promise.all)로 시작 지연 단축
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const STORE_KEY = 'ciTmtf.v1';
@@ -140,20 +140,31 @@ async function computeBuild(mode = 'no-store') {
   try {
     if (location.protocol === 'file:') return { ok: false, error: 'file', mode };
     if (!(window.crypto && crypto.subtle)) return { ok: false, error: 'no-subtle', mode };
+    const recP = fetch('검증_통과.json', { cache: 'no-store' })
+      .then(async r => r.ok ? { rec: await r.json(), err: null } : { rec: null, err: 'http ' + r.status })
+      .catch(e => ({ rec: null, err: String(e && e.message || e) }));
+    const fileRes = await Promise.all(APP_FILES.map(async f => {
+      const r = await fetch(assetUrl(f, mode), { cache: mode });
+      if (!r.ok) return { f, err: `${f}: ${r.status}` };
+      const buf = await r.arrayBuffer();
+      const sha = await sha256Hex(buf);
+      const ver = f === 'js/app.js' ? (/const APP_VERSION = '([^']+)'/.exec(new TextDecoder().decode(buf)) || [])[1] || null : null;
+      return { f, sha, ver, err: null };
+    }));
+    const bad = fileRes.find(x => x.err);
+    if (bad) return { ok: false, error: bad.err, mode };
     const files = {};
     let version = null;
-    for (const f of APP_FILES) {
-      const r = await fetch(assetUrl(f, mode), { cache: mode });
-      if (!r.ok) return { ok: false, error: `${f}: ${r.status}`, mode };
-      const buf = await r.arrayBuffer();
-      files[f] = await sha256Hex(buf);
-      if (f === 'js/app.js') version = (/const APP_VERSION = '([^']+)'/.exec(new TextDecoder().decode(buf)) || [])[1] || null;
+    for (const x of fileRes) {
+      files[x.f] = x.sha;
+      if (x.f === 'js/app.js') version = x.ver;
     }
-    const whole = await sha256Hex(new TextEncoder().encode(Object.keys(files).sort().map(k => `${k}:${files[k]}\n`).join('')));
-    let rec = null, recErr = null;
-    try { const r = await fetch('검증_통과.json', { cache: 'no-store' }); if (r.ok) rec = await r.json(); else recErr = 'http ' + r.status; } catch (e) { recErr = String(e && e.message || e); }
-    const verified = rec ? verifyBuild(rec, whole, files) : { status: 'no-record', error: recErr };
-    return { ok: true, buildSha256: whole, files, version, verified, passRec: rec, at: iso(), mode };
+    const [whole, recOut] = await Promise.all([
+      sha256Hex(new TextEncoder().encode(Object.keys(files).sort().map(k => `${k}:${files[k]}\n`).join(''))),
+      recP,
+    ]);
+    const verified = recOut.rec ? verifyBuild(recOut.rec, whole, files) : { status: 'no-record', error: recOut.err };
+    return { ok: true, buildSha256: whole, files, version, verified, passRec: recOut.rec, at: iso(), mode };
   } catch (e) { return { ok: false, error: String(e && e.message || e), mode }; }
 }
 // 통과 기록과 맞대기: 전체 해시가 기록에 있으면 pass, 마지막 통과의 파일과 index.html 만 다르면 pass-code(코드 파일은 검산한 것과 같음 —

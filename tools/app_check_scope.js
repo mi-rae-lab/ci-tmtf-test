@@ -520,6 +520,22 @@ globalThis.__scope = (async () => {
       globalThis.setTimeout = oSt; globalThis.clearTimeout = oCt;
     }
   });
+  await tryOk('computeBuild(): 앱 파일 6개 + 검증_통과.json 7개 요청을 병렬 실행 · 해시 일치', async () => {
+    const oFetch = globalThis.fetch;
+    let inFlight = 0, maxInFlight = 0;
+    try {
+      globalThis.fetch = async (u, opt) => {
+        inFlight++;
+        if (inFlight > maxInFlight) maxInFlight = inFlight;
+        await wait(5);
+        try { return await oFetch(u, opt); } finally { inFlight--; }
+      };
+      const b = await computeBuild('no-store');
+      return [maxInFlight === APP_FILES.length + 1 && b.ok && b.buildSha256 === H.expectBuild && b.verified.status === 'pass', `maxInFlight=${maxInFlight} ok=${b.ok}`];
+    } finally {
+      globalThis.fetch = oFetch;
+    }
+  });
   ok('경고창은 새 판 하나뿐(지문만 다른 것은 경고 없음) · 확인 창은 멈춤 둘뿐', H.dialogs.filter(d => d[0] === 'alert').length === 1 && H.dialogs.filter(d => d[0] === 'confirm').length === 2, JSON.stringify(H.dialogs).slice(0, 200));
   clearInterval(KEEPMON_TIMER);
 })();
