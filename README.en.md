@@ -120,15 +120,33 @@ Full details are in [Methods](방법.en.md).
 
 The stimulus and staircase code (`js/stim.js` · `js/track.js` · `js/protocols.js`) was checked in the three ways below. The screen flow was run from start to finish on a simulated screen.
 
-- Comparison with an independently written Python implementation
-- Formal proofs in Lean 4
-- Line-by-line correspondence between the JS and Lean code
+- Comparison with an independently written Python implementation (`tools/cross_check.py`, `tools/verify_result.py`)
+- **Formal proofs in Lean 4 + Mathlib4** (`tools/lean/TMTF/*.lean`, axiom audit `MyAudit.lean`)
+- Line-by-line correspondence between the JS and Lean code (`tools/lean/cross_check.js`, `CrossCheck.lean`)
+
+### Lean 4 & Mathlib4 Version and Verification Results
+
+- **Lean 4**: `leanprover/lean4:v4.36.0` ([`tools/lean/lean-toolchain`](tools/lean/lean-toolchain))
+- **Mathlib4**: `leanprover-community/mathlib4` tag **`v4.36.0`** (commit `fc4f59e577feb1a4956671bc04ac18aaaf8cd842`, [`tools/lean/lakefile.toml`](tools/lean/lakefile.toml) · [`tools/lean/lake-manifest.json`](tools/lean/lake-manifest.json))
+- **Scope of formal proofs**: 10 core rational/integer/32-bit modules + real (`ℝ`) & complex (`ℂ`) analytic module using Mathlib4 ([`tools/lean/TMTF/RealAnalytic.lean`](tools/lean/TMTF/RealAnalytic.lean), 43 public theorems: real RMS equalization, `10^(D/20)` & `Real.sin` no-overmodulation, arbitrary `K ≥ 3` & random-phase `φ` SAM cycle power `1 + m²/2` with Viemeister `1/√(1 + m²/2)` correction, `cos²` ramp, Butterworth real gain, Box–Muller, conjugate-symmetric IDFT purely real output & Parseval identity, Levitt `1/√2`, and exact phase-invariant `measureDepth` recovery)
+- **Latest 6-step full verification (`2026-11-25`, app `1.2.7`, `build a99c1e9bd6cc`, total `94.5 s` — ALL PASS)**:
+
+| Step | Check | Status | Time | Summary |
+|---:|---|---|---:|---|
+| 1 | Stimulus & staircase JS = Python | PASS | 7.7 s | 750 stimuli (max RMS diff `2.44e-11` dB) · 210 staircases match |
+| 2 | UI & security check (`app_check.js`) | PASS | 39.8 s | 104 / 104 pass (flows · CSP/XSS · privacy · KO/EN i18n) |
+| 3 | Independent result replay (`verify_result.py`) | PASS | 3.8 s | 11/11 runs · 395 trials / 1,185 intervals match |
+| 4 | Lean 4 + Mathlib4 clean rebuild | PASS | 26.8 s | `4198 jobs` succeeded · 0 warnings / errors / `sorry` |
+| 5 | Lean axiom audit (`MyAudit.lean`) | PASS | 13.1 s | `consts=455` · `theorems=333` · `axiomDecls=0` · `UNION {Classical.choice, Quot.sound, propext}` · **`NONSTANDARD 0`** |
+| 6 | JS ↔ Lean line-by-line cross-check | PASS | 3.2 s | `RNG 307/307` · `RAMP 120/120` · `GAIN 140/140` · `TRACK 360/360` · `PV 131/131` all match |
+
+- Full report & theorem audit table: [tools/lean/검증_결과.md](tools/lean/검증_결과.md) · Machine-readable pass record: [검증_통과.json](검증_통과.json)
 
 ```
 tools\전수검산.bat        (or python -I -X utf8 tools/run_checks.py)
 ```
 
-- Requires: Python 3 + numpy, [deno](https://deno.com), Lean 4 (elan)
+- Requires: Python 3 + numpy, [deno](https://deno.com), Lean 4 (elan; run `lake exe cache get` inside `tools/lean` on a fresh clone)
 - When all six steps pass, the result is recorded in `검증_통과.json` (the verification record).
 - When a session starts, the test page compares the hashes of its own files with this record and writes the result into the session.
 - A refresh prompt appears only when a new version is released. A hash mismatch alone does not block the test; it is recorded.
