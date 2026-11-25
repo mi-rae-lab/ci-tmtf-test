@@ -1062,6 +1062,7 @@ svg.chart{width:100%; height:auto; display:block; margin-top:18px}
 .chart .ln{fill:none; stroke:var(--acc); stroke-width:2.75; stroke-linecap:round; stroke-linejoin:round}
 .chart .pt{fill:var(--acc); stroke:var(--panel); stroke-width:2}
 .chart .pt2{fill:var(--panel); stroke:var(--acc); stroke-width:2.25}
+.chart .pt-ref{fill:var(--panel); stroke:var(--warntx); stroke-width:2; stroke-dasharray:3 2.5}
 .chart .ceil{fill:none; stroke:var(--err); stroke-width:2.25; stroke-linejoin:round}
 .chart .stair{fill:none; stroke:var(--dim); stroke-width:1.6; stroke-linejoin:round}
 .chart .c1{fill:var(--ok)}

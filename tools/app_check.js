@@ -214,7 +214,7 @@ class FOsc extends FNode {
   }
 }
 class FakeAudioContext {
-  constructor(o = {}) { this.sampleRate = o.sampleRate || 48000; this._t0 = vnow(); this._frozen = null; this._off = 0; this.state = 'running'; this.destination = new FNode(this, 'dest'); this.baseLatency = 0.01; this.outputLatency = 0.02; this.onstatechange = null; this._oscs = []; this._sineCache = new Map(); ctxs.push(this); }
+  constructor(o = {}) { this.sampleRate = o.sampleRate || H.sampleRate || 48000; this._t0 = vnow(); this._frozen = null; this._off = 0; this.state = 'running'; this.destination = new FNode(this, 'dest'); this.baseLatency = 0.01; this.outputLatency = 0.02; this.onstatechange = null; this._oscs = []; this._sineCache = new Map(); ctxs.push(this); }
   get currentTime() { return this._frozen !== null ? this._frozen : (vnow() - this._t0) / 1000 - this._off; }
   async resume() { if (this.state !== 'running') { this._off = (vnow() - this._t0) / 1000 - this._frozen; this._frozen = null; this.state = 'running'; if (this.onstatechange) this.onstatechange(); } }
   async suspend() { if (this.state === 'running') { this._frozen = this.currentTime; this.state = 'suspended'; if (this.onstatechange) this.onstatechange(); } }
@@ -295,7 +295,9 @@ const H = {
   sha256: async bytes => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(b => b.toString(16).padStart(2, '0')).join(''),
   appFiles: APP, fileBytes: readBytes, El,
   // --dump <경로>: 흐름 점검에서 ‘결과 파일 저장’으로 나온 파일을 써 둠 → tools/verify_result.py 가 따로 짠 파이썬으로 다시 만들어 봄 (전수 검산 3단계)
-  dump: Deno.args.includes('--dump') ? o => Deno.writeTextFileSync(Deno.args[Deno.args.indexOf('--dump') + 1], JSON.stringify(o)) : null,
+  //   이름표(tag)를 주면 <경로>.json → <경로>.<tag>.json (예: resume — 표본화율이 바뀐 화면에서 이어 한 회기, tools/verify_result_check.py 가 씀)
+  dump: Deno.args.includes('--dump') ? (o, tag) => Deno.writeTextFileSync(Deno.args[Deno.args.indexOf('--dump') + 1].replace(/(\.json)?$/, tag ? `.${tag}.json` : '$1'), JSON.stringify(o)) : null,
+  sampleRate: 48000,                 // 다음에 만드는 가짜 AudioContext 의 표본화율 (새로 연 화면 · 다른 출력 장치 흉내)
 };
 globalThis.__H = H;
 globalThis.fetch = async (url, opt = {}) => {

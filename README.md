@@ -122,12 +122,14 @@ ISO 14971 위험관리 관점(설계상 안전 → 방호 수단 → 안전 정�
   - 같은 참가 번호 회기가 둘 이상이면 표와 겹친 그래프로 자동 비교 (단, 유지 신호 방식이 다른 회기는 합치지 않고 분리)
   - 계단 다시 돌리기, 구간 세기, 정답 자리별 맞힘(모르겠음 제외) 점검
   - 전문가용 보고서(`.html`), 측정 CSV, 시행 CSV로 저장할 수도 있습니다.
+  - 같은 검사의 파일을 여럿 열면(중간 백업 · 완료본) 더 진행된 파일을 쓰고, 어느 파일을 쓰는지 알려 줍니다.
   - 파일은 그 화면 안에서만 읽습니다.
 - **결과 파일 따로 점검하기:** 앱 코드를 쓰지 않고 따로 짠 파이썬으로 계단과 소리를 다시 만들어 봅니다(numpy 필요).
 
   ```
   python -I -X utf8 tools/verify_result.py 받은파일.json
   ```
+  마지막 줄의 판정은 통과 · 실패 · 검증할 수 없음(소리 기록이 없어 다시 만들지 못한 시행이 있음) 가운데 하나입니다.
 - **연구에 쓰려면** 기관 생명윤리위원회(IRB) 심의와 참가자 동의가 먼저 필요합니다.
 
 ## 검사 방법 (요약)
@@ -148,7 +150,7 @@ ISO 14971 위험관리 관점(설계상 안전 → 방호 수단 → 안전 정�
 
 자극과 계단 코드(`js/stim.js` · `js/track.js` · `js/protocols.js`)는 다음 세 가지로 확인했습니다. 화면 흐름은 가짜 화면으로 처음부터 끝까지 돌려 봤습니다.
 
-- 따로 짠 파이썬과 대조 (`tools/cross_check.py`, `tools/verify_result.py`)
+- 따로 짠 파이썬과 대조 (`tools/cross_check.py`, `tools/verify_result.py`, 검산기 점검 `tools/verify_result_check.py`)
 - **Lean 4 + Mathlib4 형식 증명** (`tools/lean/TMTF/*.lean`, 공리 감사 `MyAudit.lean`)
 - JS ↔ Lean 줄 단위 대조 (`tools/lean/cross_check.js`, `CrossCheck.lean`)
 
@@ -192,7 +194,7 @@ tools\전수검산.bat        (또는 python -I -X utf8 tools/run_checks.py)
 |---|---|
 | `index.html` · `style.css` · `js/app.js` | 참가자 화면, 기록, 검사 흐름, 결과, 받은 결과 보기 |
 | `js/protocols.js` · `js/stim.js` · `js/track.js` | 절차, 자극(씨앗으로 되풀이되는 잡음), 적응 계단 |
-| `tools/` | 전수 검산 (`run_checks.py`, `cross_check.*`, `tmtf_ref.py`, `app_check*.js`, `verify_result.py`, `lean/`) |
+| `tools/` | 전수 검산 (`run_checks.py`, `cross_check.*`, `tmtf_ref.py`, `app_check*.js`, `verify_result.py`, `verify_result_check.py`, `lean/`) |
 
 ## 웹 표준
 

@@ -43,4 +43,26 @@ for (const [name, P] of procs) {
       result: { thr: r.thr, sd: r.sd, ceiling: !!r.ceiling, incomplete: !!r.incomplete, n0: r.n0, k0: r.k0, p: r.p, atChance: !!r.atChance }, done: T.done, nextDepth: T.depth });
   }
 }
-console.log(JSON.stringify({ stim, tracks }));
+// 난수 0 씨앗 (1.2.14): mulberry32 의 균등 난수가 정확히 0 이 되는 상태가 있음 (씨앗 2463401483 의 첫 난수). Stim 의 gauss 는 u 가 0 이면 다시 뽑으므로(while (u === 0))
+// 그 뒤 난수가 한 칸씩 밀림 — 0 이 놓이는 자리를 바꿔 가며(첫 u · 첫 v · 둘째 u · 가운데 u · 가운데 v · 마지막 u · 변조 위상 · 쓰지 않는 자리) 파이썬 기준 구현이 같은 순서로 따라가는지.
+const GAMMA = 0x6D2B79F5, ZERO_STATE = (2463401483 + GAMMA) >>> 0;
+const seedWithZeroAt = j => (ZERO_STATE - Math.imul(j + 1, GAMMA)) >>> 0;   // j 번째(0부터) 균등 난수가 0 이 되는 씨앗
+const stimZero = [];
+{
+  const P = protos[4][1];   // 참가자용 화면의 절차 (3구간 · 광대역 · 0.5 s · 10 ms 직선 · 무작위 위상)
+  for (const fs of [44100, 48000]) {
+    const N = Math.round(fs * P.dur); let n = 1; while (n < N) n <<= 1;
+    const nPair = (n / 2 - 1) - Math.max(1, Math.ceil(20 * n / fs)) + 1;   // 잡음에 쓰는 주파수 칸 수 = 가우스 쌍 수 (균등 난수 2·nPair 개, 그다음이 변조 위상)
+    const spots = [['첫 u', 0], ['첫 v', 1], ['둘째 u', 2], ['가운데 u', 20000], ['가운데 v', 20001], ['마지막 u', 2 * nPair - 2], ['변조 위상', 2 * nPair], ['쓰지 않는 자리', 2 * nPair + 2]];
+    for (const [where, j] of spots) for (const depthDb of [null, 0, -20]) {
+      const seed = seedWithZeroAt(j), rng = Stim.makeRng(seed);
+      let u = null; for (let i = 0; i <= j; i++) u = rng.uniform();
+      const o = Stim.make({ fs, dur: P.dur, band: P.band, fm: 100, depthDb, phase: P.phase, rampMs: P.rampMs, rampShape: P.rampShape, gainDb: 0, seed });
+      const x = o.data, R = Math.min(Math.round(fs * P.rampMs / 1000), Math.floor(N / 2));
+      let sum = 0, sumAbs = 0; for (let i = 0; i < N; i++) { sum += x[i]; sumAbs += Math.abs(x[i]); }
+      stimZero.push({ proto: 'custom-3-wide-std', where, zeroAt: j, zeroOk: u === 0, P: pick(P, ['dur', 'band', 'phase', 'rampMs', 'rampShape']), fs, fm: 100, depthDb, gainDb: 0, seed, N: x.length, rmsDb: o.rmsDb, peakDb: o.peakDb, phase: o.phase, scaled: o.scaled,
+        idx: [0, 1, R, N >> 1, N - 2, N - 1], samples: [x[0], x[1], x[R], x[N >> 1], x[N - 2], x[N - 1]], sum, sumAbs });
+    }
+  }
+}
+console.log(JSON.stringify({ stim, tracks, stimZero }));

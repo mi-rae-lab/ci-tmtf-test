@@ -122,12 +122,14 @@ Informed by the ISO 14971 risk-management hierarchy (inherent safety by design �
   - When there are two or more sessions with the same participant ID, they are compared automatically in a table and an overlaid chart (sessions with different keep-alive tone modes are kept separate rather than combined)
   - Checks for staircase replay, interval levels, and hits by target position (excluding “Not sure”)
   - You can also save a specialist report (`.html`), a runs CSV, and a trials CSV.
+  - If you open several files of the same session (an interim backup and the completed file), the more complete one is used and the screen tells you which file that is.
   - Files are read only within that screen.
 - **Check a result file independently:** A separately written Python script, which does not use the app's code, rebuilds the staircase and the sounds (requires numpy).
 
   ```
   python -I -X utf8 tools/verify_result.py received_file.json
   ```
+  The verdict on the last line (`판정:`) is one of 통과 (pass), 실패 (fail), or 검증할 수 없음 (cannot be verified — some trials lack the sound record needed to rebuild them).
 - **To use this in research,** you first need review by an Institutional Review Board (IRB) and participant consent.
 
 ## Test method (summary)
@@ -148,7 +150,7 @@ Full details are in [Methods](방법.en.md).
 
 The stimulus and staircase code (`js/stim.js` · `js/track.js` · `js/protocols.js`) was checked in the three ways below. The screen flow was run from start to finish on a simulated screen.
 
-- Comparison with an independently written Python implementation (`tools/cross_check.py`, `tools/verify_result.py`)
+- Comparison with an independently written Python implementation (`tools/cross_check.py`, `tools/verify_result.py`, and the verifier self-check `tools/verify_result_check.py`)
 - **Formal proofs in Lean 4 + Mathlib4** (`tools/lean/TMTF/*.lean`, axiom audit `MyAudit.lean`)
 - Line-by-line correspondence between the JS and Lean code (`tools/lean/cross_check.js`, `CrossCheck.lean`)
 
@@ -192,7 +194,7 @@ tools\전수검산.bat        (or python -I -X utf8 tools/run_checks.py)
 |---|---|
 | `index.html` · `style.css` · `js/app.js` | Participant screens, records, test flow, results, viewing received results |
 | `js/protocols.js` · `js/stim.js` · `js/track.js` | Procedure, stimuli (seeded, reproducible noise), adaptive staircase |
-| `tools/` | Full verification (`run_checks.py`, `cross_check.*`, `tmtf_ref.py`, `app_check*.js`, `verify_result.py`, `lean/`) |
+| `tools/` | Full verification (`run_checks.py`, `cross_check.*`, `tmtf_ref.py`, `app_check*.js`, `verify_result.py`, `verify_result_check.py`, `lean/`) |
 
 ## Web standards
 

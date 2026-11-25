@@ -5,6 +5,11 @@
           버린 측정(회기 사건 track-abandoned 의 trialList — ‘그만’ · 화면이 닫힘)도 깊이 · 반전이 이어지는지.
   2 자극: 시행마다 구간별 소리를 씨앗 · 절차 · 변조 주파수 · 깊이 · 정답 구간 · 표본화 주파수로 다시 만들어 기록된 RMS(0.001 dB 반올림) ·
           봉우리(0.01 dB 반올림) · 위상과 같은지 — 측정 · 연습 · 버린 측정 · 가려져 버린 시행(trial-void.heard) 모두.
+          표본화 주파수는 그 소리를 만든 때의 것: 시행의 sr(1.2.14부터) → 측정의 audio.sampleRate → 그 시행 전 마지막 이어하기(session-resume)의 것 →
+          회기를 시작한 화면의 것 (중간 저장한 검사를 다른 표본화율의 화면에서 이어 한 경우).
+          다시 만든 구간 수를 기대한 수(시행 × 구간)와 맞댐 — 씨앗 · 세기 · 봉우리 · 정답 자리 기록이 없어 다시 만들지 못한 시행이 있으면 통과가 아니라
+          ‘검증할 수 없음’(1.2.14: 전에는 소리 기록이 빠진 파일이 구간 0개를 다시 만들고도 통과했음).
+판정(마지막 줄): 통과(종료 코드 0) · 실패(1 — 다른 곳이 있음) · 검증할 수 없음(1 — 다른 곳은 없지만 다시 만들지 못한 시행이 있음)
 사용:  python -I -X utf8 tools/verify_result.py <결과.json> [<결과.json> …] [--quick(자극 빼고)]     (numpy 필요)"""
 import json
 import os
@@ -59,7 +64,8 @@ def main():
         return 2
     bad = []
     n_run = n_ok = n_ab = n_ab_ok = n_sess = 0
-    n_iv = n_tr = 0
+    n_iv = n_tr = n_exp = n_unver = 0
+    unver = []
     worst_pk = worst_rms = 0.0
     for path in args:
         name = os.path.basename(path)
@@ -98,12 +104,34 @@ def main():
             if quick:
                 continue
 
-            def check(where, t, fm, tg, d, rfs):
-                nonlocal n_iv, n_tr, worst_pk, worst_rms
-                if not t.get('seeds') or not rfs:
+            n_afc = P.get('nAFC') or 3
+            resumes = sorted((e.get('t') or '', (e.get('audio') or {}).get('sampleRate')) for e in se.get('events') or []
+                             if e.get('type') == 'session-resume' and (e.get('audio') or {}).get('sampleRate'))
+
+            def fs_at(at):
+                """그 시각에 열려 있던 화면의 표본화율: 그 전 마지막 이어하기(session-resume)의 것, 없으면 회기를 시작한 화면의 것"""
+                r = fs
+                for t0, sr in resumes:
+                    if at and t0 <= at:
+                        r = sr
+                return r
+
+            def check(where, t, fm, tg, d, rfs=None):
+                nonlocal n_iv, n_tr, n_exp, n_unver, worst_pk, worst_rms
+                n_exp += n_afc
+                rfs = t.get('sr') or rfs or fs_at(t.get('at'))
+                seeds, rms, pk = t.get('seeds'), t.get('rms'), t.get('pk')
+                lack = [k for k, v in (('씨앗', seeds), ('세기', rms), ('봉우리', pk)) if not isinstance(v, list) or len(v) != n_afc]
+                if tg is None or fm is None:
+                    lack.append('정답 자리 · 주파수')
+                if not rfs:
+                    lack.append('표본화율')
+                if lack:
+                    n_unver += 1
+                    unver.append(f"{name} {where}: {' · '.join(lack)} 기록 없음")
                     return
                 n_tr += 1
-                for i, seed in enumerate(t['seeds']):
+                for i, seed in enumerate(seeds):
                     n_iv += 1
                     o2 = make(rfs, P['dur'], P['band'], fm, d if i == tg else None, P['phase'], P['rampMs'], P['rampShape'], 0, seed)
                     dp, dr = abs(o2['peakDb'] - t['pk'][i]), abs(o2['rmsDb'] - t['rms'][i])
@@ -112,25 +140,34 @@ def main():
                         bad.append(f"{name} {where} 구간 {i + 1}: 봉우리 기록 {t['pk'][i]} · 다시 {o2['peakDb']:.4f}, RMS 기록 {t['rms'][i]} · 다시 {o2['rmsDb']:.4f}")
 
             for r in se.get('runs') or []:
-                rfs = (r.get('audio') or {}).get('sampleRate') or fs
+                rfs = (r.get('audio') or {}).get('sampleRate')
                 for j, t in enumerate(r.get('trials') or []):
-                    check(f"측정 {r.get('order')} 시행 {j + 1}", t, r['fm'], t.get('tg'), t.get('d'), rfs)
+                    check(f"측정 {r.get('order')} 시행 {j + 1}", t, r.get('fm'), t.get('tg'), t.get('d'), rfs)
             for j, t in enumerate(se.get('practiceTrials') or []):
-                check(f'연습 {j + 1}', t, t.get('fm'), t.get('tg'), t.get('d'), fs)
+                check(f'연습 {j + 1}', t, t.get('fm'), t.get('tg'), t.get('d'))
             for e in se.get('events') or []:
                 if e.get('type') == 'track-abandoned' and isinstance(e.get('trialList'), list):
                     for j, t in enumerate(e['trialList']):
-                        check(f"버린 측정 {e.get('fm')} Hz 시행 {j + 1}", t, e.get('fm'), t.get('tg'), t.get('d'), fs)
+                        check(f"버린 측정 {e.get('fm')} Hz 시행 {j + 1}", t, e.get('fm'), t.get('tg'), t.get('d'))
                 if e.get('type') == 'trial-void' and e.get('heard') and e['heard'].get('tg') is not None:
-                    check(f"가려져 버린 시행 {e.get('fm')} Hz", e['heard'], e.get('fm'), e['heard']['tg'], e['heard']['d'], fs)
+                    check(f"가려져 버린 시행 {e.get('fm')} Hz", e['heard'], e.get('fm'), e['heard']['tg'], e['heard'].get('d'))
     print(f'계단: 회기 {n_sess}개 · 측정 {n_run}개 중 {n_ok}개 같음 · 버린 측정 {n_ab}개 중 {n_ab_ok}개 이어짐')
     if not quick:
-        print(f'자극: 시행 {n_tr}개 · 구간 {n_iv}개 다시 만듦 — 봉우리 최대 차 {worst_pk:.4f} dB (기록 0.01 반올림) · RMS 최대 차 {worst_rms:.5f} dB (0.001 반올림)')
+        print(f'자극: 시행 {n_tr}개 · 구간 {n_iv}개 다시 만듦 (기대 {n_exp}개) — 봉우리 최대 차 {worst_pk:.4f} dB (기록 0.01 반올림) · RMS 최대 차 {worst_rms:.5f} dB (0.001 반올림)')
+        if n_unver:
+            print(f'  ! 소리 기록이 없어 다시 만들지 못한 시행 {n_unver}개 (구간 {n_exp - n_iv}개) — 그 시행의 소리는 검증하지 못함')
+            for u in unver[:5]:
+                print('    ·', u)
     for b in bad[:15]:
         print('  ✗', b)
-    ok = not bad and n_run > 0
-    print(f'판정: {"통과" if ok else "실패 — " + str(len(bad)) + "개"} (읽기만 — 파일 {len(args)}개)')
-    return 0 if ok else 1
+    if bad or n_run == 0:
+        print(f'판정: 실패 — {len(bad)}개{"" if n_run else " · 측정 없음"} (읽기만 — 파일 {len(args)}개)')
+        return 1
+    if not quick and n_iv != n_exp:
+        print(f'판정: 검증할 수 없음 — 계단은 같지만 소리는 구간 {n_exp}개 중 {n_iv}개만 다시 만듦 (읽기만 — 파일 {len(args)}개)')
+        return 1
+    print(f'판정: 통과{" (자극 빼고)" if quick else ""} (읽기만 — 파일 {len(args)}개)')
+    return 0
 
 
 if __name__ == '__main__':

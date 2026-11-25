@@ -59,7 +59,7 @@
 2. **전수 검산을 돌립니다:** `tools\전수검산.bat` (= `python -I -X utf8 tools/run_checks.py`). 6단계가 모두 통과해야 합니다.
    1. 자극 · 계단 JS = 파이썬
    2. 화면 흐름 점검: `tools/app_check.js` + `tools/app_check_scope.js`
-   3. 결과 파일 다시 만들기: `tools/verify_result.py`
+   3. 결과 파일 다시 만들기: `tools/verify_result.py` (+ 검산기 자체 점검 `tools/verify_result_check.py`)
    4. Lean 4 빌드
    5. 공리 감사
    6. JS ↔ Lean 대조
@@ -86,6 +86,7 @@
 | `tools/cross_check.*` · `tools/tmtf_ref.py` | 자극 · 계단 JS = 파이썬 대조 (따로 짠 기준 구현) |
 | `tools/app_check.js` · `tools/app_check_scope.js` | 화면 흐름 점검 |
 | `tools/verify_result.py` | 결과 파일만으로 계단 · 소리 다시 만들기 (받은 파일 점검에도 씀) |
+| `tools/verify_result_check.py` | 위 검산기가 제대로 견주는지 — 표본화율이 바뀐 이어하기 회기 · 소리 기록을 지운 파일 · 값을 바꾼 파일로 판정을 확인 |
 | `tools/lean/` | Lean 4 형식 검증 — `README.txt` |
 
 ## 6. 결과 파일 (`format: "ci-tmtf-public"`, `formatVersion: 1`)

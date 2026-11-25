@@ -6,7 +6,7 @@ tools/cross_check.py(JS = 파이썬 대조)와 tools/verify_result.py(결과 파
   0 dB 시행 수 n0 · 정답 k0. ceiling 'stop4' 면 0 dB 에서 4번 틀리면 멈춤(역치 0 · 측정 불가). 반전 totalRev 번이면 끝. 시행 160번이면 끝(미완).
   역치 = 마지막 avgLast 반전 평균(반전 4개 미만이면 없음), SD = 표본 SD, 소수 둘째 자리(JS toFixed 처럼 — 같은 거리면 큰 쪽).
   우연 수준: 0 dB 시행 6번 이상일 때 단측 이항 P(X ≥ k0 | n0, 1/nAFC) > 0.05.
-자극 make(...): 씨앗 → mulberry32 균등 난수 → Box–Muller(한 쌍에서 cos 먼저, sin 은 다음 차례) → 주파수 칸마다 (실수, 허수) = (가우스, 가우스) × 대역 모양
+자극 make(...): 씨앗 → mulberry32 균등 난수 → Box–Muller(한 쌍에서 cos 먼저, sin 은 다음 차례 · u 가 0 이면 다시 뽑음) → 주파수 칸마다 (실수, 허수) = (가우스, 가우스) × 대역 모양
   → 켤레 대칭 → 역FFT 의 실수부 앞 N 표본(float32) → RMS 1 → 변조 [1 + m·sin(2π·fm·n/fs + φ)] (φ = 0 또는 잡음 다음 난수 × 2π) → 경사(가운데 반 표본 위치)
   → RMS 0.05 × 이득 → 봉우리가 0.99 를 넘으면 0.99 로 줄임."""
 import math
@@ -97,16 +97,34 @@ def uniforms(seed, M):
 
 
 def gauss_seq(seed, ng):
+    """가우스 난수 ng 개와, 거기에 쓴 균등 난수의 개수(그다음 난수가 변조 위상)를 돌려줌.
+    쌍마다 (u, v) = 균등 난수 둘. u 가 정확히 0 이면 log 를 못 쓰므로 JS(stim.js: while (u === 0) u = uniform())처럼 0 이 아닐 때까지 다시 뽑음
+    — 그만큼 뒤의 난수가 밀리고 쓴 개수도 늘어남. v 는 0 이어도 그대로 씀. (1.2.14: 전에는 u 자리에 0 이 있으면 예외로 멈췄음 — 예: 씨앗 2463401483 의 첫 난수)"""
     npair = (ng + 1) // 2
     U = uniforms(seed, 2 * npair)
     u, v = U[0::2], U[1::2]
-    if np.any(u == 0):
-        raise RuntimeError('균등 난수 0 이 나옴 (2^-32 확률) — 이 씨앗은 따로 다뤄야 함')
+    used = 2 * npair
+    if np.any(u == 0):   # 드문 길(난수 하나가 0 일 확률 2^-32): 순서대로 따라가며 다시 뽑음
+        extra = 8
+        while True:
+            U = uniforms(seed, 2 * npair + extra)
+            u, v, i = np.empty(npair), np.empty(npair), 0
+            for k in range(npair):
+                while i < len(U) and U[i] == 0:
+                    i += 1
+                if i + 1 >= len(U):
+                    break
+                u[k], v[k] = U[i], U[i + 1]
+                i += 2
+            else:
+                used = i
+                break
+            extra *= 2
     r = np.sqrt(-2 * np.log(u))
     G = np.empty(2 * npair)
     G[0::2] = r * np.cos(2 * np.pi * v)
     G[1::2] = r * np.sin(2 * np.pi * v)
-    return G[:ng], 2 * npair
+    return G[:ng], used
 
 
 def next_pow2(n):

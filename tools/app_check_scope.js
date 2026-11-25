@@ -930,5 +930,406 @@ globalThis.__scope = (async () => {
     const allOk = limOk && envOk && sanOk && sameRef && rampOk && highOn && highOff && playingBeforeEsc && escStoppedSound && muteOk;
     return [allOk, `lim=${limOk} env=${envOk} san=${sanOk} ref=${sameRef} ramp=${rampOk} hi=${highOn}/${highOff} esc=${playingBeforeEsc}/${escStoppedSound} mute=${muteOk}`];
   });
+
+  // ══════════ 1.2.14 회귀 시험 — 오류 점검 14건 (재현 조건 그대로 · 가짜 화면 · 가짜 오디오) ══════════
+  // 앞 시험이 실패해도 다음 장면이 따로 돌도록 장면마다 처음 화면 · 빈 기록에서 시작함. #9 · #10 · #11 의 파이썬 쪽은 tools/verify_result_check.py · tools/cross_check.py
+  const storedDb = () => JSON.parse(H.store.get(STORE_KEY) || '{"sessions":[],"decisions":[]}');
+  const db18Now = () => { const m = monitor(true); return m ? m.db18 : null; };   // 가짜 분석기에 지금 실제로 나가는 18 Hz (dBFS · 없으면 null)
+  const evN = (s, type) => s.events.filter(e => e.type === type).length;
+  const wrongKey = () => String((awaiting.tg + 1) % 3 + 1);
+  async function resetAll() {
+    await wait(150);                                   // 진행 중인 시작 · 이어하기 준비가 있으면 끝나게
+    if (S) { clearCurTimers(S.cur); S = null; }
+    cancelOnsetTimer(); ONSET.running = false; ONSET.phase = 'idle'; ONSET.cur = null;
+    awaiting = null; LAST_BREAK = null; JUST = null; SHOWN = null;
+    if (document.hidden) H.visibility(false);
+    H.store.clear(); DB.sessions = []; DB.decisions = []; DB.rev = null;
+    STORE.syncedRev = null; STORE.bytes = 0; STORE.ok = true; STORE.error = null;
+    clearViewerState(); resetSetupForm();
+    PRE.noise = []; PRE.demo = []; PRE.keepEvents = []; PRE.onset = null; PRE.onsetHistory = []; PRE.warmupWaitedMs = 0;
+    H.confirmAnswer = true; H.downloads.length = 0;
+    renderHome(); showPage('pgHome', { noScroll: true, noFocus: true });
+  }
+  function toSound({ code = '', ear = 'R', path = 'wired', keepOn = true } = {}) {
+    $('#goSetup').click();
+    $('#codeIn').value = code;
+    $('#earPick').querySelector(`[data-v="${ear}"]`).click(); $('#pathPick').querySelector(`[data-v="${path}"]`).click();
+    $('#setupNext').click();
+    if (!$('#volOk').checked) $('#volOk').click();
+    if (keepUserOff === keepOn) $('#keepToggle').click();   // 유지 신호를 바라는 상태로
+  }
+  const freshKeep = () => { $('#keepToggle').click(); $('#keepToggle').click(); };   // 껐다 켬 = 유지 신호를 막 켠 상태(3초 안정 대기가 남음)
+  async function answerNow(correct) { await until(() => S && S.cur && awaiting, 15000, '답 기다림'); H.key(correct ? String(awaiting.tg + 1) : wrongKey()); }
+  // 새로 연 화면 흉내: 오디오 · 유지 신호 상태를 처음 값으로 (표본화율 = 그 화면의 출력 장치)
+  function freshPage(sampleRate) {
+    H.sampleRate = sampleRate;
+    stopAll(); if (keep) { try { keep.node.stop(0); } catch { } }
+    ctx = null; master = null; limiter = null; mon = null; live = []; keep = null; keepMode = 'tone18all'; keepUserOff = false;
+    wins.length = 0; mlast = null; KEEPMON.keepWarmSince = null; KEEPMON.page = uid();
+    renderKeepUi();
+  }
+
+  // ── 장면 1: 소리 점검 (#12 · #13)
+  await resetAll();
+  toSound({ code: 'P12' }); freshKeep();
+  $('#soundNext').click();
+  await tryOk('1.2.14 #12 소리 점검의 대기(안정 대기 · 3초 무음) 중 Esc → ‘다시 듣기’가 이번 점검의 준비 · 대기를 처음부터 다시 시작(1 · 2회 모두) → 소리가 나오고 답을 받음', async () => {
+    const res = [];
+    for (const idx of [0, 1]) {
+      await until(() => ONSET.running && ONSET.idx === idx && (ONSET.phase === 'warmup' || ONSET.phase === 'waiting'), 10000, `점검 ${idx + 1} 대기`);
+      const ph = ONSET.phase, nB = starts().length;
+      H.key('Escape');
+      const paused = ONSET.phase === 'suspended' && !$('#onReplay').disabled && $$('#onCountPick .choice').every(b => b.disabled);
+      await wait(80);                                  // 멈춘 동안에는 대기가 흐르지 않음 (소리가 저절로 나오지 않음)
+      const quiet = ONSET.phase === 'suspended' && starts().length === nB;
+      $('#onReplay').click();
+      const again = ONSET.running && ONSET.idx === idx && (ONSET.phase === 'warmup' || ONSET.phase === 'waiting') && ONSET.cur === null && $('#onReplay').disabled;
+      let heard = false;
+      try { await until(() => ONSET.phase === 'awaiting' && ONSET.idx === idx, 4000, '다시 시작한 점검의 소리'); heard = starts().length === nB + 1 && !$$('#onCountPick .choice')[0].disabled; } catch { }
+      res.push(`${ph}:${+paused}${+quiet}${+again}${+heard}`);
+      if (!heard) { runOnsetTrial(); await until(() => ONSET.phase === 'awaiting' && ONSET.idx === idx, 10000, '점검 복구'); }   // 실패해도 다음 점검으로
+      $('#onCountPick').querySelector('[data-v="4"]').click(); $('#onFirstPick').querySelector('[data-v="no"]').click(); $('#onTrialNext').click();
+    }
+    await until(() => !$('#onsetResCard').hidden, 5000, '점검 결과');
+    const rec = !!PRE.onset && PRE.onset.trials.length === 2 && PRE.onset.trials.every(t => t.resp === 4 && t.replays === 0 && t.silenceBeforeMs === 3000);
+    return [res.length === 2 && res[0].startsWith('warmup') && res[1].startsWith('waiting') && res.every(r => r.endsWith(':1111')) && rec, res.join(' ') + ' rec=' + rec];
+  });
+  await tryOk('1.2.14 #13 소리 점검: 다른 단추(점검 다시 하기 · 소리 맞추기로 · 다시 듣기)에 초점을 두고 Enter → 공통 단축키(연습 시작 · 다음)가 가로채지 않음 · 초점이 단추 밖이면 그대로 동작', async () => {
+    if ($('#onsetResCard').hidden) throw new Error('점검 결과 화면이 아님');
+    const e1 = H.key('Enter', $('#onsetAgain')), e2 = H.key('Enter', $('#onsetBack'));
+    await wait(150);                                   // 가로챘다면 그 사이 검사가 시작됨
+    const resCard = !e1.defaultPrevented && !e2.defaultPrevented && S === null && vis('#pgOnset') && !$('#onsetResCard').hidden && DB.sessions.length === 0;
+    let trial = false, body = false;
+    if (S === null) {
+      $('#onsetAgain').click();
+      await until(() => ONSET.running && ONSET.phase === 'awaiting' && ONSET.idx === 0, 10000, '다시 한 점검');
+      $('#onCountPick').querySelector('[data-v="4"]').click(); $('#onFirstPick').querySelector('[data-v="no"]').click();
+      const e3 = H.key('Enter', $('#onReplay'));
+      trial = !e3.defaultPrevented && ONSET.idx === 0 && ONSET.phase === 'awaiting' && ONSET.trials.length === 0;
+      const e4 = H.key('Enter');
+      body = !!e4.defaultPrevented && ONSET.trials.length === 1;
+    }
+    return [resCard && trial && body, `결과화면=${resCard} 시행중=${trial} 본문Enter=${body} S=${!!S}`];
+  });
+
+  // ── 장면 2: 검사 A (유지 신호 켬) — #2 · #1 · #14 · #13 · #4 · #3 · #6
+  await resetAll();
+  toSound({ code: 'P07' }); freshKeep();               // 유지 신호를 막 켠 상태 → 시작할 때 3초 안정 대기가 남음(‘오디오 준비 중’)
+  $('#soundNext').click();
+  await tryOk('1.2.14 #2 오디오 준비 중 ‘건너뛰고 연습 시작’을 거듭 눌러도 검사는 한 건 — 참가 번호 · 귀 · 연결 방법과 답이 같은 검사에 · 준비(파일 확인 · 소리 안정 대기)가 끝날 때까지 시작 단추 잠금', async () => {
+    $('#onsetSkip').click();
+    startSession();                                    // 첫 입력 직후(파일 확인 중)의 겹친 진입
+    let locked = true, tries = 0;
+    for (let i = 0; i < 600 && !S; i++) {
+      if (!$('#onsetSkip').disabled || !$('#onsetStart').disabled) locked = false;   // 준비가 끝나기 전에 단추가 다시 열림
+      $('#onsetSkip').click(); tries++;
+      await wait(1);
+    }
+    await wait(150);                                   // 겹쳐 들어간 시작이 있었다면 그 사이 검사가 더 생김
+    await until(() => S && S.cur && awaiting, 15000, '연습 첫 시행');
+    const sA = S.session;
+    H.key(String(awaiting.tg + 1));
+    const one = DB.sessions.length === 1 && DB.sessions[0] === sA && evN(sA, 'session-start') === 1 && evN(sA, 'practice-start') === 1 && storedDb().sessions.length === 1;
+    const who = sA.code === 'P07' && sA.ear === 'R' && sA.path === 'wired';
+    const unlocked = !$('#onsetSkip').disabled && !$('#onsetStart').disabled && !$('#onsetBack').disabled;
+    return [one && who && sA.practiceTrials.length === 1 && locked && unlocked && tries > 3,
+      `검사=${DB.sessions.length}건 번호=${sA.code} 귀=${sA.ear} 연결=${sA.path} 답=${sA.practiceTrials.length} 잠금=${locked} 누름=${tries}`];
+  });
+  await tryOk('1.2.14 #1 검사 중 ‘소리 끄기’ · Esc → 검사음과 18 Hz 유지 신호를 함께 끔(출력에 18 Hz 없음 · 끊김으로 적지 않음) · 화면을 가렸다 돌아와도 저절로 켜지지 않음 · ‘소리 다시 재생’ 때만 원래 설정으로(막 켠 신호 3초 안정 뒤 같은 시행을 다시)', async () => {
+    await until(() => S && S.cur && S.cur.practice && awaiting, 15000, '연습 시행');
+    const C = S.cur, s = S.session, res = [], gaps0 = evN(s, 'keep-gap-start'), nTr = s.practiceTrials.length;
+    for (const how of ['button', 'key-esc']) {
+      await until(() => S.cur === C && awaiting, 15000, '답 기다림');
+      const on0 = Math.abs(db18Now() + 45) < 0.05, oscStops = H.oscLog.filter(x => x.ev === 'stop').length;
+      if (how === 'button') $('#muteNowBtn').click(); else H.key('Escape');
+      const ev = s.events.filter(e => e.type === 'safety-mute').at(-1);
+      const off = keep === null && db18Now() === null && H.oscLog.filter(x => x.ev === 'stop').length === oscStops + 1;
+      const ui = C.phase === 'suspended' && !$('#resumeAudioWrap').hidden && $$('.iv').every(b => b.disabled) && !!ev && ev.via === how;
+      keepMonTick();
+      H.visibility(true); await wait(20); H.visibility(false); await wait(40);
+      const stays = keep === null && db18Now() === null && C.phase === 'suspended' && !awaiting;
+      const noGap = !!KEEPMON.last && KEEPMON.last.cls !== 'gap' && !KEEPMON.open && evN(s, 'keep-gap-start') === gaps0;
+      const nB = starts().length;
+      $('#resumeAudioBtn').click();
+      await until(() => S.cur === C && awaiting, 15000, '다시 재생');
+      const back = !!keep && Math.abs(db18Now() + 45) < 0.05 && effectiveKeepMode() === 'tone18all' && starts().length === nB + 3 && $('#resumeAudioWrap').hidden && $('#tNote').textContent.includes('연습');
+      const warmed = !!keep && starts().at(-3).at - keep.from >= 2.9;   // 유지 신호를 다시 켠 뒤 3초가 지나서야 첫 소리를 예약
+      res.push(`${how}:${+on0}${+off}${+ui}${+stays}${+noGap}${+back}${+warmed}`);
+    }
+    return [res.every(r => r.endsWith(':1111111')) && s.practiceTrials.length === nTr && evN(s, 'keep-gap-start') === gaps0 && !KEEPMON.open, res.join(' ')];
+  });
+  await tryOk('1.2.14 #14 마지막(세 번째) 연습 답 직후 피드백 중 ‘소리 끄기’ → ‘소리 다시 재생’: 네 번째 시행 없이 연습 끝 화면으로 (연습 3번 · 남은 횟수 0)', async () => {
+    const s = S.session;
+    while (s.practiceTrials.length < 2) await answerNow(true);
+    await until(() => S.cur && S.cur.practice && awaiting && s.practiceTrials.length === 2, 15000, '세 번째 연습');
+    const C = S.cur;
+    H.key(String(awaiting.tg + 1));                    // 세 번째 답 → 피드백(1초)
+    const fb = C.phase === 'feedback' && C.left === 0 && s.practiceTrials.length === 3;
+    $('#muteNowBtn').click();
+    const nB = starts().length;
+    $('#resumeAudioBtn').click();
+    await until(() => vis('#pgBreak') || awaiting, 15000, '연습 끝 또는 네 번째 시행');
+    const done = vis('#pgBreak') && S.cur === null && !awaiting && starts().length === nB && C.left === 0 && s.practiceTrials.length === 3
+      && $('#bBody').textContent.includes('3번 중') && evN(s, 'practice-end') === 1;
+    const detail = `피드백=${fb} 화면=${vis('#pgBreak') ? '연습 끝' : '시행'} 남은=${C.left} 연습답=${s.practiceTrials.length} 새소리=${starts().length - nB}`;
+    if (!done && awaiting) { H.key(String(awaiting.tg + 1)); await until(() => vis('#pgBreak'), 15000, '복구'); }   // 실패해도 다음 시험으로
+    return [fb && done, detail + (done ? '' : ` → 네 번째 답 뒤 남은=${C.left}`)];
+  });
+  await tryOk('1.2.14 #13 쉬는 화면: ‘저장하고 나중에 이어하기’ · ‘여기까지만 하기’ · ‘연습 한 번 더’ · 언어 단추에 초점을 두고 Enter · Space → 공통 단축키(다음)가 가로채지 않음 · 초점이 단추 밖이면 그대로 ‘다음’', async () => {
+    if (!vis('#pgBreak') || !S) throw new Error('쉬는 화면이 아님');
+    const s = S.session, res = [];
+    for (const [key, id] of [['Enter', '#bSaveLater'], [' ', '#bSaveLater'], ['Enter', '#bEnd'], [' ', '#bEnd'], ['Enter', '#bPractice'], [' ', '#langToggle']]) {
+      const n = evN(s, 'track-start'), e = H.key(key, $(id));
+      const kept = !e.defaultPrevented && vis('#pgBreak') && !!S && S.cur === null && evN(s, 'track-start') === n;
+      res.push(+kept);
+      if (!kept && S && S.cur) { $('#stopBtn').click(); await until(() => vis('#pgBreak'), 5000, '복구'); }   // 가로채서 시작된 측정을 되돌림
+    }
+    const n1 = evN(s, 'track-start'), e = H.key('Enter');   // 초점이 단추 밖(본문)
+    const nextOk = !!e.defaultPrevented && !!S.cur && !S.cur.practice && evN(s, 'track-start') === n1 + 1;
+    return [res.every(Boolean) && nextOk, `단추에 초점=${res.join('')} 본문 Enter=${nextOk}`];
+  });
+  await tryOk('1.2.14 #1 ‘소리 끄기’ 뒤 ‘잠시 멈춤’ → ‘다시 시작’: 쉬는 동안 유지 신호는 꺼진 채 · 다시 시작할 때 원래 설정으로 켜고 3초 뒤 첫 소리', async () => {
+    await until(() => S && S.cur && !S.cur.practice && awaiting, 20000, '측정 첫 시행');
+    const fm = S.cur.fm;
+    $('#muteNowBtn').click();
+    $('#stopBtn').click();                             // 확인 창 ‘그만’ → 버린 측정 → 쉬는 화면
+    const rest = vis('#pgBreak') && S.cur === null && keep === null && db18Now() === null;
+    await wait(60);
+    const still = keep === null && db18Now() === null;
+    $('#bNext').click();
+    await until(() => S.cur && awaiting, 20000, '다시 시작한 측정');
+    const back = !!keep && Math.abs(db18Now() + 45) < 0.05 && S.cur.fm === fm && starts().at(-3).at - keep.from >= 2.9 && !KEEPMON.open;
+    return [rest && still && back, `쉬는 동안 꺼짐=${rest}/${still} 다시 켜고 3초 뒤=${back}`];
+  });
+  await tryOk('1.2.14 #1 출력 확인: 유지 신호를 막 켠 뒤 분석 창(약 0.7초)이 차기 전의 무음은 끊김으로 적지 않음(‘소리 끄기’를 푼 직후가 그런 때) · 창이 찬 뒤에도 18 Hz 가 없으면 끊김', () => {
+    if (!S) throw new Error('검사 중이 아님');
+    const s = S.session, g0 = evN(s, 'keep-gap-start');
+    keepStop(); keepStart();                           // 막 켬
+    H.forceSilent = true;
+    let early, late;
+    try {
+      early = keepMonTick().cls;                       // 창이 덜 참
+      keep.from -= 1;                                  // 1초 전에 켠 셈 → 창이 찼는데도 무음
+      late = keepMonTick().cls;
+    } finally { H.forceSilent = false; }
+    const back = keepMonTick().cls;
+    return [early === 'buffer' && late === 'gap' && back === 'ok' && !KEEPMON.open && evN(s, 'keep-gap-start') === g0 + 1, `${early} → ${late} → ${back}`];
+  });
+  await tryOk('1.2.14 #14 측정의 마지막 답(0 dB 네 번째 오답 → 계단 끝) 직후 ‘소리 끄기’ → ‘소리 다시 재생’: 소리를 더 들려주지 않고 측정을 마침 (기록 4시행 = 들려준 4시행)', async () => {
+    await until(() => S && S.cur && !S.cur.practice && awaiting, 20000, '측정 시행');
+    const s = S.session, C = S.cur, r0 = s.runs.length;
+    for (let k = 0; k < 4; k++) { await until(() => S.cur === C && awaiting, 15000, '오답 시행'); H.key(wrongKey()); }
+    const ended = C.track.done && C.track.ceiling && C.phase === 'feedback';
+    $('#muteNowBtn').click();
+    const nB = starts().length;
+    $('#resumeAudioBtn').click();
+    await until(() => vis('#pgBreak') || awaiting, 15000, '측정 끝 또는 남는 시행');
+    const run = s.runs.at(-1);
+    const done = vis('#pgBreak') && S.cur === null && starts().length === nB && s.runs.length === r0 + 1 && run.ceiling && run.trials.length === 4 && run.nTrials === 4;
+    const detail = `계단 끝=${ended} 화면=${vis('#pgBreak') ? '쉬는 화면' : '시행'} 측정=${s.runs.length - r0} 새소리=${starts().length - nB}`;
+    if (!done && awaiting) { H.key('1'); await until(() => vis('#pgBreak'), 15000, '복구'); }
+    return [ended && done, detail];
+  });
+  await tryOk('1.2.14 #4 중간 저장 실패(저장 공간 부족): 쉬는 화면 · 검사 상태 유지 + 실패 알림 · 홈으로 가지 않음(‘이어서 하기’를 보이지 않음) · 회기에 실패 기록', async () => {
+    if (!vis('#pgBreak') || !S) throw new Error('쉬는 화면이 아님');
+    const s = S.session, idx = S.idx;
+    flushSave();
+    const real = localStorage.setItem;
+    localStorage.setItem = () => { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; };
+    let stay = false, detail = '';
+    try {
+      $('#bSaveLater').click();
+      stay = vis('#pgBreak') && !!S && S.session === s && S.idx === idx && !s.paused && s.resumeIdx === undefined && !isResumable(s) && $('#homeResume').hidden
+        && $('#bBody').textContent.includes('저장하지 못했습니다') && evN(s, 'session-pause') === 0 && evN(s, 'session-pause-failed') === 1;
+      detail = `화면=${vis('#pgBreak') ? '쉬는 화면' : vis('#pgHome') ? '홈' : '기타'} 검사 유지=${!!S} 중단 표시=${!!s.paused} 이어서 하기 보임=${!$('#homeResume').hidden}`;
+    } finally { localStorage.setItem = real; }
+    const st = storedDb().sessions.find(x => x.id === s.id);
+    const notStored = !!st && !st.paused;              // 저장소에는 중단 표시가 없음 — 화면도 그에 맞아야 새로 고침 뒤 달라지지 않음
+    if (!S) {                                          // 수정 전: 홈으로 가 버림 → 다음 시험을 위해 메모리의 검사를 이어 감
+      const b = $$('#homeResumeList [data-resume]').find(x => x.dataset.resume === s.id); if (b) b.click();
+      await until(() => S && vis('#pgBreak'), 5000, '복구');
+    }
+    return [stay && notStored, detail + ` 저장소의 중단 표시=${!!(st && st.paused)}`];
+  });
+  await tryOk('1.2.14 #3 다른 탭이 기록을 저장해도 진행 중인 검사 = 저장 목록의 그 항목(같은 객체) → 이 탭의 이후 진행(중간 저장)이 저장소에 남음 · 다른 탭의 기록도 그대로 · 새로 고침 뒤에도 ‘이어서 하기’ · 결과 화면이 보던 검사도 같은 객체', async () => {
+    if (!vis('#pgBreak') || !S) throw new Error('쉬는 화면이 아님');
+    const s = S.session;
+    flushSave(); saveStore();
+    // 다른 탭: 같은 기록을 읽어 다른 검사(P88 — 연습만 하고 끝낸 검사)를 더해 저장 → 이 탭에 storage 사건
+    const other = storedDb();
+    other.sessions.push({ id: 'other-tab-p88', format: FORMAT, formatVersion: FORMAT_VERSION, app: APP_VERSION, start: iso(), end: iso(), endReason: '중간에 끝냄 (남은 측정 7개)', updated: iso(),
+      code: 'P88', ear: 'L', path: 'speaker', plan: [], runs: [], practiceTrials: [], decisions: [], events: [{ t: iso(), s: 0, type: 'session-start' }] });
+    other.rev = 'other-tab-rev-1';
+    const raw = JSON.stringify(other);
+    H.store.set(STORE_KEY, raw);
+    handleStorageEvent({ key: STORE_KEY, newValue: raw });
+    const same = DB.sessions.filter(x => x.id === s.id).length === 1 && DB.sessions.find(x => x.id === s.id) === s && DB.sessions.some(x => x.id === 'other-tab-p88');
+    $('#bSaveLater').click();                          // 이 탭의 이후 진행
+    const st = storedDb().sessions.find(x => x.id === s.id);
+    const saved = vis('#pgHome') && S === null && !!st && st.paused === true && st.resumeIdx === 1 && st.runs.length === 1 && st.events.some(e => e.type === 'session-pause')
+      && storedDb().sessions.some(x => x.id === 'other-tab-p88');
+    loadStore(); renderHome();                         // 새로 고침 흉내: 저장소에서 다시 읽음
+    const reload = !$('#homeResume').hidden && $$('#homeResumeList [data-resume]').some(b => b.dataset.resume === s.id);
+    // 결과 화면이 보고 있는 검사: 다른 탭이 같은 내용을 저장 → 같은 객체 그대로 · 더 새 판을 저장 → 그 객체로 옮겨 감
+    const a2 = DB.sessions.find(x => x.id === s.id);
+    SHOWN = a2; JUST = a2;
+    const o2 = storedDb(); o2.rev = 'other-tab-rev-2';
+    H.store.set(STORE_KEY, JSON.stringify(o2)); handleStorageEvent({ key: STORE_KEY, newValue: JSON.stringify(o2) });
+    const shownSame = SHOWN === a2 && JUST === a2 && DB.sessions.includes(a2);
+    const o3 = storedDb(); o3.rev = 'other-tab-rev-3';
+    Object.assign(o3.sessions.find(x => x.id === s.id), { updated: new Date(Date.now() + 5000).toISOString(), focusEnd: 'good' });
+    H.store.set(STORE_KEY, JSON.stringify(o3)); handleStorageEvent({ key: STORE_KEY, newValue: JSON.stringify(o3) });
+    const shownNew = !!SHOWN && SHOWN !== a2 && SHOWN.focusEnd === 'good' && JUST === SHOWN && DB.sessions.includes(SHOWN);
+    SHOWN = null; JUST = null;
+    return [same && saved && reload && shownSame && shownNew, `같은 객체=${same} 중간 저장이 저장소에=${saved} 새로 고침 뒤 이어하기=${reload} 결과 화면=${shownSame}/${shownNew}`];
+  });
+  await tryOk('1.2.14 #6 완료한 측정이 없는 기록만 있어도(첫 측정 전에 끝낸 검사 · 중간 저장된 검사) 홈에 ‘이 기기 기록 지우기’가 보임 · 누르면 모두 지워지고 숨음', () => {
+    renderHome();
+    const all = DB.sessions;
+    const real = all.length === 2 && all.some(isResumable) && all.some(s => s.id === 'other-tab-p88' && !s.runs.length) && !$('#homeSaved').hidden && !$('#homeResume').hidden;
+    const only = pred => { DB.sessions = all.filter(pred); renderHome(); return !$('#homeSaved').hidden; };
+    const endedOnly = only(s => s.id === 'other-tab-p88') && $('#homeResume').hidden && $$('#homeSavedList [data-open]').length === 0 && $('#homeSavedList').textContent.includes('1개');
+    const pausedOnly = only(s => s.id !== 'other-tab-p88') && !$('#homeResume').hidden;
+    const empty = !only(() => false);
+    DB.sessions = all; renderHome();
+    H.confirmAnswer = true;
+    const nC = H.dialogs.filter(d => d[0] === 'confirm').length;
+    $('#homeClearAll').click();
+    const cleared = H.dialogs.filter(d => d[0] === 'confirm').length === nC + 1 && DB.sessions.length === 0 && !H.store.has(STORE_KEY) && $('#homeSaved').hidden && $('#homeResume').hidden;
+    return [real && endedOnly && pausedOnly && empty && cleared, `실제 상태=${real} 끝낸 검사만=${endedOnly} 중간 저장만=${pausedOnly} 빈 기록=${empty} 지움=${cleared}`];
+  });
+
+  // ── 장면 3: 검사 B — 유지 신호를 끄고 48 kHz 로 시작 → 중간 저장 → 새로 연 화면(44.1 kHz · 유지 신호 기본값 켜짐)에서 이어 함 (#2 · #5 · #10 · #7 · #9)
+  let finalObj = null, backupObj = null;
+  try {
+    await resetAll();
+    H.sampleRate = 48000;
+    toSound({ code: 'P08', ear: 'L', keepOn: false });
+    $('#soundNext').click(); $('#onsetSkip').click();
+    await until(() => S && S.cur && S.cur.practice && awaiting, 20000, 'B 연습');
+    const sB = S.session;
+    for (let k = 0; k < 3; k++) await answerNow(true);
+    await until(() => vis('#pgBreak'), 15000, 'B 연습 끝');
+    $('#bSaveLater').click();
+    const resumeBtn = () => $$('#homeResumeList [data-resume]').find(b => b.dataset.resume === sB.id);
+    freshPage(44100);
+    await tryOk('1.2.14 #2 · #5 ‘이어서 하기’를 거듭 눌러도 한 번만 이어 감 · 유지 신호를 끈 검사는 새로 연 화면(기본값 켜짐)에서도 끈 채로 — 18 Hz 발진기 0개 · 기록(꺼짐) = 실제 출력', async () => {
+      resumeBtn().click();
+      resumeSession(sB.id);
+      for (let i = 0; i < 600 && !S; i++) { const b = resumeBtn(); if (b) b.click(); await wait(1); }
+      await wait(150);
+      await until(() => S && S.session === sB && vis('#pgBreak'), 15000, 'B 이어하기');
+      const ev = sB.events.filter(e => e.type === 'session-resume').at(-1);
+      const once = evN(sB, 'session-resume') === 1;
+      const off = keepUserOff === true && keep === null && ctx.sampleRate === 44100 && ctx._oscs.length === 0 && db18Now() === null
+        && ev.audio.keepalive === 'off' && ev.audio.sampleRate === 44100 && sB.keepalive.userOff === true && sessionKeepKey(sB) === 'off' && $('#keepBadge').textContent.includes('꺼짐');
+      return [once && off, `이어하기 사건=${evN(sB, 'session-resume')}번 유지 신호 끔 유지=${off} (발진기 ${ctx._oscs.length}개 · 18 Hz ${db18Now()} dBFS · 기록 ${sessionKeepKey(sB)})`];
+    });
+    $('#bPractice').click();
+    for (let k = 0; k < 3; k++) await answerNow(true);
+    await until(() => vis('#pgBreak'), 15000, 'B 연습 2 끝');
+    $('#bNext').click();
+    // 측정 1: 한 번 틀림 → 다음 소리가 나는 동안 화면이 가려짐(무효) → 돌아와 다시 듣고 틀림 → 셋째 시행에서 ‘잠시 멈춤’(버린 측정) → 처음부터 다시 네 번 틀림(재지 못함)
+    await answerNow(false);
+    await until(() => S.cur && S.cur.phase === 'playing', 15000, '가려질 소리');
+    H.visibility(true); await wait(5); H.visibility(false);
+    await answerNow(false);
+    await until(() => S.cur && awaiting, 15000, '멈출 시행');
+    $('#stopBtn').click();
+    await until(() => vis('#pgBreak'), 5000, 'B 버린 측정');
+    $('#bNext').click();
+    for (let k = 0; k < 4; k++) await answerNow(false);
+    await until(() => vis('#pgBreak'), 15000, 'B 측정 1 끝');
+    $('#bSaveLater').click();                          // 측정 1개인 채로 중간 저장 → ‘결과 백업’
+    $$('#homeResumeList [data-backup]').find(b => b.dataset.backup === sB.id).click();
+    backupObj = JSON.parse(await (await H.takeDownloads())[0].blob.text());
+    resumeBtn().click();
+    await until(() => S && S.session === sB && vis('#pgBreak'), 15000, 'B 다시 이어하기');
+    $('#bNext').click();
+    for (let k = 0; k < 4; k++) await answerNow(false);
+    await until(() => vis('#pgBreak'), 15000, 'B 측정 2 끝');
+    $('#bEnd').click();
+    await until(() => vis('#pgEnd'), 5000, 'B 끝');
+    $('#saveFile').click();
+    finalObj = JSON.parse(await (await H.takeDownloads())[0].blob.text());
+    if (H.dump) H.dump(finalObj, 'resume');            // → tools/verify_result_check.py 가 따로 짠 파이썬으로 다시 만들어 봄
+  } catch (e) { ok('1.2.14 장면 3(검사 B: 중간 저장 → 표본화율이 다른 화면에서 이어하기)이 끝까지 돎', false, e.stack || e.message); }
+  H.sampleRate = 48000;
+  await tryOk('1.2.14 #10 표본화율이 바뀐 화면에서 이어 한 검사: 연습 · 측정 · 버린 측정 · 가려져 버린 시행마다 만든 때의 표본화율(sr)이 남음 (48 kHz 로 시작 → 44.1 kHz 로 이음)', () => {
+    const s = finalObj.sessions[0], pr = s.practiceTrials;
+    const ab = s.events.filter(e => e.type === 'track-abandoned'), vd = s.events.filter(e => e.type === 'trial-void');
+    const c = [s.env.audio.sampleRate === 48000, pr.length === 6 && pr.slice(0, 3).every(t => t.sr === 48000) && pr.slice(3).every(t => t.sr === 44100),
+      s.runs.length === 2 && s.runs.every(r => r.audio.sampleRate === 44100 && r.trials.length === 4 && r.trials.every(t => t.sr === 44100)),
+      ab.length === 1 && ab[0].trialList.length === 2 && ab[0].trialList.every(t => t.sr === 44100) && !!ab[0].pending && ab[0].pending.sr === 44100,
+      vd.length === 1 && !!vd[0].heard && vd[0].heard.sr === 44100, s.events.filter(e => e.type === 'session-resume').length === 2 && s.events.filter(e => e.type === 'session-resume').every(e => e.audio.sampleRate === 44100)];
+    return [c.every(Boolean), bits(c) + ` 연습 sr=${pr.map(t => t.sr).join()}`];
+  });
+  await tryOk('1.2.14 #7 받은 결과 보기: 같은 검사의 중간 백업(측정 1개)을 먼저 열고 완료본(측정 2개)을 열면 화면 · CSV 가 완료본으로 바뀜(쓰는 파일 표시) · 거꾸로 다시 열어도 완료본 유지 · 어느 쪽이 최신인지 알 수 없으면 쓰는 파일을 알림', async () => {
+    showPage('pgViewer', { noScroll: true, noFocus: true }); clearViewerState();
+    const open = async (o, name) => {
+      $('#vState').textContent = ''; $('#vFiles').files = [new File([JSON.stringify(o)], name)];
+      $('#vFiles').dispatchEvent({ type: 'change', target: $('#vFiles') });
+      await until(() => $('#vState').textContent !== '', 5000, name + ' 열기');
+      return $('#vState').textContent;
+    };
+    const rows = () => $('#vList').querySelectorAll('tr').length - 1, cur = () => VIEW.sessions[0];
+    await open(backupObj, 'backup.json');
+    const first = backupObj.sessions[0].runs.length === 1 && finalObj.sessions[0].runs.length === 2 && VIEW.sessions.length === 1 && cur().s.runs.length === 1 && rows() === 1;
+    const m2 = await open(finalObj, 'final.json');
+    const upd = VIEW.sessions.length === 1 && cur().s.runs.length === 2 && cur().src === 'final.json' && rows() === 2 && $('#vList').innerHTML.includes('final.json') && !$('#vList').innerHTML.includes('backup.json')
+      && m2.includes('final.json');
+    $('#vCsvRuns').click();
+    const R = H.parseCsv(await (await H.takeDownloads())[0].blob.text()).filter(r => r.length > 1);
+    const csvOk = R.length - 1 === 2 && R.slice(1).every(r => r[0] === 'final.json');
+    const m3 = await open(backupObj, 'backup.json');
+    const keepNew = VIEW.sessions.length === 1 && cur().s.runs.length === 2 && cur().src === 'final.json' && rows() === 2 && m3.includes('backup.json') && m3.includes('final.json');
+    const m4 = await open(finalObj, 'final-copy.json');   // 같은 내용을 또 엶 → 그대로
+    const dup = VIEW.sessions.length === 1 && cur().src === 'final.json' && rows() === 2;
+    const fork = JSON.parse(JSON.stringify(finalObj)); fork.sessions[0].runs[1].trials[0].c = 1;   // 시각 · 측정 수는 같은데 내용이 다른 파일
+    const m5 = await open(fork, 'edited.json');
+    const conflict = VIEW.sessions.length === 1 && cur().src === 'final.json' && m5.includes('edited.json') && m5.includes('final.json') && m5 !== m4;
+    clearViewerState(); showPage('pgHome', { noScroll: true, noFocus: true });
+    return [first && upd && csvOk && keepNew && dup && conflict, `백업 먼저=${first} 완료본으로 바뀜=${upd} CSV=${csvOk}(${R.length - 1}줄) 거꾸로=${keepNew} 같은 파일=${dup} 판단 불가 알림=${conflict} | ${m2}`];
+  });
+  await tryOk('1.2.14 #9 받은 결과 보기: 소리 기록(씨앗 · 세기 · 봉우리)이 없는 시행은 구간 세기 ‘같음’이 아니라 ‘확인 못 함’ · 측정 CSV 의 구간세기차는 빈칸 · 전문가 보고서는 ‘확인 불가’', async () => {
+    const bare = JSON.parse(JSON.stringify(finalObj.sessions[0])); bare.id = 'no-sound-record';
+    for (const r of bare.runs) for (const t of r.trials) { delete t.seeds; delete t.rms; delete t.pk; delete t.phase; }
+    const sameN = h => (h.match(/class="good">같음/g) || []).length;
+    const hBare = viewSessHtml(sanitizeSession(bare), 'bare.json'), hFull = viewSessHtml(sanitizeSession(finalObj.sessions[0]), 'final.json');
+    const viewOk = hBare.includes('확인 못 함') && sameN(hBare) === 2 && sameN(hFull) === 4 && !hFull.includes('확인 못 함');   // 측정 2개: 계단 다시 2 (+ 구간 세기 2)
+    const rep = specialistReportHtml([bare]), repFull = specialistReportHtml([finalObj.sessions[0]]);
+    const repOk = rep.includes('확인 불가') && !repFull.includes('확인 불가');
+    VIEW.sessions = [{ s: sanitizeSession(bare), src: 'bare.json' }, { s: sanitizeSession(finalObj.sessions[0]), src: 'final.json' }];
+    renderViewer(true);
+    $('#vCsvRuns').click();
+    const R = H.parseCsv(await (await H.takeDownloads())[0].blob.text()).filter(r => r.length > 1), ix = R[0].indexOf('구간세기차dB');
+    const csvOk = R.length === 5 && R.slice(1).filter(r => r[0] === 'bare.json').every(r => r[ix] === '') && R.slice(1).filter(r => r[0] === 'final.json').every(r => r[ix] !== '' && +r[ix] <= 0.1);
+    clearViewerState();
+    return [viewOk && repOk && csvOk, `뷰어=${viewOk}(같음 ${sameN(hBare)}/${sameN(hFull)}) 보고서=${repOk} CSV=${csvOk}`];
+  });
+  await tryOk('1.2.14 #8 참가자 그림의 평균점은 정상 측정만(표 · 전문가 보고서와 같은 규칙): 정상 −20 dB + 미완 −4 dB → 표 평균 빈칸 · 그림에도 −12 dB 평균점 없음 · 참고 값은 점선 원으로 구별 / 3차 제안 = 두 값이 모두 숫자이고 3 dB 넘게 다를 때(재지 못함 · 산출 불가 제외 — 방법.md §3-5)', () => {
+    const run = (fm, order, thr, x = {}) => ({ id: 'r' + order, fm, round: order % 2 ? 1 : 2, order, thr, sd: 1, ceiling: false, incomplete: false, atChance: false, n0: 2, k0: 2, nTrials: 30, nDunno: 0, reversals: [], revAt: [], trials: [], ...x });
+    const sess = { id: 'mix', start: iso(), ear: 'R', path: 'wired', P: snapP(PR), events: [],
+      runs: [run(10, 1, -20), run(10, 2, -4, { incomplete: true }), run(50, 3, -16), run(50, 4, -13), run(100, 5, -10, { atChance: true })] };
+    const ch = chartHtml(sess), tb = endTableHtml(sess), cnt = re => (ch.match(re) || []).length;
+    const y = d => 16 + (300 - 16 - 48) * (1 - d / -30);   // 그림의 세로 자리 (넓은 화면 · 가장 약한 눈금 −30 dB)
+    const means = [...ch.matchAll(/class="pt" cx="[^"]+" cy="([^"]+)"/g)].map(m => +m[1]);
+    const chartOk = means.length === 1 && Math.abs(means[0] - y(-14.5)) < 1e-6 && cnt(/class="pt2"/g) === 3 && cnt(/class="pt-ref"/g) === 2 && ch.includes('점선 원 = 참고 값');
+    const row = hz => tb.split('<tr>').find(r => r.includes(`>${hz} Hz</td>`)) || '';
+    const tableOk = row(10).endsWith('<td></td></tr>') && row(50).includes('-14.5 dB') && !tb.includes('-12.0 dB');   // 10 Hz: 평균 칸 비움 · 50 Hz: 정상 둘의 평균
+    const css = new TextDecoder().decode(H.fileBytes('style.css')).includes('.chart .pt-ref{');
+    const keepS = S;
+    S = { session: { rounds: [{ round: 1 }, { round: 2 }], fmsPlan: [10, 50, 100, 200, 300], runs: [
+      run(10, 1, -20), run(10, 2, -4, { incomplete: true }),          // 숫자 둘(하나는 참고 값) · 차 16 dB → 제안
+      run(50, 3, -16), run(50, 4, -14),                               // 차 2 dB → 제안 안 함
+      run(100, 5, -10), run(100, 6, 0, { ceiling: true }),            // 재지 못함은 숫자가 아님 → 제안 안 함
+      run(200, 7, -10), run(200, 8, null, { incomplete: true }),      // 산출 불가 → 제안 안 함
+      run(300, 9, -2, { atChance: true }), run(300, 10, -8)] } };     // 우연 수준(참고 값)도 숫자 · 차 6 dB → 제안
+    let o = null; try { o = makeOffer(); } finally { S = keepS; }
+    const offerOk = !!o && o.kind === 'extra' && o.fms.join() === '10,300';
+    const repTxt = specialistReportHtml([sess]).includes('두 값이 모두 숫자이고 차가 &gt; 3 dB');
+    return [chartOk && tableOk && css && offerOk && repTxt, `그림=${chartOk}(평균점 ${means.map(v => v.toFixed(1)).join()} · 빈 원 ${cnt(/class="pt2"/g)} · 점선 원 ${cnt(/class="pt-ref"/g)}) 표=${tableOk} css=${css} 제안=${o ? o.fms.join() : null} 보고서 문구=${repTxt}`];
+  });
+  await resetAll();
   clearInterval(KEEPMON_TIMER);
 })();

@@ -8,6 +8,7 @@
   1 자극 · 계단 JS = 파이썬   tools/cross_check.py — 앱의 stim.js · track.js(deno 로 그대로)를 따로 짠 tools/tmtf_ref.py 와 견줌 (자극 750개 · 계단 210개)
   2 화면 코드 점검            deno run tools/app_check.js — 가짜 화면 · 가짜 AudioContext · 빠른 시계로 준비부터 결과 파일 · 받은 결과 보기까지 (듣는 사람 모형)
   3 결과 파일 다시 만들기      tools/verify_result.py — 2단계에서 화면이 저장한 결과 파일을 따로 짠 파이썬으로: 계단 · 구간마다 소리(씨앗 → RMS · 봉우리 · 위상)
+                              + tools/verify_result_check.py — 그 검산기가 제대로 견주는지 (표본화율이 바뀐 이어하기 회기 · 소리 기록을 지운 파일 · 값을 바꾼 파일의 판정)
   4 Lean 4 빌드               tools/lean 을 처음부터 (.lake/build 지움) — 판정: 종료 코드 0 + ‘Build completed successfully’ + warning · error · sorry 줄 0
   5 Lean 공리 감사            lake env lean MyAudit.lean — axiomDecls=0 · 공리 합집합 ⊆ {propext, Classical.choice, Quot.sound} · NONSTANDARD 0 · sorryAx 없음
   6 JS ↔ Lean 대조            tools/lean/cross_check.js → crosscheck.exe → 한 줄씩 비교 (+ 종류마다 일부러 바꾼 줄을 잡는지)
@@ -137,7 +138,11 @@ def main():
 
     def s3():
         c, out, sec = run([PY, '-I', '-X', 'utf8', 'tools/verify_result.py', dump], timeout=900)
-        return c == 0 and verdict(out).startswith('판정: 통과'), out, sec
+        if not (c == 0 and verdict(out).startswith('판정: 통과')):
+            return False, out, sec
+        # 검산기 자체 점검 (1.2.14): 같은 파일과, 화면 점검이 함께 저장한 이어하기 회기 파일(<dump>.resume.json)을 조금씩 바꿔 판정이 기대와 같은지
+        c2, out2, sec2 = run([PY, '-I', '-X', 'utf8', 'tools/verify_result_check.py', dump], timeout=900)
+        return c2 == 0 and verdict(out2).startswith('판정: 통과'), out + '\n' + out2, round(sec + sec2, 1)
 
     LEAN = os.path.join(ROOT, 'tools', 'lean')
     LAKE = os.path.join(HOME, '.elan', 'bin', 'lake.exe' if os.name == 'nt' else 'lake')

@@ -39,7 +39,9 @@ jobs:
         run: deno run --allow-read --allow-write=/tmp tools/app_check.js --dump /tmp/ci_result.json
 
       - name: 3. Independent result verification (Python)
-        run: python -I -X utf8 tools/verify_result.py /tmp/ci_result.json
+        run: |
+          python -I -X utf8 tools/verify_result.py /tmp/ci_result.json
+          python -I -X utf8 tools/verify_result_check.py /tmp/ci_result.json
 
       - name: 4. Static privacy, CSP & build-hash integrity audit
         run: |
