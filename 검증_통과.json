@@ -1,8 +1,8 @@
 {
  "last": {
-  "at": "2026-11-25T20:51:05+09:00",
+  "at": "2026-11-25T21:26:16+09:00",
   "ok": true,
-  "seconds": 63.8,
+  "seconds": 94.5,
   "buildSha256": "a99c1e9bd6cc11bd2c2d03d6f89a3ade6bea8a6b71d28bb1f9c700d254ee123b",
   "buildSame": true,
   "files": {
@@ -22,13 +22,13 @@
    "tools/tmtf_ref.py": "103a005b9fd85b1abaf0befd4852ad46e069c36740d447586c860dc20a87151c",
    "tools/verify_result.py": "759f898e65e7a2ae89eda29c6b2088ca97ed8009679ceb92c1123146fc973ada",
    "tools/전수검산.bat": "66013703b21a8cf61040a651dd46eeda55aa0daed411f14e7924ee2e00775dcd",
-   "tools/lean/CrossCheck.lean": "895bb84cc7240ff73040716bab692579d67fcb273b64cd9fb6a9dbace08cb895",
+   "tools/lean/CrossCheck.lean": "212a26ac8ec8ab479e5563053ff2505e9ca2e51aafb544e849bc084e35c0da30",
    "tools/lean/MyAudit.lean": "1eb2f917f4d5f42c20e7ba057d015805c82ce014af074c06d1b4f2e2addfe25b",
-   "tools/lean/README.txt": "a88b372841cb06e9549429c53d41c9f5c95da51107716a92b5d232bb66d40ff7",
-   "tools/lean/TMTF.lean": "e98944c7fab414b57cf4853eb40f99aec0c119ca3f65d7309a92b5a0b81cbc30",
+   "tools/lean/README.txt": "5eec26c574f1104d42fcbba2254ebd52024eba612e7d23296b35ad3bb2ad5f95",
+   "tools/lean/TMTF.lean": "5ba195895d3012242489ee1193f1bd31b3128d0054ccaff6508e861edee1a5f0",
    "tools/lean/cross_check.js": "7df804bd96f2097e1559c853d146f9686a10771c7b41fa2c319b1de7b1195f31",
-   "tools/lean/lake-manifest.json": "1ee13ac1c8afa99d23551edde54a3e170c28a145f6a85088f65e9455fe895a48",
-   "tools/lean/lakefile.toml": "35fc119910c253b09e95dc809e356fe72a16738e81950386b14caa0f55f77b08",
+   "tools/lean/lake-manifest.json": "30ea310c5326448307c918173beb24f09b7c3ac43eec7cc7c9fceeb6154b459c",
+   "tools/lean/lakefile.toml": "add560f1c2ed8a512f38268e7fff2faae478fefdcd213511397ab7b3302c30f3",
    "tools/lean/lean-toolchain": "582a63f8f9c5128067b688778c1051cf1464c3ca9d57b9325025c051c29b774a",
    "tools/lean/TMTF/Band.lean": "c0cdc9d8c2f1414c8576a72cf269d32926f764dd4dd5ffff6731529d12bab279",
    "tools/lean/TMTF/Basic.lean": "34c62921631cdc428d4be3d871b0e38abe5e2e55cb893b95e86953dfb3a31214",
@@ -36,6 +36,7 @@
    "tools/lean/TMTF/Grid.lean": "320848349dcc98abd445e466e913036a61890820e81e379b92937891a0914873",
    "tools/lean/TMTF/Level.lean": "9c36460ba1a7e109893626d91a79720dfe5619ff7db5bbcbbd1c25d359a7c921",
    "tools/lean/TMTF/Ramp.lean": "173ba149c9bfec2f290740c855889417c105815addfd9c4912f409a188cb45ef",
+   "tools/lean/TMTF/RealAnalytic.lean": "f99aba8bb8683fccaa0129ed2bc0edc1010b4653084b93e5a516b1660504bb95",
    "tools/lean/TMTF/Rng.lean": "8e84df2a3d611d54d76fd72e954a38d2dcffaa1bfadfad0e1213aff8a7dbd6b0",
    "tools/lean/TMTF/Sam.lean": "4515dd6a4e796b0efca8019688866c015389a4db305dfbb05cb4bf8ba327308e",
    "tools/lean/TMTF/Spectrum.lean": "21de35d8de7e8492b0ec8c20a116179102d5fc8a4d411e805f7263749ca3c0ec",
@@ -46,36 +47,36 @@
     "no": 1,
     "name": "자극 · 계단 JS = 파이썬 (tools/cross_check.py)",
     "ok": true,
-    "seconds": 6.3,
+    "seconds": 7.7,
     "detail": "자극 750개 (줄임 250개): 최대 차 RMS 2.44e-11 dB · 봉우리 3.55e-15 dB · 표본 0.00e+00 · 합 1.49e-08\r\n계단 210개 (측정 불가 4 · 미완 6): 깊이 · 반전 · 반전 시행 · 역치 · SD · 우연 판정 대조\r\n판정: 통과 — 자극 750개 · 계단 210개 JS = 파이썬"
    },
    {
     "no": 2,
     "name": "화면 코드 점검 (tools/app_check.js)",
     "ok": true,
-    "seconds": 40.4,
+    "seconds": 39.8,
     "detail": "판정: 통과 — 104개 중 104개 통과 (문법 · DOM id · 올리기 · 흐름 · 기록 · 파일)"
    },
    {
     "no": 3,
     "name": "결과 파일 다시 만들기 (tools/verify_result.py)",
     "ok": true,
-    "seconds": 3.5,
-    "detail": "계단: 회기 1개 · 측정 11개 중 11개 같음 · 버린 측정 1개 중 1개 이어짐\r\n자극: 시행 402개 · 구간 1206개 다시 만듦 — 봉우리 최대 차 0.0050 dB (기록 0.01 반올림) · RMS 최대 차 0.00040 dB (0.001 반올림)\r\n판정: 통과 (읽기만 — 파일 1개)"
+    "seconds": 3.8,
+    "detail": "계단: 회기 1개 · 측정 11개 중 11개 같음 · 버린 측정 1개 중 1개 이어짐\r\n자극: 시행 395개 · 구간 1185개 다시 만듦 — 봉우리 최대 차 0.0050 dB (기록 0.01 반올림) · RMS 최대 차 0.00040 dB (0.001 반올림)\r\n판정: 통과 (읽기만 — 파일 1개)"
    },
    {
     "no": 4,
     "name": "Lean 4 빌드 (tools/lean, 처음부터)",
     "ok": true,
-    "seconds": 7.5,
-    "detail": "Build completed successfully (39 jobs)."
+    "seconds": 26.8,
+    "detail": "Build completed successfully (4198 jobs)."
    },
    {
     "no": 5,
     "name": "Lean 공리 감사 (MyAudit.lean)",
     "ok": true,
-    "seconds": 2.8,
-    "detail": "SUMMARY consts=399 theorems=287 axiomDecls=0 others=112 · UNION Classical.choice,Quot.sound,propext · NONSTANDARD 0"
+    "seconds": 13.1,
+    "detail": "SUMMARY consts=455 theorems=333 axiomDecls=0 others=122 · UNION Classical.choice,Quot.sound,propext · NONSTANDARD 0"
    },
    {
     "no": 6,
@@ -225,6 +226,12 @@
    "buildSha256": "a99c1e9bd6cc11bd2c2d03d6f89a3ade6bea8a6b71d28bb1f9c700d254ee123b",
    "appVersion": "1.2.7 (2026-11-24)",
    "seconds": 63.8
+  },
+  {
+   "at": "2026-11-25T21:26:16+09:00",
+   "buildSha256": "a99c1e9bd6cc11bd2c2d03d6f89a3ade6bea8a6b71d28bb1f9c700d254ee123b",
+   "appVersion": "1.2.7 (2026-11-24)",
+   "seconds": 94.5
   }
  ]
 }

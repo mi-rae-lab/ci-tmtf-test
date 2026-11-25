@@ -8,3 +8,8 @@ name = "TMTF"
 [[lean_exe]]
 name = "crosscheck"
 root = "CrossCheck"
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.36.0"

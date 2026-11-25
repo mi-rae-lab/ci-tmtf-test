@@ -1,9 +1,10 @@
 Lean 4 형식 검증 — 소리 떨림 검사(TMTF)의 자극 · 계단 (와우TMTF 3.2 에서 가져옴, 2026-10-24 · Claude)
 
-Lean:   %USERPROFILE%\.elan (leanprover/lean4:v4.36.0, core 만 — Mathlib 없음)
+Lean:   %USERPROFILE%\.elan (leanprover/lean4:v4.36.0 + Mathlib v4.36.0)
         PATH 는 바꾸지 않아도 됨 → %USERPROFILE%\.elan\bin\lake.exe 로 직접 실행 (이 폴더의 lean-toolchain 이 버전을 고름)
+        처음 클론한 컴퓨터에서는 빌드 전에 `lake exe cache get` 으로 Mathlib 사전 빌드 캐시를 받음.
 
-무엇을 증명했나 (유리수 · 정수 · 32비트 모형 — JS 실행 자체의 증명이 아님. JS ↔ 이 모형은 아래 대조로)
+무엇을 증명했나 (유리수 · 정수 · 32비트 모형 + Mathlib 실수 ℝ · 복소수 ℂ 해석 모형 — JS 실행 자체의 증명이 아님. JS ↔ 이 모형은 아래 대조로)
   TMTF\Basic.lean     합 · 평균 세기(평균 제곱) · 곱하기 — 바탕
   TMTF\Level.lean     세기 맞춤: g² = T/ms(x) 이면 ms(g·x) = T (x 가 무엇이든) → 변조 · 비변조 구간의 평균 세기가 정확히 같음.
                       경사 전에 맞추던 옛 순서는 같다는 보장이 없음(반례), 봉우리 막기로 한 구간만 줄이면 세기가 달라짐
@@ -22,10 +23,27 @@ Lean:   %USERPROFILE%\.elan (leanprover/lean4:v4.36.0, core 만 — Mathlib 없�
                       40 Hz 띠만 (1 + m²/4)/(1 + m²/2) ≥ 5/6 (m = 1 에서 −0.79 dB, m ≤ 0.316 이면 −0.11 dB 안).
                       같은 RMS 에서 느린 포락선의 봉우리 세기 = 평균의 (1 + m)²/(1 + m²/2) 배 (m = 1: 8/3, +4.26 dB)
   TMTF\Chance.lean    ‘우연 수준’ 이항 꼬리(js binomTail 의 정확한 유리수판) · 꼬리 확률과 판정 보기(3구간 8번 중 5번 = 577/6561 → 우연 수준 등)
-  implemented_by · extern · native_decide · sorry · axiom 없음. 수치 비교는 decide +kernel (커널 계산, 표준 공리만).
+  TMTF\RealAnalytic.lean
+                      Mathlib 4 (v4.36.0) 실수(ℝ) · 복소수(ℂ) 해석 증명 (43개 공개 정리):
+                      · 실수 RMS 정규화: rmsR(c·x) = |c|·rmsR(x), g = T/rmsR(x) → rmsR(g·x) = T, 변조·비변조 실수 RMS 정확 일치,
+                        TARGET_RMS = 0.05 의 dBFS 범위 (−26.021, −26.020) 및 4.5σ 헤드룸(0.45 < 0.99)
+                      · dB ↔ 선형 변조 깊이(m = 10^(D/20), 20·log₁₀ m) 정확 역함수 · 단조증가 · D ≤ 0 이면 모든 fm · t · φ 에서
+                        실제 Real.sin 포락선 1 + 10^(D/20)·sin(2π·fm·t + φ) ∈ [0, 2] (과변조 없음)
+                      · 임의의 K ≥ 3 · 임의의 무작위 위상 φ ∈ ℝ 에 대한 복소 단위근 합과 실제 Real.sin SAM 한 주기 평균 세기
+                        = 1 + m²/2 (Viemeister 1979; Shen & Richards 2013), 1/√(1 + m²/2) 제곱근 보정 = 1,
+                        실제 Real.logb 10 의 10·log₁₀(3/2) · 10·log₁₀(5/6) · 10·log₁₀(8/3) dB 범위
+                      · 올림 코사인(cos²) 경사 sin²(t·π/2): [0, 1] 범위 · (0, 1) 양수 · 상보 대칭 a(t) + a(1 − t) = 1 · 순증가
+                      · 버터워스 실수 진폭 이득 1/√((1+(lo/f)^(2o))(1+(f/hi)^(2o))): (0, 1] 범위 및 제곱 = G2
+                      · Box–Muller 변환: 0 < u ≤ 1 → −2·ln u ≥ 0 (Math.sqrt NaN 불가) 및 (r·cos)² + (r·sin)² = −2·ln u
+                      · 켤레 대칭 역 푸리에 변환(IDFT): js noise() 스펙트럼 구성의 출력 허수부 = 0 (out[i] = re[i] 무손실) 및
+                        Parseval 항등식 ∑ ‖idft X‖² = (1/n) ∑ ‖X‖²
+                      · Levitt (1971) 2-down 1-up 실수 수렴점 p = 1/√2: p² = 1/2 및 0.7071 < 1/√2 < 0.7072
+                      · 변조 깊이 추정기 measureDepth: 이상 포락선에서 진폭 A · 무작위 위상 φ 에 무관하게 변조 깊이 m 정확 복원
+  implemented_by · extern · native_decide · sorry · axiom 없음. 수치 비교는 decide +kernel / decide (커널 계산, 표준 공리만).
 
-모형 밖 (Lean 이 증명하지 않음 — 부동소수 · 초월 함수): sin · log · √ · FFT · Box–Muller 가우스 · Float32 반올림.
-  이것들은 전수 검산 1단계 JS = 파이썬(자극 750개, tools/cross_check.py) · 3단계 결과 파일 다시 만들기(tools/verify_result.py)와
+모형 밖 (Lean 이 증명하지 않음 — 부동소수 구현과 실행): IEEE-754 Float32/Float64 반올림 오차, radix-2 반복 FFT 구현, 실제 JS 엔진 실행.
+  (초월 함수 sin · cos · log · 10^(D/20) · √ · 복소 IDFT · Parseval · Box–Muller 의 실수/복소수 수학 성질은 TMTF\RealAnalytic.lean 에서 증명함.)
+  부동소수 · 실행 일치 확인은 전수 검산 1단계 JS = 파이썬(자극 750개, tools/cross_check.py) · 3단계 결과 파일 다시 만들기(tools/verify_result.py)와
   6단계 SPEC · GAIN(js noise() 출력의 DFT 로 칸 범위 · 대역 모양)으로 수치 확인.
   스펙트럼 정리는 ‘SAM 의 시간 평균 세기 스펙트럼 = S(f) + (m²/4)(S(f − fm) + S(f + fm))’ 라는 표준 결과를 출발점으로 받아들임.
 

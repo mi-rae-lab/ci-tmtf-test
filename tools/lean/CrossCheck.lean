@@ -1,4 +1,13 @@
-import TMTF
+import TMTF.Basic
+import TMTF.Level
+import TMTF.Sam
+import TMTF.Ramp
+import TMTF.Band
+import TMTF.Grid
+import TMTF.Track
+import TMTF.Rng
+import TMTF.Spectrum
+import TMTF.Chance
 
 /-!
 JS ↔ Lean 대조의 Lean 쪽 (Claude, 2026-10-24 — 와우TMTF 3.2, 와우SRD tools/lean/CrossCheck.lean 과 같은 방식)
