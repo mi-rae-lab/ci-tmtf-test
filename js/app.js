@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.9 (2026-11-25)';   // 1.2.9: randInt 거부 표집(rejection sampling) 적용으로 CodeQL 치우침 경고 해소 + Google Search Console 소유권 확인 파일 추가
+const APP_VERSION = '1.2.10 (2026-11-25)';   // 1.2.10: 화면 전역 두 번 터치 확대 방지 (touch-action:manipulation + 비활성 영역 touchend/dblclick 가드, 핀치 줌 접근성 유지)
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;
@@ -2653,6 +2653,42 @@ function applyLang(lang, rerender = true) {
   }
 }
 $('#langToggle').onclick = () => applyLang(LANG === 'en' ? 'ko' : 'en', true);
+
+/* ───────────── 터치 기기 두 번 탭 확대 방지 (두 손가락 핀치 확대는 접근성을 위해 유지) ───────────── */
+(() => {
+  if (typeof document === 'undefined' || !document.addEventListener) return;
+  let lastTapAt = -1000, moved = false, sx = 0, sy = 0;
+  document.addEventListener('touchstart', e => {
+    if (e.touches && e.touches.length > 1) { moved = true; lastTapAt = -1000; return; }
+    const t = e.touches && e.touches[0];
+    moved = false;
+    if (t) { sx = t.clientX; sy = t.clientY; }
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (moved) return;
+    const t = e.touches && e.touches[0];
+    if (!t || Math.abs(t.clientX - sx) > 10 || Math.abs(t.clientY - sy) > 10) { moved = true; lastTapAt = -1000; }
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (moved || (e.touches && e.touches.length > 0) || (e.changedTouches && e.changedTouches.length > 1)) {
+      lastTapAt = -1000;
+      return;
+    }
+    const now = Date.now();
+    const dt = now - lastTapAt;
+    lastTapAt = now;
+    if (dt >= 0 && dt <= 350) {
+      const el = e.target && e.target.closest ? e.target.closest('a, input, select, textarea, label, summary, button') : null;
+      const activeInteractive = !!(el && !el.disabled);
+      if (!activeInteractive && e.cancelable !== false && e.preventDefault) e.preventDefault();
+    }
+  }, { passive: false });
+  // iOS Safari 일부 버전에서 비활성 영역·연타 시 발생하는 dblclick 확대 보조 차단
+  document.addEventListener('dblclick', e => {
+    const el = e.target && e.target.closest ? e.target.closest('input, textarea') : null;
+    if (!el && e.cancelable !== false && e.preventDefault) e.preventDefault();
+  }, { passive: false });
+})();
 
 /* ───────────── 처음 ───────────── */
 loadStore();

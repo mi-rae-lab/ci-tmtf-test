@@ -261,6 +261,7 @@ const H = {
   override: {},                      // { 'js/app.js': '바뀐 내용' } — 화면을 연 뒤 서버 파일이 바뀐 경우
   cached: {},                        // { 'js/app.js': '옛 내용' } — force-cache 로 읽을 때만(브라우저가 옛 파일을 쓴 경우)
   key: (key, target) => { const e = { type: 'keydown', key, target: target || bodyEl, repeat: false, preventDefault() { e.defaultPrevented = true; } }; for (const f of docL.keydown || []) f(e); return e; },
+  docFire: (type, e) => { for (const f of docL[type] || []) f(e); return e; },
   visibility: hidden => { document.hidden = hidden; document.visibilityState = hidden ? 'hidden' : 'visible'; for (const f of docL.visibilitychange || []) f({ type: 'visibilitychange' }); },
   takeDownloads: async () => { await new Promise(r => realST(r, 20)); return downloads.splice(0); },
   parseCsv: t => {

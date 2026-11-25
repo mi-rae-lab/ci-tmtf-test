@@ -860,5 +860,33 @@ globalThis.__scope = (async () => {
     return [hashOk && noQueryFetch && piiWarnOn && piiWarnOff && loadedBefore && cleared && syncedOk && noResurrect && storageSynced,
       `hash=${hashOk} clr=${cleared} noRes=${noResurrect} stSync=${storageSynced}`];
   });
+  await tryOk('1.2.10 더블탭 확대 방지: CSS touch-action:manipulation · 비활성/배경 연타 차단 · 활성 버튼/핀치 줌 유지', () => {
+    const css = new TextDecoder().decode(H.fileBytes('style.css'));
+    const idx = new TextDecoder().decode(H.fileBytes('index.html'));
+    const cssOk = /\*\{[^}]*touch-action:manipulation/.test(css) && !/user-scalable\s*=\s*no|maximum-scale\s*=\s*1/i.test(idx);
+    const tap = (target, nTouches = 1) => {
+      const touches = Array.from({ length: nTouches }, () => ({ clientX: 50, clientY: 50 }));
+      H.docFire('touchstart', { type: 'touchstart', target, touches });
+      const ev = { type: 'touchend', target, touches: [], changedTouches: touches, cancelable: true, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+      H.docFire('touchend', ev);
+      return ev.defaultPrevented;
+    };
+    const bg = $('#pgHome');
+    const firstTap = tap(bg);
+    const secondBgTap = tap(bg);
+    const disBtn = $$('.iv')[0];
+    const prevDis = disBtn.disabled;
+    disBtn.disabled = true;
+    const secondDisTap = tap(disBtn);
+    disBtn.disabled = prevDis;
+    const enBtn = $('#goSetup');
+    enBtn.disabled = false;
+    const enabledTap = tap(enBtn);
+    const pinchTap = tap(bg, 2);
+    const dbl = { type: 'dblclick', target: bg, cancelable: true, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    H.docFire('dblclick', dbl);
+    const okAll = cssOk && !firstTap && secondBgTap && secondDisTap && !enabledTap && !pinchTap && dbl.defaultPrevented;
+    return [okAll, `css=${cssOk} t1=${firstTap} t2bg=${secondBgTap} t2dis=${secondDisTap} en=${enabledTap} pinch=${pinchTap} dbl=${dbl.defaultPrevented}`];
+  });
   clearInterval(KEEPMON_TIMER);
 })();
