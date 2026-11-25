@@ -37,6 +37,7 @@ The page opens in Korean by default; use the `EN` / `KO` button at the top right
 1. Tap **Start**, then choose the ear you are testing and how you are listening.
    - If you are testing one ear, please take off the sound processor (the external part of the cochlear implant) or hearing aid on the other side for now.
 2. Tap **Play sound** and set your device volume to a comfortable, clearly audible level.
+   - Start with your device volume at half or lower; the calibration noise fades in gradually over 1.5 seconds.
    - To keep the start of sounds from being cut off, a very low, nearly inaudible keep-alive tone turns on automatically while sound plays (you can turn it off).
    - Once set, please keep the volume the same until the test is finished.
 3. Do the **sound check** twice (each time: a 3-second wait, then 4 short beeps). It checks whether the start of sounds is cut off. You can skip it if you want.
@@ -44,6 +45,7 @@ The page opens in Korean by default; use the `EN` / `KO` button at the top right
 5. Do the **main test**. As each sound plays, boxes 1 · 2 · 3 light up in turn.
    - Choose the number of the fluttering sound. You can also use keys 1 · 2 · 3 on the keyboard.
    - If you notice even a tiny flutter, pick that number. Press **Not sure** (keyboard 0) only when all three sounds seem completely identical.
+   - If the sound ever feels too loud or uncomfortable, tap **Mute now** (or press `Esc`) to stop audio immediately, adjust your volume, and resume without losing progress.
    - It starts easy, but the flutter becomes subtler as you get answers right, so it gradually gets harder.
 6. When the test is finished, tap **Save result file** and, if needed, send the file to your audiologist or the researcher.
    - When consulting your audiologist or cochlear implant engineer, you can also use **Save specialist report** (`.html`; open it in a browser to print or save as PDF; for reference only).
@@ -66,6 +68,16 @@ The page opens in Korean by default; use the `EN` / `KO` button at the top right
   - For this reason, it is difficult to compare your values directly with other people's.
 - A Bluetooth connection may cut off the start of sounds.
 
+## Hearing safety safeguards
+
+Informed by the ISO 14971 risk-management hierarchy (inherent safety by design → protective measures → information for safety), the app applies layered audio safeguards without altering the verified stimulus mathematics:
+
+- **Digital headroom and `-1 dBFS` output limiter:** All stimuli are generated at `-26 dBFS` (`TARGET_RMS = 0.05`) and pass through a pre-output `DynamicsCompressorNode` brickwall limiter (`-1 dBFS`) plus a buffer sanitizer that zeros non-finite samples (`NaN`/`Infinity`) and clamps peaks above `0.99` (completely transparent for normal stimuli).
+- **1.5-second soft-start on volume setup:** To reduce startle risk when a device's volume was accidentally left high, the calibration noise fades in gradually over 1.5 s (main test trials retain the exact 10 ms linear ramp from the literature).
+- **One-tap `Mute now` and `Esc` emergency stop:** On the volume setup, sound check, and test screens, audio can be cut immediately without a confirmation dialog; after lowering the volume, participants can tap **Resume sound** without losing their run.
+- **Pre-playback safety notice and high-volume warning:** A hearing safety notice recommends starting at half volume or lower, and entering `80%` or higher in the device volume field triggers an immediate alert.
+- *Note: Software safeguards do not replace physical sound-pressure calibration (dB SPL) or medical-device regulatory certification.*
+
 ## Privacy and security
 
 - **In-browser processing (including the public GitHub Pages site):** The app uses no backend server, database, cookies, analytics tools (such as Google Analytics), or external CDNs, fonts, or scripts. Apart from loading the six static files and reading `검증_통과.json` (the verification record; `GET`, `credentials: 'omit'`, `no-referrer`), it makes no network transfers. Sound generation, the test itself, charts, reports, and opening result files are designed to run **only inside the browser**.
@@ -73,6 +85,7 @@ The page opens in Korean by default; use the `EN` / `KO` button at the top right
 - **Protecting what you type:** The app never asks for names or contact details. Input fields use `spellcheck="false"` to reduce text leaking to cloud spell checkers. If a phone number, email address, or Korean resident registration number pattern is typed into the note field, a warning appears immediately, inside the browser.
 - **Local storage and instant deletion:** Results are stored **only in this device's browser (`localStorage`)**, and they are exported to a file only when the participant taps **Save result file**. After using a shared device, tap **Delete local records** on the home screen to completely erase the stored records right away.
 - **Hash links (`#id=`) that stay out of server logs:** When you pass a participant ID through a link, use **`#id=P02`** (a URL hash) instead of `?id=`. The ID is then not included in the HTTP request, so it does not appear in the GitHub Pages static server logs.
+- **Automated security checks:** GitHub Actions (`Security & Verification Checks`), CodeQL static analysis (0 open alerts; unbiased rejection sampling for random intervals), Secret scanning, and Dependabot continuously check security and privacy invariants on every change.
 - **Ongoing security checks and updates:** The app was built strictly around blocking outbound transfers and processing everything in the browser, but security cannot be guaranteed to be perfect in every environment. We will keep checking for potential vulnerabilities and continue to release security updates.
 - Result files contain the ear, the listening method, each trial's answer and response time, and browser and screen information (optional items such as age are included only if chosen).
 
@@ -163,7 +176,7 @@ The app is built to web standards, with no build tools or external frameworks.
 
 - **Semantic HTML5 and standard CSS3:** Meaningful markup such as `<header>`, `<main>`, `<section>`, `<footer>`, and `<details>`, with a responsive layout and support for the system dark mode (`prefers-color-scheme`) and reduced motion (`prefers-reduced-motion`).
 - **Standard Web APIs:** Works only with standard APIs built into the browser (Web Audio API, Web Crypto API, Web Storage, Screen Wake Lock, Content Security Policy), with no plug-ins or external scripts.
-- **Web accessibility (WAI-ARIA):** Keyboard operation, visible focus, and `role`, `aria-label`, `aria-live`, `aria-pressed`, and `aria-current` attributes are applied, and information is never conveyed by color alone.
+- **Web accessibility (WAI-ARIA) and touch ergonomics:** Keyboard operation, visible focus, and `role`, `aria-label`, `aria-live`, `aria-pressed`, and `aria-current` attributes are applied, and information is never conveyed by color alone. On touch screens, accidental double-tap zoom is prevented (`touch-action: manipulation` plus an inactive-area guard) while preserving two-finger pinch-to-zoom for accessibility (WCAG).
 
 ## References
 
