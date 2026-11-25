@@ -291,7 +291,7 @@ main:has(#pgViewer.on){max-width:960px}
   color:var(--dim);
 }
 .card.soft b{color:var(--tx)}
-#againBox.card.soft{
+#againBox.card.soft,#homeResume.card.soft{
   background:var(--acc-soft);
   border-color:var(--acc-border);
   color:var(--tx);

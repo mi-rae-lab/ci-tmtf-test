@@ -3,7 +3,7 @@
 [한국어](README.md) · **English**
 
 A listening test where you find the **one fluttering sound** among three “shh” sounds.
-It measures how faint a flutter you can detect at each flutter rate (10–200 Hz).
+It measures how faint a flutter you can detect at each flutter rate (10–300 Hz, 7 standard frequencies).
 In research, this is called temporal modulation detection, or the TMTF (temporal modulation transfer function).
 
 This TMTF test is designed for cochlear implant users.
@@ -27,7 +27,7 @@ The page opens in Korean by default; use the `EN` / `KO` button at the top right
 ## What you need
 
 - A quiet place
-- About 20 minutes (you can take breaks)
+- About 25 minutes (you can save partway through and resume later)
 - Your everyday sound processor program and volume
 - A computer is recommended (phones and tablets also work)
   - On iPhone, switch off the side silent switch so sound can play.
@@ -46,6 +46,7 @@ The page opens in Korean by default; use the `EN` / `KO` button at the top right
    - Choose the number of the fluttering sound. You can also use keys 1 · 2 · 3 on the keyboard.
    - If you notice even a tiny flutter, pick that number. Press **Not sure** (keyboard 0) only when all three sounds seem completely identical.
    - If the sound ever feels too loud or uncomfortable, tap **Mute now** (or press `Esc`) to stop audio immediately, adjust your volume, and resume without losing progress.
+   - If you feel tired between runs, tap **Save & resume later** to store your progress in this browser and continue the remaining frequencies later from the home screen (**Resume test**).
    - It starts easy, but the flutter becomes subtler as you get answers right, so it gradually gets harder.
 6. When the test is finished, tap **Save result file** and, if needed, send the file to your audiologist or the researcher.
    - When consulting your audiologist or cochlear implant engineer, you can also use **Save specialist report** (`.html`; open it in a browser to print or save as PDF; for reference only).
@@ -96,7 +97,7 @@ Informed by the ISO 14971 risk-management hierarchy (inherent safety by design �
 - **Add a participant ID through the link (`#` hash recommended — not sent to the server):** Add `#id=P02` to the end of the address to fill in the ID field. Anything after `#` is not sent to the server (the older `?id=P02` still works).
   - Example: `https://mi-rae-lab.github.io/ci-tmtf-test/#id=P02`
 - **Change the flutter rates:** Write `#hz=10,50,100` to test with those values.
-  - The defaults are 10 · 50 · 100 · 150 · 200 Hz.
+  - The defaults are the 7 standard Won et al. (2011) frequencies: **10 · 50 · 75 · 100 · 150 · 200 · 300 Hz** (presented in random order). *(Reference: the original laboratory study presented broadband noise at 65 dBA; in a browser, sound pressure is uncalibrated, so participants set a comfortable volume.)*
   - Allowed values are 5–300 Hz in 5 Hz steps, plus 2 · 4 · 8 · 16 · 32 · 64 · 128 · 256 · 512 Hz.
   - If any value is invalid, the defaults are used. Up to 12 values are allowed.
   - To use both, join them with `&`, as in `#id=P02&hz=10,50,100`.
@@ -142,15 +143,15 @@ The stimulus and staircase code (`js/stim.js` · `js/track.js` · `js/protocols.
 - **Lean 4**: `leanprover/lean4:v4.36.0` ([`tools/lean/lean-toolchain`](tools/lean/lean-toolchain))
 - **Mathlib4**: `leanprover-community/mathlib4` tag **`v4.36.0`** (commit `fc4f59e577feb1a4956671bc04ac18aaaf8cd842`, [`tools/lean/lakefile.toml`](tools/lean/lakefile.toml) · [`tools/lean/lake-manifest.json`](tools/lean/lake-manifest.json))
 - **Scope of formal proofs**: 10 core rational/integer/32-bit modules + real (`ℝ`) & complex (`ℂ`) analytic module using Mathlib4 ([`tools/lean/TMTF/RealAnalytic.lean`](tools/lean/TMTF/RealAnalytic.lean), 43 public theorems: real RMS equalization, `10^(D/20)` & `Real.sin` no-overmodulation, arbitrary `K ≥ 3` & random-phase `φ` SAM cycle power `1 + m²/2` with Viemeister `1/√(1 + m²/2)` correction, `cos²` ramp, Butterworth real gain, Box–Muller, conjugate-symmetric IDFT purely real output & Parseval identity, Levitt `1/√2`, and exact phase-invariant `measureDepth` recovery)
-- **Latest 6-step full verification (`2026-11-25`, app `1.2.11`, `build 66ff328e980d`, total `92.5 s` — ALL PASS)**:
+- **Latest 6-step full verification (`2026-11-25`, app `1.2.12`, `build eac094e03221`, total `107.5 s` — ALL PASS)**:
 
 | Step | Check | Status | Time | Summary |
 |---:|---|---|---:|---|
-| 1 | Stimulus & staircase JS = Python | PASS | 6.7 s | 750 stimuli (max RMS diff `2.44e-11` dB) · 210 staircases match |
-| 2 | UI & security check (`app_check.js`) | PASS | 39.1 s | 106 / 106 pass (flows · CSP/XSS · privacy · KO/EN i18n · touch · safety) |
-| 3 | Independent result replay (`verify_result.py`) | PASS | 3.8 s | 11/11 runs · 402 trials / 1,206 intervals match |
-| 4 | Lean 4 + Mathlib4 clean rebuild | PASS | 26.3 s | `4198 jobs` succeeded · 0 warnings / errors / `sorry` |
-| 5 | Lean axiom audit (`MyAudit.lean`) | PASS | 13.6 s | `consts=455` · `theorems=333` · `axiomDecls=0` · `UNION {Classical.choice, Quot.sound, propext}` · **`NONSTANDARD 0`** |
+| 1 | Stimulus & staircase JS = Python | PASS | 7.2 s | 750 stimuli (max RMS diff `2.44e-11` dB) · 210 staircases match |
+| 2 | UI & security check (`app_check.js`) | PASS | 52.8 s | 107 / 107 pass (7 rates · save/resume · CSP/XSS · KO/EN i18n · touch · safety) |
+| 3 | Independent result replay (`verify_result.py`) | PASS | 5.5 s | 15/15 runs · 550 trials / 1,650 intervals match |
+| 4 | Lean 4 + Mathlib4 clean rebuild | PASS | 25.6 s | `4198 jobs` succeeded · 0 warnings / errors / `sorry` |
+| 5 | Lean axiom audit (`MyAudit.lean`) | PASS | 13.4 s | `consts=455` · `theorems=333` · `axiomDecls=0` · `UNION {Classical.choice, Quot.sound, propext}` · **`NONSTANDARD 0`** |
 | 6 | JS ↔ Lean line-by-line cross-check | PASS | 3.0 s | `RNG 307/307` · `RAMP 120/120` · `GAIN 140/140` · `TRACK 360/360` · `PV 131/131` all match |
 
 - Full report & theorem audit table: [tools/lean/검증_결과.md](tools/lean/검증_결과.md) · Machine-readable pass record: [검증_통과.json](검증_통과.json)

@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.11 (2026-11-25)';   // 1.2.11: ISO 14971 청력 안전장치 보강 (-1 dBFS 브릭월 리미터 · 비정상 표본 최종 가드 · 1.5 s 소프트 스타트 · 즉시 소리 끄기/Esc · 80%+ 볼륨 경고)
+const APP_VERSION = '1.2.12 (2026-11-25)';   // 1.2.12: Won 2011 7개 표준 주파수(10·50·75·100·150·200·300 Hz, 무작위 순서) + 중간 저장 후 나중에 이어서 하기 추가
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;
@@ -63,7 +63,7 @@ const PROC_KEY = ['직접', PR.nAFC + '구간', PR.band.type === 'wide' ? '광�
 // 첫 소리 앞 무음 — 스트리밍이 쉬다가 깨어날 때 앞부분이 잘리는 것을 막으려고 (AUDITO, Goehring & Carlyon 2026 은 200 ms 권함)
 const LEAD_S = 0.25;
 const PRACTICE_N = 3;
-const DEFAULT_FMS = [10, 50, 100, 150, 200];   // Won 2011 · Park 2015 의 변조 주파수 가운데 다섯
+const DEFAULT_FMS = [10, 50, 75, 100, 150, 200, 300];   // Won 2011 7개 표준 변조 주파수 (무작위 순서 · 광대역 잡음; 문헌 실험실 출력 참고: 65 dBA)
 const FM_OK = fmChoices(PR);                   // 링크(?hz=)로 고를 수 있는 변조 주파수 = 와우TMTF 직접 정하기의 칸
 const EAR = { L: '왼쪽', R: '오른쪽', B: '양쪽' };
 const EAR_EN = { L: 'Left', R: 'Right', B: 'Both' };
@@ -284,11 +284,11 @@ function scheduleSave(ms = 150) {
   saveTimer = setTimeout(() => { saveTimer = null; if (saveDirty) saveStore(); }, ms);
 }
 function flushSave() { if (saveDirty) saveStore(); }
-// 화면이 닫혀 끝나지 않은 회기 — 다음에 열 때 끝난 것으로 표시하고, 하던 측정은 버린 측정으로 남김 (2분 안에 고친 회기는 다른 창일 수 있어 그대로)
+// 화면이 닫혀 끝나지 않은 회기 — 다음에 열 때 끝난 것으로 표시하고, 하던 측정은 버린 측정으로 남김 (의도적으로 중간 저장한 회기나 2분 안에 고친 회기는 그대로)
 function closeOrphans() {
   let n = 0;
   for (const s of DB.sessions) {
-    if (s.end) continue;
+    if (s.end || s.paused) continue;
     const last = Date.parse(s.updated || s.start || '') || 0;
     if (Date.now() - last < 120000) continue;
     if (s.current) { s.events.push({ t: iso(), s: null, type: 'track-abandoned', stopVia: 'page-closed', ...s.current }); s.current = null; }
@@ -650,9 +650,31 @@ function renderFmInfo() {
     `Flutter rates to test: ${PLAN_FMS.join(' · ')} Hz${LINK.fms ? ' (from link)' : ''}`
   );
 }
+function pausedIdxOf(s) {
+  if (!s || !Array.isArray(s.plan) || !s.plan.length) return 0;
+  const raw = Number.isInteger(s.resumeIdx) ? s.resumeIdx : (s.runs || []).length;
+  return Math.max(0, Math.min(raw, s.plan.length));
+}
+function isResumable(s) {
+  return !!(s && s.paused && !s.end && Array.isArray(s.plan) && pausedIdxOf(s) < s.plan.length);
+}
 function renderHome() {
-  $('#homeTime').textContent = tx(`약 ${estMin(PLAN_FMS.length)}분 (중간에 쉴 수 있습니다)`, `About ${estMin(PLAN_FMS.length)} min (you can take breaks)`);
-  const ss = DB.sessions.filter(s => (s.runs || []).length).slice().sort((a, b) => String(b.start).localeCompare(String(a.start)));
+  $('#homeTime').textContent = tx(`약 ${estMin(PLAN_FMS.length)}분 (중간에 저장하고 나중에 이어서 할 수 있습니다)`, `About ${estMin(PLAN_FMS.length)} min (you can save and resume later)`);
+  const resumable = DB.sessions.filter(isResumable).slice().sort((a, b) => String(b.pausedAt || b.updated || b.start).localeCompare(String(a.pausedAt || a.updated || a.start)));
+  if ($('#homeResume')) {
+    $('#homeResume').hidden = !resumable.length;
+    $('#homeResumeList').innerHTML = resumable.map(s => {
+      const done = pausedIdxOf(s), total = s.plan.length, left = total - done;
+      return `<div class="row wrap gap saved">
+        <span>${esc(localTime(s.pausedAt || s.updated || s.start))} · ${esc(earName(s.ear))} · ${tx(`${done}/${total} 완료 (남은 ${left}개)`, `${done}/${total} done (${left} left)`)}${s.code ? ' · ' + esc(s.code) : ''}</span>
+        <span class="row wrap gap">
+          <button class="btn primary small" type="button" data-resume="${esc(s.id)}">${tx('이어서 하기', 'Resume test')}</button>
+          <button class="btn small" type="button" data-backup="${esc(s.id)}">${tx('결과 백업', 'Back up file')}</button>
+          <button class="btn small" type="button" data-finish-paused="${esc(s.id)}">${tx('여기서 마치기', 'Finish here')}</button>
+        </span></div>`;
+    }).join('');
+  }
+  const ss = DB.sessions.filter(s => !isResumable(s) && (s.runs || []).length).slice().sort((a, b) => String(b.start).localeCompare(String(a.start)));
   $('#homeSaved').hidden = !ss.length;
   $('#homeSavedList').innerHTML = ss.slice(0, 12).map(s => `<div class="row wrap gap saved">
     <span>${esc(localTime(s.start))} · ${esc(earName(s.ear))} · ${tx(`측정 ${s.runs.length}개`, `${s.runs.length} runs`)}${s.code ? ' · ' + esc(s.code) : ''}</span>
@@ -660,6 +682,22 @@ function renderHome() {
     + (ss.length > 12 ? `<p class="hint">${tx(`이전 검사 ${ss.length - 12}개는 ‘모두 파일로 저장’에 포함되어 있습니다.`, `${ss.length - 12} older sessions are included in “Save all to file”.`)}</p>` : '');
   renderEnvWarn();
 }
+if ($('#homeResumeList')) $('#homeResumeList').addEventListener('click', e => {
+  const rId = e.target?.dataset?.resume, bId = e.target?.dataset?.backup, fId = e.target?.dataset?.finishPaused;
+  if (rId) { resumeSession(rId); return; }
+  if (bId) { const s = DB.sessions.find(x => x.id === bId); if (s) saveFile([s], 'single'); return; }
+  if (fId) {
+    const s = DB.sessions.find(x => x.id === fId); if (!s || !isResumable(s)) return;
+    const left = s.plan.length - pausedIdxOf(s);
+    if (!confirm(tx('진행 중인 검사를 여기서 마치고 지금까지의 결과를 볼까요?', 'Finish this saved test here and view the results so far?'))) return;
+    s.paused = false; delete s.resumeIdx; s.end = iso(); s.endReason = `중간에 끝냄 (남은 측정 ${left}개)`;
+    s.events = Array.isArray(s.events) ? s.events : [];
+    s.events.push({ t: iso(), s: null, type: 'session-end', reason: s.endReason, fromPaused: true });
+    s.updated = iso();
+    saveStore(); renderHome();
+    if ((s.runs || []).length) showEnd(s, { offers: false });
+  }
+});
 $('#homeSavedList').addEventListener('click', e => { const id = e.target?.dataset?.open; if (!id) return; const s = DB.sessions.find(x => x.id === id); if (s) showEnd(s, { offers: false }); });
 $('#homeSaveAll').onclick = () => saveFile(DB.sessions.filter(s => (s.runs || []).length || (s.events || []).length), 'all');
 $('#homeClearAll').onclick = () => {
@@ -1086,6 +1124,50 @@ async function startSession() {
   wakeOn();
   startPractice();
 }
+async function resumeSession(id) {
+  if (S) return;
+  const sess = DB.sessions.find(x => x.id === id);
+  if (!isResumable(sess)) return;
+  if (!audioOk()) return;
+  if (!keepUserOff) keepStart();
+  cancelOnsetTimer(); ONSET.running = false; ONSET.phase = 'idle';
+  stopAll(); clearTimeout(noiseTimer); noiseTimer = null; if ($('#noiseState')) $('#noiseState').textContent = '';
+  const bi = await computeBuild('no-store');
+  if (bi.ok && bi.version && bi.version !== APP_VERSION) {
+    alert(tx(STALE_MSG, STALE_MSG_EN));
+    logDecision('session-resume', 'blocked', { reason: 'new-version', sessionId: sess.id, running: APP_VERSION, server: bi.version });
+    return;
+  }
+  const warmRemain = keepWarmupRemainMs();
+  if (warmRemain > 0) await new Promise(r => setTimeout(r, warmRemain));
+  const plan = sess.plan.map(x => ({ ...x }));
+  const idx = pausedIdxOf(sess);
+  const pausedAt = sess.pausedAt || null;
+  sess.paused = false;
+  sess.resumedAt = iso();
+  delete sess.resumeIdx;
+  JUST = null;
+  S = { session: sess, plan, idx, cur: null, token: null, t0: performance.now(), lastEnd: null, practiceRound: sess.practiceRounds || 0, offer: null };
+  mlast = null;
+  logEv('session-resume', { done: idx, total: plan.length, left: plan.length - idx, pausedAt, audio: audioEnv() });
+  saveStore();
+  wakeOn();
+  showBreak('resume', { done: idx, total: plan.length, left: plan.length - idx, pausedAt });
+}
+function pauseSessionForLater() {
+  if (!S) return;
+  const sess = S.session, left = S.plan.length - S.idx;
+  if (left <= 0) { planDone(); return; }
+  clearCurTimers(S.cur); stopAll(); awaiting = null;
+  sess.paused = true; sess.pausedAt = iso(); sess.resumeIdx = S.idx;
+  sess.current = null; sess.end = null; sess.endReason = null;
+  logEv('session-pause', { done: S.idx, total: S.plan.length, left, remainingFms: S.plan.slice(S.idx).map(x => x.fm) });
+  saveStore();
+  wakeOff();
+  S = null; LAST_BREAK = null;
+  renderHome();
+  showPage('pgHome');
+}
 // 한 바퀴 = 고른 주파수 전체를 무작위 순서로 (Won 2011 · Park 2015 · De Ruiter 2015)
 function addRound(fms, extra) {
   const round = S.session.rounds.length + 1, order = shuffle(fms.slice());
@@ -1397,7 +1479,8 @@ function renderBreakContent(kind, info = {}) {
   if (!S) return;
   const left = S.plan.length - S.idx, total = S.plan.length;
   let title = '', h = '';
-  $('#bPractice').hidden = kind !== 'practice';
+  $('#bPractice').hidden = kind !== 'practice' && kind !== 'resume';
+  if ($('#bSaveLater')) $('#bSaveLater').hidden = left <= 0;
   $('#bNext').hidden = false;
   if (kind === 'practice') {
     title = tx('연습 완료', 'Practice complete');
@@ -1416,19 +1499,25 @@ function renderBreakContent(kind, info = {}) {
       '<p>Now the test begins. The flutter gets softer as you get answers right. <b>If you notice even a tiny flutter, pick that number.</b> Only press “Not sure” when all three sounds feel completely identical.</p>');
     h += tx('<p class="hint">검사가 끝날 때까지 볼륨은 바꾸지 말아 주세요.</p>', '<p class="hint">Please do not change your volume until the test finishes.</p>');
     $('#bNext').textContent = tx('검사 시작', 'Start test');
+  } else if (kind === 'resume') {
+    title = tx('저장해 둔 검사 이어하기', 'Resume saved test');
+    h = tx(`<p>${total}개 중 <b>${total - left}개</b>를 마쳤습니다. (남은 검사: ${left}개 · 약 ${estMin(left)}분)</p><p class="hint">이전과 같은 귀(${esc(earName(S.session.ear))}) · 같은 연결 방법(${esc(pathName(S.session.path))})과 편안한 볼륨을 확인한 뒤 진행해 주세요. 소리를 미리 확인하고 싶으면 ‘연습 한 번 더’를 눌러 보실 수 있습니다.</p>`,
+      `<p><b>${total - left}</b> / ${total} done. ${left} left (about ${estMin(left)} min).</p><p class="hint">Please make sure you are using the same ear (${esc(earName(S.session.ear))}), listening setup (${esc(pathName(S.session.path))}), and a comfortable volume. You can also tap “Practice again” to check sound first.</p>`);
+    $('#bNext').textContent = tx('이어서 시작', 'Resume test');
   } else if (kind === 'stopped') {
     title = tx('잠시 멈췄습니다', 'Paused');
-    h = tx('<p>진행 중이던 구간은 처음부터 다시 시작합니다. 이미 마친 구간은 안전하게 저장되어 있습니다.</p>', '<p>This part will restart from the beginning. Finished parts are saved.</p>');
+    h = tx('<p>진행 중이던 구간은 처음부터 다시 시작합니다. 이미 마친 구간은 안전하게 저장되어 있습니다.</p><p class="hint">피로하시면 ‘저장하고 나중에 이어하기’를 눌러 지금 상태를 저장해 두실 수 있습니다.</p>',
+      '<p>This part will restart from the beginning. Finished parts are saved.</p><p class="hint">If you feel tired, tap “Save &amp; resume later” to keep your progress.</p>');
     $('#bNext').textContent = tx('다시 시작', 'Restart');
   } else if (kind === 'round') {
     title = info.extra ? tx('차이가 큰 항목만 한 번 더', 'Extra check for larger differences') : tx(`${info.round}차 검사`, `Round ${info.round}`);
-    h = tx(`<p>${info.extra ? '1·2차 결과 차이가 큰 항목만 한 번 더 확인합니다.' : '같은 소리들을 다른 순서로 한 번 더 검사합니다.'} ${left}개 항목, 약 ${estMin(left)}분 걸립니다.</p><p class="hint">준비되시면 ‘다음’을 눌러 주세요.</p>`,
-      `<p>${info.extra ? 'We will repeat only the rates where your two runs differed most.' : 'We will test the same sounds again in a new order.'} ${left} left, about ${estMin(left)} min.</p><p class="hint">Press “Next” when ready.</p>`);
+    h = tx(`<p>${info.extra ? '1·2차 결과 차이가 큰 항목만 한 번 더 확인합니다.' : '같은 소리들을 다른 순서로 한 번 더 검사합니다.'} ${left}개 항목, 약 ${estMin(left)}분 걸립니다.</p><p class="hint">준비되시면 ‘다음’을 눌러 주세요. 피로하시면 ‘저장하고 나중에 이어하기’로 나중에 진행하실 수 있습니다.</p>`,
+      `<p>${info.extra ? 'We will repeat only the rates where your two runs differed most.' : 'We will test the same sounds again in a new order.'} ${left} left, about ${estMin(left)} min.</p><p class="hint">Press “Next” when ready, or tap “Save &amp; resume later” to continue another time.</p>`);
     $('#bNext').textContent = tx('다음', 'Next');
   } else {
     title = tx('잘하셨습니다', 'Nice work');
-    h = tx(`<p>${total}개 중 ${total - left}개를 마쳤습니다. (남은 검사: ${left}개)</p><p class="hint">잠시 쉬신 뒤 준비되시면 ‘다음’을 눌러 주세요.</p>`,
-      `<p>${total - left} / ${total} done. ${left} left.</p><p class="hint">Take a short break and press “Next” when ready.</p>`);
+    h = tx(`<p>${total}개 중 ${total - left}개를 마쳤습니다. (남은 검사: ${left}개)</p><p class="hint">잠시 쉬신 뒤 준비되시면 ‘다음’을 눌러 주세요. 피로하시면 ‘저장하고 나중에 이어하기’를 눌러 나중에 이어서 진행하실 수 있습니다.</p>`,
+      `<p>${total - left} / ${total} done. ${left} left.</p><p class="hint">Take a short break and press “Next” when ready, or tap “Save &amp; resume later” to continue another time.</p>`);
     $('#bNext').textContent = tx('다음', 'Next');
   }
   $('#bTitle').textContent = title; $('#bBody').innerHTML = h;
@@ -1442,6 +1531,7 @@ function showBreak(kind, info = {}) {
 }
 $('#bNext').onclick = () => { if (!S) return; if (S.idx < S.plan.length) startTrack(); };
 $('#bPractice').onclick = () => { if (!S) return; startPractice(); };
+if ($('#bSaveLater')) $('#bSaveLater').onclick = () => pauseSessionForLater();
 $('#bEnd').onclick = () => {
   if (!S) return;
   const left = S.plan.length - S.idx;
@@ -1473,6 +1563,7 @@ $('#stopBtn').onclick = () => {
 // 계획한 바퀴가 끝남 — 회기를 끝난 것으로 적고 결과를 보여 줌. ‘한 번 더’를 고르면 회기를 다시 열어 이어 감
 function planDone() {
   const sess = S.session;
+  sess.paused = false; delete sess.resumeIdx;
   sess.end = iso(); sess.endReason = '계획한 측정 모두 마침'; sess.keepMonitor = keepMonSince(sess.keepMonAtStart);
   logEv('plan-done', { rounds: roundsOf() });
   saveStore();
@@ -1484,9 +1575,10 @@ function planDone() {
 // 1바퀴 뒤: 한 바퀴 더 (같은 주파수, 새 순서) · 2바퀴 뒤: 두 값이 3 dB 넘게 다른 주파수만 한 번 더 (Park 2015 의 규칙, 숫자 둘일 때만)
 function makeOffer() {
   const R = roundsOf(), runs = S.session.runs;
-  if (R === 1) return { kind: 'again', fms: PLAN_FMS.slice() };
+  const fmsBase = (S.session.fmsPlan && S.session.fmsPlan.length) ? S.session.fmsPlan : PLAN_FMS;
+  if (R === 1) return { kind: 'again', fms: fmsBase.slice() };
   if (R === 2 && !S.session.rounds.some(r => r.extra)) {
-    const fms = PLAN_FMS.filter(f => {
+    const fms = fmsBase.filter(f => {
       const v = runs.filter(r => r.fm === f && !r.extra && !r.ceiling && r.thr !== null).map(r => r.thr);
       return v.length === 2 && Math.abs(v[0] - v[1]) > PR.extraIfDiff;
     });
@@ -1524,6 +1616,7 @@ function endSession(reason) {
   if (!S) return;
   const sess = S.session;
   clearCurTimers(S.cur); stopAll(); awaiting = null;
+  sess.paused = false; delete sess.resumeIdx;
   sess.end = iso(); sess.endReason = reason; sess.keepMonitor = keepMonSince(sess.keepMonAtStart);
   logEv('session-end', { reason });
   saveStore();
@@ -2543,7 +2636,8 @@ const UI_TEXT = {
       appTitle: 'TMTF 검사', appSub: '인공와우 사용자를 위한 소리 듣기 검사',
       hWhat: '어떤 검사인가요?', hLearn: '이 검사를 하면 알 수 있는 것', hPrep: '준비할 것', hPrep1: '조용한 장소',
       hPrep3: '평소 사용하는 음성처리기 프로그램과 볼륨', hPrep4: '컴퓨터 사용을 권장합니다 (휴대폰·태블릿도 가능)',
-      goSetup: '시작하기', hSaved: '이 기기에 저장된 검사', homeSaveAll: '모두 파일로 저장', homeClearAll: '이 기기 기록 지우기',
+      goSetup: '시작하기', hResume: '이어서 할 수 있는 검사', homeResumeHint: '중간에 저장해 둔 검사가 있습니다. 같은 귀와 비슷한 볼륨으로 이어서 진행할 수 있습니다.',
+      hSaved: '이 기기에 저장된 검사', homeSaveAll: '모두 파일로 저장', homeClearAll: '이 기기 기록 지우기',
       goViewer: '결과 파일 열기 (청능사·연구자용)',
       qEar: '어느 쪽 귀로 검사하시나요?', earHint: '한쪽 귀만 검사할 때는 반대쪽 음성처리기(인공와우 외부기기)나 보청기를 잠시 빼 주세요.',
       qPath: '소리를 듣는 방법을 선택해 주세요.',
@@ -2567,7 +2661,7 @@ const UI_TEXT = {
       onsetBack: '소리 맞추기로', onsetAgain: '점검 다시 하기', onsetStart: '연습 시작하기',
       muteNowBtn: '소리 끄기', stopBtn: '잠시 멈춤', dunno: '모르겠음', resumeAudioBtn: '소리 다시 재생', keysHint: '키보드: 1 · 2 · 3, 모르겠음은 0',
       tGuide: '처음에는 쉽지만, 맞힐수록 떨림이 미세해져 점점 어려워집니다. 떨림이 아주 조금이라도 느껴지면 그 번호를 선택해 주세요. 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 눌러 주세요.',
-      onTitle: '소리 점검 1 / 2', bEnd: '여기까지만 하기', bPractice: '연습 한 번 더', bNext: '다음', endTitle: '수고하셨습니다',
+      onTitle: '소리 점검 1 / 2', bEnd: '여기까지만 하기', bSaveLater: '저장하고 나중에 이어하기', bPractice: '연습 한 번 더', bNext: '다음', endTitle: '수고하셨습니다',
       againBtn: '한 번 더 하기', finishBtn: '여기서 마치기',
       hSend: '결과 저장 및 공유', sendDesc: '‘결과 파일 저장’은 전체 기록 파일(.json), ‘전문가용 보고서 저장’은 청능사·엔지니어께 보여드릴 참고 문서(.html, 인쇄·PDF 가능)입니다.',
       saveFile: '결과 파일 저장', saveReport: '전문가용 보고서 저장', shareFile: '파일 공유하기', shareReport: '보고서 공유하기', copyText: '요약 복사', toHome: '처음으로',
@@ -2605,7 +2699,8 @@ const UI_TEXT = {
       appTitle: 'TMTF Test', appSub: 'A listening test for cochlear implant users',
       hWhat: 'How does it work?', hLearn: 'What you can learn from this test', hPrep: 'Before you start', hPrep1: 'A quiet room',
       hPrep3: 'Your everyday sound processor program and volume', hPrep4: 'A computer works best. Phones and tablets also work.',
-      goSetup: 'Start', hSaved: 'Saved tests on this device', homeSaveAll: 'Save all to file', homeClearAll: 'Delete local records',
+      goSetup: 'Start', hResume: 'Saved test to resume', homeResumeHint: 'You have an unfinished test saved. Continue with the same ear and a similar comfortable volume.',
+      hSaved: 'Saved tests on this device', homeSaveAll: 'Save all to file', homeClearAll: 'Delete local records',
       goViewer: 'Open result files (for clinicians / researchers)',
       qEar: 'Which ear are you testing?', earHint: 'If testing one ear, please take off the sound processor or hearing aid on the other side.',
       qPath: 'How are you listening?',
@@ -2629,7 +2724,7 @@ const UI_TEXT = {
       onsetBack: 'Back to volume', onsetAgain: 'Check again', onsetStart: 'Start practice',
       muteNowBtn: 'Mute now', stopBtn: 'Pause', dunno: 'Not sure', resumeAudioBtn: 'Resume sound', keysHint: 'Keyboard: 1 · 2 · 3, Not sure: 0',
       tGuide: 'It starts easy and gets harder as you get answers right. If you notice even a tiny flutter, pick that number. Only press “Not sure” when all three sounds feel completely identical.',
-      onTitle: 'Sound check 1 / 2', bEnd: 'Finish here', bPractice: 'Practice again', bNext: 'Next', endTitle: 'All done! Thank you',
+      onTitle: 'Sound check 1 / 2', bEnd: 'Finish here', bSaveLater: 'Save & resume later', bPractice: 'Practice again', bNext: 'Next', endTitle: 'All done! Thank you',
       againBtn: 'Do one more round', finishBtn: 'Finish here',
       hSend: 'Save & share results', sendDesc: '“Save result file” downloads the full data (.json). “Save specialist report” saves a printable/PDF reference report (.html) for your audiologist or CI engineer.',
       saveFile: 'Save result file', saveReport: 'Save specialist report', shareFile: 'Share file', shareReport: 'Share report', copyText: 'Copy summary', toHome: 'Home',
