@@ -706,13 +706,13 @@ globalThis.__scope = (async () => {
   });
   await tryOk('1.1.0 한/영 언어 전환(applyLang · #langToggle): 영어 UI 전환 및 한국어 원복', () => {
     $('#langToggle').click();
-    const enOk = LANG === 'en' && document.documentElement.getAttribute('lang') === 'en' && $('#appTitle').textContent === 'TMTF Test' && document.title === 'TMTF Test'
+    const enOk = LANG === 'en' && document.documentElement.getAttribute('lang') === 'en' && $('#appTitle').textContent === 'TMTF Test' && document.title === 'TMTF Test — Cochlear Implant Temporal Modulation Detection'
       && $('#goSetup').textContent === 'Start' && $('#tGuide').textContent.includes('tiny flutter')
       && $('#hLearn').textContent.includes('What you can learn') && $('#hKeep').textContent === 'Keep sound steady'
       && $('#onFirstQ').textContent.includes('first beep') && $('#legalDisclaimer').textContent.includes('For research and educational purposes only')
       && $('#dunno').textContent === 'Not sure' && $('#langToggle').textContent === 'KO' && $('#fmInfo').textContent.includes('Flutter rates');
     $('#langToggle').click();
-    const koOk = LANG === 'ko' && document.documentElement.getAttribute('lang') === 'ko' && $('#appTitle').textContent === 'TMTF 검사' && document.title === 'TMTF 검사'
+    const koOk = LANG === 'ko' && document.documentElement.getAttribute('lang') === 'ko' && $('#appTitle').textContent === 'TMTF 검사' && document.title === 'TMTF 검사 — 인공와우 사용자용 시간 변조 탐지 검사'
       && $('header h1').textContent.trim() === 'TMTF 검사' && !!$('#pgTest').querySelector('#tGuide')
       && $('#goSetup').textContent === '시작하기' && $('#tGuide').textContent === '처음에는 쉽지만, 맞힐수록 떨림이 미세해져 점점 어려워집니다. 떨림이 아주 조금이라도 느껴지면 그 번호를 선택해 주세요. 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 눌러 주세요.'
       && $('#hLearn').textContent === '이 검사를 하면 알 수 있는 것' && $('#hKeep').textContent === '소리 끊김 방지'

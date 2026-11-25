@@ -55,6 +55,8 @@ jobs:
 
           for f in app_files:
               txt = open(f, encoding='utf-8').read()
+              if f == 'index.html':
+                  txt = txt.replace('<link rel="canonical" href="https://mi-rae-lab.github.io/ci-tmtf-test/">', '')
               for pat in (
                   r'\bXMLHttpRequest\b',
                   r'\bWebSocket\b',

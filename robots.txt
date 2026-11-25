@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://mi-rae-lab.github.io/ci-tmtf-test/sitemap.xml

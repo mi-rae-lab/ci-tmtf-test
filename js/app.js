@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.7 (2026-11-24)';   // 1.2.7: 보고서 script-src 'none'·JSON 검증/이스케이프·다중탭 삭제 동기화·새 검사 입력 초기화·미산출 사유 구분·오디오/탭 복귀 안전화
+const APP_VERSION = '1.2.8 (2026-11-25)';   // 1.2.8: 검색엔진(SEO) 메타 태그·canonical·sitemap·robots 추가 (외부 요청·CSP 변화 없음)
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;
@@ -2466,7 +2466,7 @@ $('#vCsvTrials').onclick = () => {
 /* ───────────── 한/영 언어 전환 (?lang=en 또는 상단 단추) ───────────── */
 const UI_TEXT = {
   ko: {
-    title: 'TMTF 검사',
+    title: 'TMTF 검사 — 인공와우 사용자용 시간 변조 탐지 검사',
     txt: {
       appTitle: 'TMTF 검사', appSub: '인공와우 사용자를 위한 소리 듣기 검사',
       hWhat: '어떤 검사인가요?', hLearn: '이 검사를 하면 알 수 있는 것', hPrep: '준비할 것', hPrep1: '조용한 장소',
@@ -2526,7 +2526,7 @@ const UI_TEXT = {
     aria: { steps: '진행 순서', earPick: '듣는 귀', pathPick: '듣는 방법', codeIn: '참가 번호', onCountPick: '들린 소리 개수', onFirstPick: '첫 소리 비교', ivs: '소리 구간 선택' },
   },
   en: {
-    title: 'TMTF Test',
+    title: 'TMTF Test — Cochlear Implant Temporal Modulation Detection',
     txt: {
       appTitle: 'TMTF Test', appSub: 'A listening test for cochlear implant users',
       hWhat: 'How does it work?', hLearn: 'What you can learn from this test', hPrep: 'Before you start', hPrep1: 'A quiet room',

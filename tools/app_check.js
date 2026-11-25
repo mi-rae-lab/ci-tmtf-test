@@ -27,7 +27,7 @@ for (const f of scripts) { let e = null; try { new AF(src[f]); } catch (x) { e =
 ok('index.html 이 부르는 js = 앱 파일 목록(protocols · stim · track · app)', JSON.stringify(scripts) === JSON.stringify(['js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js']), scripts.join(' '));
 {
   const ver = (/const APP_VERSION = '([^ ']+)/.exec(src['js/app.js']) || [])[1];
-  const urls = [...scriptUrls, ...[...html.matchAll(/<link[^>]*href="([^"]+)"/g)].map(m => m[1])];
+  const urls = [...scriptUrls, ...[...html.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(m => m[1])];
   const bad = urls.filter(u => u.split('?v=')[1] !== ver);
   const listed = (/const APP_FILES = \[([^\]]*)\]/.exec(src['js/app.js']) || [, ''])[1].match(/'([^']+)'/g)?.map(s => s.slice(1, -1)) || [];
   ok(`index.html 의 css · js 주소 ?v= = APP_VERSION 앞 번호(${ver}) — 판을 바꾸면 브라우저가 옛 파일을 쓰지 않게`, !!ver && !bad.length && urls.length === 5, bad.join(' '));
