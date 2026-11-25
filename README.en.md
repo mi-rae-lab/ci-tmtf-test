@@ -89,7 +89,7 @@ Informed by the ISO 14971 risk-management hierarchy (inherent safety by design �
 
 - **Digital headroom and `-1 dBFS` output limiter:** All stimuli are generated at `-26 dBFS` (`TARGET_RMS = 0.05`) and pass through a pre-output `DynamicsCompressorNode` brickwall limiter (`-1 dBFS`) plus a buffer sanitizer that zeros non-finite samples (`NaN`/`Infinity`) and clamps peaks above `0.99` (completely transparent for normal stimuli).
 - **1.5-second soft-start on volume setup:** To reduce startle risk when a device's volume was accidentally left high, the calibration noise fades in gradually over 1.5 s (main test trials retain the exact 10 ms linear ramp from the literature).
-- **One-tap `Mute now` and `Esc` emergency stop:** On the volume setup, sound check, and test screens, audio can be cut immediately without a confirmation dialog; after lowering the volume, participants can tap **Resume sound** without losing their run.
+- **One-tap `Mute now` and `Esc` emergency stop:** On the volume setup, sound check, and test screens, audio can be cut immediately without a confirmation dialog. During the main test, muting also stops the 18 Hz keep-alive tone; after lowering the volume, tapping **Resume sound** restores the setting and waits 3 seconds for audio stability before continuing without losing the run.
 - **Pre-playback safety notice and high-volume warning:** A hearing safety notice recommends starting at half volume or lower, and entering `80%` or higher in the device volume field triggers an immediate alert.
 - *Note: Software safeguards do not replace physical sound-pressure calibration (dB SPL) or medical-device regulatory certification.*
 
@@ -190,11 +190,13 @@ tools\전수검산.bat        (or python -I -X utf8 tools/run_checks.py)
 - When a session starts, the test page compares the hashes of its own files with this record and writes the result into the session.
 - A refresh prompt appears only when a new version is released. A hash mismatch alone does not block the test; it is recorded.
 
-| File | Contents |
+| File / Folder | Contents |
 |---|---|
 | `index.html` · `style.css` · `js/app.js` | Participant screens, records, test flow, results, viewing received results |
 | `js/protocols.js` · `js/stim.js` · `js/track.js` | Procedure, stimuli (seeded, reproducible noise), adaptive staircase |
 | `tools/` | Full verification (`run_checks.py`, `cross_check.*`, `tmtf_ref.py`, `app_check*.js`, `verify_result.py`, `verify_result_check.py`, `lean/`) |
+| `.github/` | GitHub Actions automated verification & security CI (`workflows/ci-checks.yml`) and Dependabot config (`dependabot.yml`) |
+| `방법.md` · `방법.en.md` · `검증_통과.json` · `SECURITY.md` · `AGENTS.md` | Detailed methods & literature comparison (KO/EN), 6-step verification record, security policy, and repository maintenance rules |
 
 ## Web standards
 
