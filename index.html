@@ -20,7 +20,7 @@
 <meta name="twitter:description" content="설치 없이 브라우저에서 바로 진행하는 인공와우 사용자용 시간 변조 탐지(TMTF) 듣기 검사.">
 <title>TMTF 검사 — 인공와우 사용자용 시간 변조 탐지 검사</title>
 <link rel="canonical" href="https://mi-rae-lab.github.io/ci-tmtf-test/">
-<link rel="stylesheet" href="style.css?v=1.2.12">
+<link rel="stylesheet" href="style.css?v=1.2.13">
 </head>
 <body>
 <header class="top">
@@ -44,11 +44,21 @@
   <div class="card">
     <h2 id="hLearn">이 검사를 하면 알 수 있는 것</h2>
     <ul class="list">
-      <li id="hLearn1"><b>미세한 소리 떨림 감지 수준</b>: 느린 떨림부터 빠른 떨림까지 얼마나 약한 떨림을 구별할 수 있는지 그래프로 확인할 수 있습니다.</li>
-      <li id="hLearn2"><b>말소리 리듬·변화 파악 참고</b>: 말소리는 크기가 빠르게 변하며 이어집니다. 내 귀와 음성처리기(인공와우 외부기기)가 이런 빠른 소리 변화를 얼마나 잘 따라가는지 참고할 수 있습니다.</li>
+      <li id="hLearn1"><b>미세한 소리 떨림 감지 수준</b>: 느린 떨림(10 Hz)부터 빠른 떨림(300 Hz)까지 얼마나 약한 떨림을 구별할 수 있는지 그래프로 확인할 수 있습니다.</li>
+      <li id="hLearn2"><b>말소리·음악의 시간 변화 참고</b>: 말소리의 음절·자음·억양과 음악의 박자·음높이·음색은 모두 소리의 빠른 크기 변화(시간 변조)에 실려 전달됩니다.</li>
       <li id="hLearn3"><b>양쪽 귀 및 설정 전후 비교</b>: 왼쪽·오른쪽 귀를 따로 해보거나, 음성처리기 설정·프로그램을 바꾸기 전과 후를 같은 조건으로 비교해 볼 수 있습니다.</li>
       <li id="hLearn4"><b>상담용 보고서 저장</b>: 검사가 끝나면 <b>전문가용 보고서</b>로 저장해 청능사나 인공와우 엔지니어와 상담할 때 참고 자료로 활용할 수 있습니다.</li>
     </ul>
+    <details id="sciBox" class="more">
+      <summary id="sciSum">TMTF로 알 수 있는 청각 과학 (말소리 · 음악 · 소리 변화)</summary>
+      <ul class="list">
+        <li id="sci1"><b>느린 떨림 (약 10 Hz) — 말소리 리듬과 음악의 박자</b>: 대화에서 음절과 단어의 강약은 주로 2–20 Hz 속도로 변합니다. 음악에서는 박자, 비브라토(5–8 Hz), 트레몰로 같은 느린 리듬 감각과 연결되는 영역입니다.</li>
+        <li id="sci2"><b>중간 떨림 (약 50–100 Hz) — 자음의 빠른 변화와 소리 질감</b>: 파열음·마찰음 같은 자음의 짧은 세기 변화와 남성 목소리의 기본 진동 주기, 음악에서는 타악기의 어택(attack)과 저음·화음의 거칠기(roughness) 지각에 관여하는 시간 단서입니다.</li>
+        <li id="sci3"><b>빠른 떨림 (약 150–300 Hz) — 목소리 높낮이(억양)와 음악의 멜로디·음색</b>: 여성·어린이 목소리의 기본 주파수, 말의 억양·화자 구별, 음악의 시간적 음높이(피치)와 악기 고유의 음색(timbre) 질감을 구분하는 데 활용되는 빠른 시간 단서입니다.</li>
+        <li id="sci4"><b>전체 곡선의 모양 (시간 해상도)</b>: 사람의 청각은 일반적으로 느린 떨림에 민감하고 빨라질수록 둔해지는 저역통과(low-pass) 형태를 보입니다. 집단 청각 연구에서는 전반적 시간 변조 민감도가 말소리 인지도 및 음악·피치 지각 지표와 통계적 상관을 보이는 경향이 보고되어 있습니다.</li>
+      </ul>
+      <p id="sciNote" class="hint">위 내용은 청각학·음향심리학에서 알려진 일반적인 과학적 사실이며, 개인의 청력이나 말소리·음악 능력을 의학적으로 진단하거나 단정하는 기준이 아닙니다.</p>
+    </details>
   </div>
   <div class="card">
     <h2 id="hPrep">준비할 것</h2>
@@ -332,9 +342,9 @@
 </footer>
 
 <!-- ?v= 는 js/app.js 의 APP_VERSION 앞 번호와 같게 (판을 바꿀 때 함께 올려야 브라우저가 옛 파일을 쓰지 않음 — tools/app_check.js 가 확인) -->
-<script src="js/protocols.js?v=1.2.12"></script>
-<script src="js/stim.js?v=1.2.12"></script>
-<script src="js/track.js?v=1.2.12"></script>
-<script src="js/app.js?v=1.2.12"></script>
+<script src="js/protocols.js?v=1.2.13"></script>
+<script src="js/stim.js?v=1.2.13"></script>
+<script src="js/track.js?v=1.2.13"></script>
+<script src="js/app.js?v=1.2.13"></script>
 </body>
 </html>

@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.12 (2026-11-25)';   // 1.2.12: Won 2011 7개 표준 주파수(10·50·75·100·150·200·300 Hz, 무작위 순서) + 중간 저장 후 나중에 이어서 하기 추가
+const APP_VERSION = '1.2.13 (2026-11-25)';   // 1.2.13: 첫 화면 및 문서에 TMTF의 말소리·음악 관련 일반 청각 과학 설명(비진단) 추가
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;
@@ -2634,7 +2634,9 @@ const UI_TEXT = {
     title: 'TMTF 검사 — 인공와우 사용자용 시간 변조 탐지 검사',
     txt: {
       appTitle: 'TMTF 검사', appSub: '인공와우 사용자를 위한 소리 듣기 검사',
-      hWhat: '어떤 검사인가요?', hLearn: '이 검사를 하면 알 수 있는 것', hPrep: '준비할 것', hPrep1: '조용한 장소',
+      hWhat: '어떤 검사인가요?', hLearn: '이 검사를 하면 알 수 있는 것', sciSum: 'TMTF로 알 수 있는 청각 과학 (말소리 · 음악 · 소리 변화)',
+      sciNote: '위 내용은 청각학·음향심리학에서 알려진 일반적인 과학적 사실이며, 개인의 청력이나 말소리·음악 능력을 의학적으로 진단하거나 단정하는 기준이 아닙니다.',
+      hPrep: '준비할 것', hPrep1: '조용한 장소',
       hPrep3: '평소 사용하는 음성처리기 프로그램과 볼륨', hPrep4: '컴퓨터 사용을 권장합니다 (휴대폰·태블릿도 가능)',
       goSetup: '시작하기', hResume: '이어서 할 수 있는 검사', homeResumeHint: '중간에 저장해 둔 검사가 있습니다. 같은 귀와 비슷한 볼륨으로 이어서 진행할 수 있습니다.',
       hSaved: '이 기기에 저장된 검사', homeSaveAll: '모두 파일로 저장', homeClearAll: '이 기기 기록 지우기',
@@ -2673,10 +2675,14 @@ const UI_TEXT = {
       hWhat1: '‘쉬—’ 하는 소리 <b>세 개</b>를 차례로 들려드립니다. 그중 <b>하나만 떨리게 들립니다.</b>',
       hWhat2: '떨리는 소리가 <b>몇 번째</b>였는지 고르시면 됩니다.',
       hWhat3: '처음에는 쉽지만, 맞힐수록 떨림이 미세해져 점점 어려워집니다. <b>떨림이 아주 조금이라도 느껴지면 그 번호를 선택해 주세요.</b> 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 눌러 주세요.',
-      hLearn1: '<b>미세한 소리 떨림 감지 수준</b>: 느린 떨림부터 빠른 떨림까지 얼마나 약한 떨림을 구별할 수 있는지 그래프로 확인할 수 있습니다.',
-      hLearn2: '<b>말소리 리듬·변화 파악 참고</b>: 말소리는 크기가 빠르게 변하며 이어집니다. 내 귀와 음성처리기(인공와우 외부기기)가 이런 빠른 소리 변화를 얼마나 잘 따라가는지 참고할 수 있습니다.',
+      hLearn1: '<b>미세한 소리 떨림 감지 수준</b>: 느린 떨림(10 Hz)부터 빠른 떨림(300 Hz)까지 얼마나 약한 떨림을 구별할 수 있는지 그래프로 확인할 수 있습니다.',
+      hLearn2: '<b>말소리·음악의 시간 변화 참고</b>: 말소리의 음절·자음·억양과 음악의 박자·음높이·음색은 모두 소리의 빠른 크기 변화(시간 변조)에 실려 전달됩니다.',
       hLearn3: '<b>양쪽 귀 및 설정 전후 비교</b>: 왼쪽·오른쪽 귀를 따로 해보거나, 음성처리기 설정·프로그램을 바꾸기 전과 후를 같은 조건으로 비교해 볼 수 있습니다.',
       hLearn4: '<b>상담용 보고서 저장</b>: 검사가 끝나면 <b>전문가용 보고서</b>로 저장해 청능사나 인공와우 엔지니어와 상담할 때 참고 자료로 활용할 수 있습니다.',
+      sci1: '<b>느린 떨림 (약 10 Hz) — 말소리 리듬과 음악의 박자</b>: 대화에서 음절과 단어의 강약은 주로 2–20 Hz 속도로 변합니다. 음악에서는 박자, 비브라토(5–8 Hz), 트레몰로 같은 느린 리듬 감각과 연결되는 영역입니다.',
+      sci2: '<b>중간 떨림 (약 50–100 Hz) — 자음의 빠른 변화와 소리 질감</b>: 파열음·마찰음 같은 자음의 짧은 세기 변화와 남성 목소리의 기본 진동 주기, 음악에서는 타악기의 어택(attack)과 저음·화음의 거칠기(roughness) 지각에 관여하는 시간 단서입니다.',
+      sci3: '<b>빠른 떨림 (약 150–300 Hz) — 목소리 높낮이(억양)와 음악의 멜로디·음색</b>: 여성·어린이 목소리의 기본 주파수, 말의 억양·화자 구별, 음악의 시간적 음높이(피치)와 악기 고유의 음색(timbre) 질감을 구분하는 데 활용되는 빠른 시간 단서입니다.',
+      sci4: '<b>전체 곡선의 모양 (시간 해상도)</b>: 사람의 청각은 일반적으로 느린 떨림에 민감하고 빨라질수록 둔해지는 저역통과(low-pass) 형태를 보입니다. 집단 청각 연구에서는 전반적 시간 변조 민감도가 말소리 인지도 및 음악·피치 지각 지표와 통계적 상관을 보이는 경향이 보고되어 있습니다.',
       hNotice1: '이 검사는 <b>의학적 진단이 아닙니다.</b> 음성처리기 설정 변경은 반드시 청능사와 상의해 주세요.',
       hNotice2: '이름이나 연락처는 묻지 않습니다. 결과는 이 기기에만 저장되며, 직접 <b>‘결과 파일 저장’</b>을 누르지 않으면 외부로 전송되지 않습니다.',
       soundSafeWarn: '<b>청력 보호 안내:</b> 처음 재생할 때는 기기 볼륨을 절반 이하로 낮춘 상태에서 시작해 주세요. 소리는 1.5초에 걸쳐 서서히 커지며, 불편하거나 너무 크면 즉시 <b>‘정지’</b>(키보드 Esc)를 눌러 주세요.',
@@ -2697,7 +2703,9 @@ const UI_TEXT = {
     title: 'TMTF Test — Cochlear Implant Temporal Modulation Detection',
     txt: {
       appTitle: 'TMTF Test', appSub: 'A listening test for cochlear implant users',
-      hWhat: 'How does it work?', hLearn: 'What you can learn from this test', hPrep: 'Before you start', hPrep1: 'A quiet room',
+      hWhat: 'How does it work?', hLearn: 'What you can learn from this test', sciSum: 'Auditory science behind TMTF (speech, music, and sound timing)',
+      sciNote: 'These are general facts from hearing science and psychoacoustics; they are not medical diagnoses and do not predict an individual person’s speech or music ability.',
+      hPrep: 'Before you start', hPrep1: 'A quiet room',
       hPrep3: 'Your everyday sound processor program and volume', hPrep4: 'A computer works best. Phones and tablets also work.',
       goSetup: 'Start', hResume: 'Saved test to resume', homeResumeHint: 'You have an unfinished test saved. Continue with the same ear and a similar comfortable volume.',
       hSaved: 'Saved tests on this device', homeSaveAll: 'Save all to file', homeClearAll: 'Delete local records',
@@ -2736,10 +2744,14 @@ const UI_TEXT = {
       hWhat1: 'You will hear <b>three</b> steady “shh” sounds in a row. Only <b>one of them flutters.</b>',
       hWhat2: 'Pick <b>which one</b> was the fluttering sound.',
       hWhat3: 'It starts easy and gets harder as you get answers right. <b>If you notice even a tiny flutter, pick that number.</b> Only press “Not sure” when all three sounds feel completely identical.',
-      hLearn1: '<b>Flutter detection level</b>: See on a chart how soft a flutter you can hear, from slow to fast flutter.',
-      hLearn2: '<b>Speech rhythm &amp; change reference</b>: Speech relies on rapid loudness changes, so this gives a reference for how your ear and sound processor follow quick sound changes.',
+      hLearn1: '<b>Flutter detection level</b>: See on a chart how soft a flutter you can detect, from slow (10 Hz) to fast (300 Hz).',
+      hLearn2: '<b>Timing cues in speech &amp; music</b>: Speech syllables, consonants, and intonation—as well as musical rhythm, pitch, and timbre—are all carried in rapid loudness changes (temporal modulation).',
       hLearn3: '<b>Left/right &amp; before/after comparison</b>: Repeat under the same setup to compare left vs. right ear, or before and after changing a sound processor program or setting.',
       hLearn4: '<b>Consultation report</b>: Save a <b>specialist report</b> at the end to share as a reference with your audiologist or CI engineer.',
+      sci1: '<b>Slow flutter (around 10 Hz) — speech rhythm and musical beat</b>: Syllables and word stress in conversation mostly fluctuate at 2–20 Hz. In music, this slow band corresponds to tempo, vibrato (5–8 Hz), and tremolo.',
+      sci2: '<b>Mid-rate flutter (around 50–100 Hz) — rapid consonant cues and texture</b>: Relates to brief intensity transitions in consonants, the voice periodicity of lower-pitched speakers, and in music, percussive attacks and the beating or roughness of low chords.',
+      sci3: '<b>Fast flutter (around 150–300 Hz) — voice pitch, intonation, and timbre</b>: Overlaps the fundamental voice pitch range of many female and child speakers, intonation and talker cues, and in music, temporal pitch changes and subtle instrumental timbre.',
+      sci4: '<b>Overall curve shape (temporal resolution)</b>: Human hearing generally shows a low-pass shape—more sensitive to slow flutter and less sensitive as rates increase. Group hearing studies have reported statistical correlations between overall TMTF sensitivity and speech recognition or pitch/music perception measures.',
       hNotice1: 'This test is <b>not a medical diagnosis.</b> Talk to your audiologist before changing any sound processor settings.',
       hNotice2: 'We never ask for your name or contact details. Results stay only in this browser and leave <b>only when you tap “Save result file”.</b>',
       soundSafeWarn: '<b>Hearing safety notice:</b> Start with your device volume at half or lower. The sound fades in gradually over 1.5 s; if it feels loud or uncomfortable, tap <b>“Stop”</b> (or press Esc) immediately.',

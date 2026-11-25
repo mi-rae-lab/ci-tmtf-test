@@ -19,10 +19,24 @@ The page opens in Korean by default; use the `EN` / `KO` button at the top right
 
 ## What you can learn from this test
 
-- **Flutter detection level**: See on a chart how faint a flutter you can detect, from slow to fast flutter.
-- **Reference for following speech rhythm and changes**: Speech is made of rapid, continuous changes in loudness. This gives a reference for how well your ear and sound processor (the external part of the cochlear implant) follow such quick sound changes.
+- **Flutter detection level**: See on a chart how faint a flutter you can detect, from slow (10 Hz) to fast (300 Hz).
+- **Timing cues in speech and music**: Speech syllables, consonants, and intonation—as well as musical rhythm, pitch, and timbre—are all carried in rapid loudness changes (temporal modulation).
 - **Left/right and before/after comparison**: Test each ear separately, or compare results before and after changing a sound processor setting or program under the same conditions.
 - **Report for consultations**: When the test is finished, save a **specialist report (`.html`)** to use as a reference when talking with your audiologist or cochlear implant engineer.
+
+### Auditory science behind TMTF (speech, music, and everyday sound)
+
+The temporal modulation transfer function (TMTF) is a classic psychoacoustic measure of how finely the auditory system tracks **rapid changes in sound loudness (the temporal envelope)**. As general hearing-science principles (not medical diagnoses), different modulation-rate ranges correspond to distinct cues in everyday sound:
+
+| Modulation rate range | Temporal cues in speech | Temporal cues in music & everyday sound |
+|---|---|---|
+| **Slow flutter (around 10 Hz)** | Syllable and word stress, speech rhythm, and phrasing (conversational envelopes concentrate around 2–20 Hz) | Tempo and beat accents, vibrato (5–8 Hz), and tremolo |
+| **Mid-rate flutter (around 50–100 Hz)** | Brief intensity transitions in consonants (stops, fricatives) and voice periodicity of lower-pitched speakers | Percussive attacks, low-instrument vibration, and the beating or roughness of chords |
+| **Fast flutter (around 150–300 Hz)** | Fundamental pitch range of many female and child voices, intonation, and talker-distinction timing cues | Temporal pitch changes in melodies and subtle instrumental timbre textures |
+
+- **Overall curve shape (low-pass characteristic):** Human hearing generally exhibits a low-pass TMTF—more sensitive to slow flutter and less sensitive as modulation rates increase (Viemeister, 1979).
+- **Group-level research context:** Prior cochlear implant studies (Won et al., 2011; Park et al., 2015; De Ruiter et al., 2015) have reported group-level statistical correlations between TMTF sensitivity and speech recognition or pitch/music perception measures.
+- *Note: These are general facts from hearing science and psychoacoustics; they do not constitute a medical diagnosis and cannot by themselves determine an individual's speech or music ability.*
 
 ## What you need
 
@@ -143,16 +157,16 @@ The stimulus and staircase code (`js/stim.js` · `js/track.js` · `js/protocols.
 - **Lean 4**: `leanprover/lean4:v4.36.0` ([`tools/lean/lean-toolchain`](tools/lean/lean-toolchain))
 - **Mathlib4**: `leanprover-community/mathlib4` tag **`v4.36.0`** (commit `fc4f59e577feb1a4956671bc04ac18aaaf8cd842`, [`tools/lean/lakefile.toml`](tools/lean/lakefile.toml) · [`tools/lean/lake-manifest.json`](tools/lean/lake-manifest.json))
 - **Scope of formal proofs**: 10 core rational/integer/32-bit modules + real (`ℝ`) & complex (`ℂ`) analytic module using Mathlib4 ([`tools/lean/TMTF/RealAnalytic.lean`](tools/lean/TMTF/RealAnalytic.lean), 43 public theorems: real RMS equalization, `10^(D/20)` & `Real.sin` no-overmodulation, arbitrary `K ≥ 3` & random-phase `φ` SAM cycle power `1 + m²/2` with Viemeister `1/√(1 + m²/2)` correction, `cos²` ramp, Butterworth real gain, Box–Muller, conjugate-symmetric IDFT purely real output & Parseval identity, Levitt `1/√2`, and exact phase-invariant `measureDepth` recovery)
-- **Latest 6-step full verification (`2026-11-25`, app `1.2.12`, `build eac094e03221`, total `107.5 s` — ALL PASS)**:
+- **Latest 6-step full verification (`2026-11-25`, app `1.2.13`, `build b24266ed985a`, total `111.8 s` — ALL PASS)**:
 
 | Step | Check | Status | Time | Summary |
 |---:|---|---|---:|---|
-| 1 | Stimulus & staircase JS = Python | PASS | 7.2 s | 750 stimuli (max RMS diff `2.44e-11` dB) · 210 staircases match |
-| 2 | UI & security check (`app_check.js`) | PASS | 52.8 s | 107 / 107 pass (7 rates · save/resume · CSP/XSS · KO/EN i18n · touch · safety) |
-| 3 | Independent result replay (`verify_result.py`) | PASS | 5.5 s | 15/15 runs · 550 trials / 1,650 intervals match |
-| 4 | Lean 4 + Mathlib4 clean rebuild | PASS | 25.6 s | `4198 jobs` succeeded · 0 warnings / errors / `sorry` |
-| 5 | Lean axiom audit (`MyAudit.lean`) | PASS | 13.4 s | `consts=455` · `theorems=333` · `axiomDecls=0` · `UNION {Classical.choice, Quot.sound, propext}` · **`NONSTANDARD 0`** |
-| 6 | JS ↔ Lean line-by-line cross-check | PASS | 3.0 s | `RNG 307/307` · `RAMP 120/120` · `GAIN 140/140` · `TRACK 360/360` · `PV 131/131` all match |
+| 1 | Stimulus & staircase JS = Python | PASS | 6.9 s | 750 stimuli (max RMS diff `2.44e-11` dB) · 210 staircases match |
+| 2 | UI & security check (`app_check.js`) | PASS | 56.3 s | 107 / 107 pass (7 rates · save/resume · CSP/XSS · KO/EN i18n · touch · safety) |
+| 3 | Independent result replay (`verify_result.py`) | PASS | 5.6 s | 16/16 runs · 583 trials / 1,749 intervals match |
+| 4 | Lean 4 + Mathlib4 clean rebuild | PASS | 26.2 s | `4198 jobs` succeeded · 0 warnings / errors / `sorry` |
+| 5 | Lean axiom audit (`MyAudit.lean`) | PASS | 13.6 s | `consts=455` · `theorems=333` · `axiomDecls=0` · `UNION {Classical.choice, Quot.sound, propext}` · **`NONSTANDARD 0`** |
+| 6 | JS ↔ Lean line-by-line cross-check | PASS | 3.1 s | `RNG 307/307` · `RAMP 120/120` · `GAIN 140/140` · `TRACK 360/360` · `PV 131/131` all match |
 
 - Full report & theorem audit table: [tools/lean/검증_결과.md](tools/lean/검증_결과.md) · Machine-readable pass record: [검증_통과.json](검증_통과.json)
 
