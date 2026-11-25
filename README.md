@@ -4,6 +4,10 @@
 얼마나 약한 떨림까지 구별할 수 있는지를 떨림 속도(10–200 Hz)마다 측정합니다.
 연구에서는 이를 시간 변조 탐지, TMTF(temporal modulation transfer function)라고 합니다.
 
+이 TMTF 검사는 인공와우 사용자를 위한 검사입니다.
+연구용 인터페이스(연구실 전용 장비)로 전극에 직접 전기 자극을 주지 않고, 평소 쓰는 음성처리기(인공와우 외부기기)를 거쳐 소리를 듣습니다.
+이처럼 음성처리기를 통한 음향 자극(acoustic stimulation via the sound processor)으로 TMTF를 측정한 선행 연구(Won 등 2011 · De Ruiter 등 2015 · Park 등 2015)를 바탕으로 만들었습니다.
+
 ## 바로 해보기
 
 **https://mi-rae-lab.github.io/ci-tmtf-test/**
