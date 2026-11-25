@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.8 (2026-11-25)';   // 1.2.8: 검색엔진(SEO) 메타 태그·canonical·sitemap·robots 추가 (외부 요청·CSP 변화 없음)
+const APP_VERSION = '1.2.9 (2026-11-25)';   // 1.2.9: randInt 거부 표집(rejection sampling) 적용으로 CodeQL 치우침 경고 해소 + Google Search Console 소유권 확인 파일 추가
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;
@@ -18,8 +18,18 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const iso = () => new Date().toISOString();
 const pct = db => 100 * 10 ** (db / 20);
 const fmtPct = p => p >= 10 ? `${Math.round(p)}%` : `${p.toFixed(1)}%`;
-// 정답 자리: 32비트 난수 % n (tools/lean/TMTF/Grid.lean — 3구간 치우침 2/(3·2³²))
-const randInt = n => { try { return crypto.getRandomValues(new Uint32Array(1))[0] % n; } catch { return Math.floor(Math.random() * n); } };
+// 정답 자리: 32비트 암호학적 난수 거부 표집(rejection sampling) — 나머지 치우침(modulo bias) 없음
+const randInt = n => {
+  if (!(n > 1)) return 0;
+  try {
+    const limit = Math.floor(0x100000000 / n) * n, buf = new Uint32Array(1);
+    while (limit > 0) {
+      const v = crypto.getRandomValues(buf)[0];
+      if (v < limit) return v % n;
+    }
+  } catch { }
+  return Math.floor(Math.random() * n);
+};
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = randInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const localTime = t => { try { return new Date(t).toLocaleString(LANG === 'en' ? 'en-US' : 'ko-KR'); } catch { return String(t); } };
 

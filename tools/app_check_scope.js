@@ -138,7 +138,7 @@ globalThis.__scope = (async () => {
   H.key('2');
   await until(() => awaiting, 10000, '연습 2 답 기다림');
   await tryOk('소리 나는 동안 누른 키 = 그 시행의 이른 입력 (답으로 안 침)', () => [S.cur.tm.early === 1 && S.cur.tm.ev[0].type === 'early-input' && S.cur.tm.ev[0].key === 2 && sess.practiceTrials.length === 1, JSON.stringify(S.cur.tm.ev)]);
-  $$('.iv')[(awaiting.tg + 1) % 3].click();
+  $$('.iv')[[1, 2, 0][awaiting.tg]].click();
   await tryOk('연습 답(클릭 · 틀림): ‘아쉽습니다’ · 고른 칸 빨강 · 기록에 이른 입력 1', () => { const t = sess.practiceTrials[1]; return [t.c === 0 && t.inp === 'click' && t.early === 1 && $('#fb').textContent.startsWith('아쉽습니다') && $$('.iv')[t.a].classList.contains('wrong'), JSON.stringify(t).slice(0, 160)]; });
   await until(() => awaiting && sess.practiceTrials.length === 2, 10000, '연습 3');
   H.key('0');
@@ -173,7 +173,7 @@ globalThis.__scope = (async () => {
       if (!S || S.cur !== C0) break;
       const a = awaiting, r = mdl(a.depth);
       if (r === 'U') H.key('0');
-      else { const i = r === 'C' ? a.tg : (a.tg + 1 + ri(2)) % 3; if (n % 3 === 0) $$('.iv')[i].click(); else H.key(String(i + 1)); }
+      else { const i = r === 'C' ? a.tg : [[1, 2], [2, 0], [0, 1]][a.tg][ri(2)]; if (n % 3 === 0) $$('.iv')[i].click(); else H.key(String(i + 1)); }
       n++;
       await until(() => !awaiting || !S || S.cur !== C0, 5000, '답한 뒤');
     }
