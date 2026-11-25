@@ -1,5 +1,7 @@
 # TMTF 검사 — 인공와우 사용자용
 
+**한국어** · [English](README.en.md)
+
 ‘쉬—’ 하는 소리 세 개 중 **떨리는 소리 하나**를 찾는 듣기 검사입니다.
 얼마나 약한 떨림까지 구별할 수 있는지를 떨림 속도(10–200 Hz)마다 측정합니다.
 연구에서는 이를 시간 변조 탐지, TMTF(temporal modulation transfer function)라고 합니다.
