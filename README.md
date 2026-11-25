@@ -129,15 +129,15 @@
 - **Lean 4**: `leanprover/lean4:v4.36.0` ([`tools/lean/lean-toolchain`](tools/lean/lean-toolchain))
 - **Mathlib4**: `leanprover-community/mathlib4` 태그 **`v4.36.0`** (커밋 `fc4f59e577feb1a4956671bc04ac18aaaf8cd842`, [`tools/lean/lakefile.toml`](tools/lean/lakefile.toml) · [`tools/lean/lake-manifest.json`](tools/lean/lake-manifest.json))
 - **형식 증명 범위**: core 유리수·정수·32비트 모형 10개 모듈 + Mathlib4 실수(`ℝ`)·복소수(`ℂ`) 해석 모듈([`tools/lean/TMTF/RealAnalytic.lean`](tools/lean/TMTF/RealAnalytic.lean), 공개 정리 43개: 실수 RMS 정규화, `10^(D/20)`·`Real.sin` 과변조 방지, 임의 `K ≥ 3`·무작위 위상 `φ` 의 SAM 세기 `1 + m²/2` 및 Viemeister `1/√(1 + m²/2)` 보정, `cos²` 경사, 버터워스 실수 이득, Box–Muller, 켤레 대칭 IDFT 순수 실수 출력 및 Parseval 항등식, Levitt `1/√2`, `measureDepth` 정확 복원)
-- **최근 6단계 전수 검산 결과 (`2026-11-25`, 앱 `1.2.10`, `build ef3d60a16533`, 총 99.2 s — 전체 통과)**:
+- **최근 6단계 전수 검산 결과 (`2026-11-25`, 앱 `1.2.11`, `build 66ff328e980d`, 총 92.5 s — 전체 통과)**:
 
 | 단계 | 항목 | 결과 | 소요 | 핵심 수치 |
 |---:|---|---|---:|---|
-| 1 | 자극 · 계단 JS = 파이썬 | 통과 | 7.1 s | 자극 750개(RMS 최대 차 `2.44e-11` dB) · 계단 210개 일치 |
-| 2 | 화면 코드 점검 (`app_check.js`) | 통과 | 46.1 s | 105 / 105 통과 (흐름 · CSP/XSS · 개인정보 · 다국어 · 터치) |
-| 3 | 결과 파일 독립 재현 (`verify_result.py`) | 통과 | 4.4 s | 측정 12/12 · 시행 478개 / 구간 1,434개 일치 |
-| 4 | Lean 4 + Mathlib4 처음부터 재빌드 | 통과 | 25.4 s | `4198 jobs` 완료 · `warning` · `error` · `sorry` 0건 |
-| 5 | Lean 공리 감사 (`MyAudit.lean`) | 통과 | 13.0 s | `consts=455` · `theorems=333` · `axiomDecls=0` · `UNION {Classical.choice, Quot.sound, propext}` · **`NONSTANDARD 0`** |
+| 1 | 자극 · 계단 JS = 파이썬 | 통과 | 6.7 s | 자극 750개(RMS 최대 차 `2.44e-11` dB) · 계단 210개 일치 |
+| 2 | 화면 코드 점검 (`app_check.js`) | 통과 | 39.1 s | 106 / 106 통과 (흐름 · CSP/XSS · 개인정보 · 다국어 · 터치 · 청력 안전) |
+| 3 | 결과 파일 독립 재현 (`verify_result.py`) | 통과 | 3.8 s | 측정 11/11 · 시행 402개 / 구간 1,206개 일치 |
+| 4 | Lean 4 + Mathlib4 처음부터 재빌드 | 통과 | 26.3 s | `4198 jobs` 완료 · `warning` · `error` · `sorry` 0건 |
+| 5 | Lean 공리 감사 (`MyAudit.lean`) | 통과 | 13.6 s | `consts=455` · `theorems=333` · `axiomDecls=0` · `UNION {Classical.choice, Quot.sound, propext}` · **`NONSTANDARD 0`** |
 | 6 | JS ↔ Lean 줄 단위 대조 | 통과 | 3.0 s | `RNG 307/307` · `RAMP 120/120` · `GAIN 140/140` · `TRACK 360/360` · `PV 131/131` 전 항목 일치 |
 
 - 상세 검증 보고서 및 전체 정리 목록: [tools/lean/검증_결과.md](tools/lean/검증_결과.md) · 원본 통과 기록: [검증_통과.json](검증_통과.json)

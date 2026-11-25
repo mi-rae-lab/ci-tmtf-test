@@ -5,7 +5,7 @@
 // 기록은 이 기기 브라우저(localStorage)에만 — 참가자가 ‘결과 파일 저장’을 눌러야 파일로 나감. 서버로 보내는 것은 없음.
 'use strict';
 
-const APP_VERSION = '1.2.10 (2026-11-25)';   // 1.2.10: 화면 전역 두 번 터치 확대 방지 (touch-action:manipulation + 비활성 영역 touchend/dblclick 가드, 핀치 줌 접근성 유지)
+const APP_VERSION = '1.2.11 (2026-11-25)';   // 1.2.11: ISO 14971 청력 안전장치 보강 (-1 dBFS 브릭월 리미터 · 비정상 표본 최종 가드 · 1.5 s 소프트 스타트 · 즉시 소리 끄기/Esc · 80%+ 볼륨 경고)
 const APP_FILES = ['index.html', 'style.css', 'js/protocols.js', 'js/stim.js', 'js/track.js', 'js/app.js'];   // build 해시 (tools/run_checks.py 와 같은 목록)
 const FORMAT = 'ci-tmtf-public';
 const FORMAT_VERSION = 2;
@@ -368,7 +368,25 @@ const KEEP_HZ = 18;
 const KEEP_DBFS = -45;          // 꼭대기 −45 dBFS = 진폭 0.005623 (RMS −48 dBFS, 자극보다 22 dB 낮음)
 const KEEP_TOL_DB = 1.5;        // 실제 출력 18 Hz 허용 오차 (−45 ± 1.5 dBFS)
 const KEEP_WARMUP_MS = 3000;    // 유지 신호를 막 켠 직후 장치 안정 대기 (3초)
-let ctx = null, master = null, live = [], mon = null, AUDIO_ERR = null;
+let ctx = null, master = null, limiter = null, live = [], mon = null, AUDIO_ERR = null;
+const SAFETY_SOFT_START_S = 1.5, SAFETY_DEMO_FADE_S = 0.15, SAFETY_PEAK_CEIL = 0.99, SAFETY_LIMITER_DB = -1;
+function sanitizeAudioBuffer(data) {
+  let bad = false, peak = 0;
+  for (let i = 0; i < data.length; i++) {
+    const v = data[i];
+    if (!Number.isFinite(v)) { bad = true; continue; }
+    const a = Math.abs(v);
+    if (a > peak) peak = a;
+  }
+  if (!bad && peak <= SAFETY_PEAK_CEIL) return data;
+  const out = new Float32Array(data.length);
+  const scale = peak > SAFETY_PEAK_CEIL ? SAFETY_PEAK_CEIL / peak : 1;
+  for (let i = 0; i < data.length; i++) {
+    const v = data[i];
+    out[i] = Number.isFinite(v) ? v * scale : 0;
+  }
+  return out;
+}
 let keep = null, keepMode = 'tone18all', keepUserOff = false;   // 기본: tone18all (시행 중에도 계속)
 const keepKindOf = m => (m === 'tone18all' || m === 'tone18') ? 'tone18' : null;
 const effectiveKeepMode = () => keepUserOff ? 'off' : keepMode;
@@ -378,7 +396,15 @@ function audio() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) throw new Error('이 브라우저는 소리를 만들 수 없습니다 (AudioContext 없음)');
     try { ctx = new AC({ latencyHint: 'interactive' }); } catch { ctx = new AC(); }
-    master = ctx.createGain(); master.connect(ctx.destination);
+    master = ctx.createGain();
+    try {
+      if (typeof ctx.createDynamicsCompressor === 'function') {
+        limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = SAFETY_LIMITER_DB; limiter.knee.value = 0; limiter.ratio.value = 20;
+        limiter.attack.value = 0.001; limiter.release.value = 0.05;
+        master.connect(limiter); limiter.connect(ctx.destination);
+      } else { limiter = null; master.connect(ctx.destination); }
+    } catch { limiter = null; master.connect(ctx.destination); }
     try { mon = ctx.createAnalyser(); mon.fftSize = 32768; master.connect(mon); } catch { mon = null; }
     ctx.onstatechange = () => { try { keepMonTick(); } catch { } };
   }
@@ -435,10 +461,21 @@ function keepWarmupRemainMs() {
   return Math.max(0, Math.round(KEEP_WARMUP_MS - (performance.now() - KEEPMON.keepWarmSince)));
 }
 function play(data, when, opt = {}) {
-  const b = ctx.createBuffer(1, data.length, ctx.sampleRate);
-  b.copyToChannel(data, 0);
-  const s = ctx.createBufferSource(); s.buffer = b; s.connect(master); s.start(when);
-  const tEnd = when + data.length / ctx.sampleRate;
+  const safe = opt.sanitized ? data : sanitizeAudioBuffer(data);
+  const b = ctx.createBuffer(1, safe.length, ctx.sampleRate);
+  b.copyToChannel(safe, 0);
+  const s = ctx.createBufferSource(); s.buffer = b;
+  const fade = opt.fadeInS > 0 ? Math.min(opt.fadeInS, safe.length / ctx.sampleRate) : 0;
+  if (fade > 0) {
+    const fg = ctx.createGain();
+    if (fg.gain && typeof fg.gain.setValueAtTime === 'function' && typeof fg.gain.linearRampToValueAtTime === 'function') {
+      fg.gain.setValueAtTime(0.001, when);
+      fg.gain.linearRampToValueAtTime(1, when + fade);
+    }
+    s.connect(fg); fg.connect(master);
+  } else s.connect(master);
+  s.start(when);
+  const tEnd = when + safe.length / ctx.sampleRate;
   wins.push({ t0: when, tEnd }); if (wins.length > 50) wins.shift();
   // tone18: 버퍼 시작 순간 유지 신호 멈춤, 끝 순간 재개(표본 단위 틈 0) · tone18all: 멈추지 않고 master 에서 더함
   if (keepMode === 'tone18' && !keepUserOff && !opt.noKeepSwitch) { keepStop(when); keepStart(tEnd); }
@@ -482,7 +519,8 @@ function heardTime() {
 function audioEnv() {
   if (!ctx) return null;
   return { sampleRate: ctx.sampleRate, baseLatencyMs: ctx.baseLatency !== undefined ? +(ctx.baseLatency * 1000).toFixed(1) : null,
-    outputLatencyMs: ctx.outputLatency !== undefined ? +(ctx.outputLatency * 1000).toFixed(1) : null, state: ctx.state, keepalive: effectiveKeepMode() };
+    outputLatencyMs: ctx.outputLatency !== undefined ? +(ctx.outputLatency * 1000).toFixed(1) : null, state: ctx.state, keepalive: effectiveKeepMode(),
+    safety: { limiter: !!limiter, limiterThresholdDb: limiter ? SAFETY_LIMITER_DB : null, softStartS: SAFETY_SOFT_START_S, peakGuard: SAFETY_PEAK_CEIL } };
 }
 function systemEnv() {
   let tz = ''; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { }
@@ -697,7 +735,7 @@ function resetSetupForm() {
   $('#codeIn').value = '';
   $('#infoAge').value = ''; $('#infoYears').value = ''; $('#infoOnset').value = ''; $('#infoMaker').value = '';
   $('#infoNote').value = ''; $('#moreBox').open = false; $('#notePrivWarn').hidden = true;
-  $('#osVol').value = ''; $('#volOk').checked = false; $('#soundNext').disabled = true;
+  $('#osVol').value = ''; if ($('#volHighWarn')) $('#volHighWarn').hidden = true; $('#volOk').checked = false; $('#soundNext').disabled = true;
   syncSetup();
 }
 $('#setupBack').onclick = () => showPage('pgHome');
@@ -715,13 +753,19 @@ function infoNow() {
 
 /* ── 소리 크기 ── */
 let noiseTimer = null;
+function checkOsVolWarn() {
+  const w = $('#volHighWarn'); if (!w) return;
+  const raw = $('#osVol').value;
+  w.hidden = !(raw !== '' && Number.isFinite(Number(raw)) && Number(raw) >= 80);
+}
+$('#osVol').addEventListener('input', checkOsVolWarn);
 $('#noisePlay').onclick = () => {
   if (!audioOk()) return;
   if (!keepUserOff) keepStart();
   stopAll(); clearTimeout(noiseTimer);
   const m = stim(PRACTICE_FM, null, 10);
-  play(m.data, ctx.currentTime + 0.05);
-  PRE.noise.push({ at: iso(), seed: m.seed, durS: 10, rmsDb: +m.rmsDb.toFixed(3), sampleRate: ctx.sampleRate });
+  play(m.data, ctx.currentTime + 0.05, { fadeInS: SAFETY_SOFT_START_S });
+  PRE.noise.push({ at: iso(), seed: m.seed, durS: 10, rmsDb: +m.rmsDb.toFixed(3), sampleRate: ctx.sampleRate, softStartS: SAFETY_SOFT_START_S });
   $('#noiseState').textContent = tx('소리가 재생되는 중입니다 (10초)', 'Playing sound (10 s)');
   noiseTimer = setTimeout(() => { noiseTimer = null; $('#noiseState').textContent = ''; }, 10200);
 };
@@ -731,8 +775,8 @@ function demo(mod) {
   if (!keepUserOff) keepStart();
   stopAll(); clearTimeout(noiseTimer); noiseTimer = null; $('#noiseState').textContent = '';
   const m = stim(PRACTICE_FM, mod ? 0 : null, 2);
-  play(m.data, ctx.currentTime + 0.05);
-  PRE.demo.push({ at: iso(), kind: mod ? 'mod' : 'flat', fm: PRACTICE_FM, depthDb: mod ? 0 : null, seed: m.seed, phase: m.phase, durS: 2 });
+  play(m.data, ctx.currentTime + 0.05, { fadeInS: SAFETY_DEMO_FADE_S });
+  PRE.demo.push({ at: iso(), kind: mod ? 'mod' : 'flat', fm: PRACTICE_FM, depthDb: mod ? 0 : null, seed: m.seed, phase: m.phase, durS: 2, fadeInS: SAFETY_DEMO_FADE_S });
 }
 $('#demoMod').onclick = () => demo(true);
 $('#demoFlat').onclick = () => demo(false);
@@ -1064,6 +1108,7 @@ function setTNote(kind) {
   LAST_TNOTE = kind || null;
   $('#tNote').textContent = kind === 'practice' ? tx('연습 결과는 최종 기록에 포함되지 않습니다.', 'Practice trials are not counted in your results.')
     : kind === 'replay' ? tx('다른 화면으로 이동하여 소리를 다시 들려드립니다.', 'You switched away, so we will play that sound again.')
+    : kind === 'safety-muted' ? tx('소리를 즉시 멈췄습니다. 볼륨을 편안하게 조정한 뒤 아래 ‘소리 다시 재생’을 눌러 이어가 주세요.', 'Sound stopped immediately. Adjust your volume to a comfortable level, then tap “Resume sound” below to continue.')
     : kind === 'audio-paused' ? tx('오디오가 일시 정지되었습니다. 아래 단추를 눌러 소리를 다시 재생해 주세요.', 'Audio was paused by the browser. Tap the button below to resume and replay.') : '';
 }
 function clearCurTimers(C) {
@@ -1071,14 +1116,24 @@ function clearCurTimers(C) {
   if (C.replayTimer) { clearTimeout(C.replayTimer); C.replayTimer = null; }
   if (C.nextTimer) { clearTimeout(C.nextTimer); C.nextTimer = null; }
 }
-function showAudioResume(C) {
+function showAudioResume(C, noteKind = 'audio-paused') {
   stopAll(); S.token = null; awaiting = null;
   clearCurTimers(C);
   IV_BTNS.forEach(b => { b.className = 'iv'; b.disabled = true; b.removeAttribute('aria-busy'); });
   $('#dunno').disabled = true;
   C.phase = 'suspended';
-  setTNote('audio-paused');
+  setTNote(noteKind);
   if ($('#resumeAudioWrap')) $('#resumeAudioWrap').hidden = false;
+}
+function emergencyMute(via = 'button') {
+  stopAll();
+  const C = S?.cur || null;
+  if ($('#pgTest').classList.contains('on') && C) {
+    const phase = C.phase || null;
+    C.replays++; C.needReplay = false;
+    logEv('safety-mute', { via, fm: C.fm, practice: !!C.practice, phase });
+    showAudioResume(C, 'safety-muted');
+  }
 }
 function renderTestLive() {
   const C = S?.cur; if (!C) return;
@@ -1145,8 +1200,9 @@ function nextTrial() {
     let made;
     try { made = btns.map((_, i) => stim(C.fm, i === tg ? depth : null)); }
     catch (e) { logEv('stim-error', { fm: C.fm, d: depth, msg: String(e && e.message || e) }); setFb('no', tx('소리를 생성하지 못했습니다. 화면을 새로고침해 주세요.', 'Could not generate sound. Please refresh the page.'), { kind: 'err' }); return; }
+    const safeBufs = made.map(m => sanitizeAudioBuffer(m.data));
     const t0 = ctx.currentTime + LEAD_S, step = PR.dur + PR.isi;
-    made.forEach((m, i) => play(m.data, t0 + i * step));
+    safeBufs.forEach((d, i) => play(d, t0 + i * step, { sanitized: true }));
     const h0 = heardTime(), p0 = performance.now();
     const token = {}; S.token = token; C.phase = 'playing'; C.needReplay = false;
     C.pend = { tg, d: depth, n };
@@ -1260,6 +1316,11 @@ function notTaken(key, how) {
 }
 const isTyping = t => !!(t && typeof t.matches === 'function' && t.matches('input,select,textarea'));
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !e.repeat) {
+    if ($('#pgSound').classList.contains('on')) { e.preventDefault(); $('#noiseStop').click(); return; }
+    if ($('#pgOnset').classList.contains('on') && ONSET.running) { e.preventDefault(); suspendOnset(); return; }
+    if ($('#pgTest').classList.contains('on') && S?.cur) { e.preventDefault(); emergencyMute('key-esc'); return; }
+  }
   if (isTyping(e.target) || e.repeat) return;
   if ($('#pgTest').classList.contains('on') && S?.cur) {
     const m = { '1': 1, '2': 2, '3': 3, '0': 0 }[e.key];
@@ -1387,6 +1448,7 @@ $('#bEnd').onclick = () => {
   endSession(left > 0 ? `중간에 끝냄 (남은 측정 ${left}개)` : '계획한 측정 모두 마침');
 };
 const pendingOf = (C, phase) => C?.tm && ['playing', 'awaiting'].includes(phase) ? { ...JSON.parse(JSON.stringify(C.tm)), tg: C.pend?.tg, d: C.pend?.d } : null;
+if ($('#muteNowBtn')) $('#muteNowBtn').onclick = () => emergencyMute('button');
 $('#stopBtn').onclick = () => {
   const C = S?.cur || null; if (!C) return;
   const phase = C.phase || null;
@@ -2494,6 +2556,7 @@ const UI_TEXT = {
       hSound: '소리 크기 맞추기',
       snd3: '볼륨을 맞춘 뒤에는 검사가 끝날 때까지 바꾸지 말아 주세요.',
       noisePlay: '소리 재생', noiseStop: '정지', lblOsVol: '현재 기기 볼륨 수치 (알고 있다면 입력)',
+      volHighWarn: '기기 볼륨이 높게 설정되어 있습니다(80% 이상). 불편하거나 너무 크다면 소리를 멈추고 볼륨을 낮춘 뒤 진행해 주세요.',
       iphoneHint: '아이폰은 측면 무음 스위치를 해제해야 소리가 납니다.',
       hDemo: '떨리는 소리 미리 들어보기', demoMod: '떨리는 소리', demoFlat: '떨리지 않는 소리',
       soundBtNote: '블루투스로 연결되어 있습니다. 다음 단계의 짧은 소리 점검으로 소리 앞부분이 잘리는지 확인하실 수 있습니다.',
@@ -2502,7 +2565,7 @@ const UI_TEXT = {
       onsetSkip: '건너뛰고 연습 시작', onReplay: '다시 듣기', onFirstQ: '첫 소리가 나머지보다 작거나 짧았나요?',
       onTrialNext: '다음', onKeysHint: '키보드: 숫자 0–4, 다음은 Enter', hOnRes: '소리 점검 결과',
       onsetBack: '소리 맞추기로', onsetAgain: '점검 다시 하기', onsetStart: '연습 시작하기',
-      stopBtn: '잠시 멈춤', dunno: '모르겠음', resumeAudioBtn: '소리 다시 재생', keysHint: '키보드: 1 · 2 · 3, 모르겠음은 0',
+      muteNowBtn: '소리 끄기', stopBtn: '잠시 멈춤', dunno: '모르겠음', resumeAudioBtn: '소리 다시 재생', keysHint: '키보드: 1 · 2 · 3, 모르겠음은 0',
       tGuide: '처음에는 쉽지만, 맞힐수록 떨림이 미세해져 점점 어려워집니다. 떨림이 아주 조금이라도 느껴지면 그 번호를 선택해 주세요. 세 소리가 완전히 똑같이 들릴 때만 ‘모르겠음’을 눌러 주세요.',
       onTitle: '소리 점검 1 / 2', bEnd: '여기까지만 하기', bPractice: '연습 한 번 더', bNext: '다음', endTitle: '수고하셨습니다',
       againBtn: '한 번 더 하기', finishBtn: '여기서 마치기',
@@ -2522,6 +2585,7 @@ const UI_TEXT = {
       hLearn4: '<b>상담용 보고서 저장</b>: 검사가 끝나면 <b>전문가용 보고서</b>로 저장해 청능사나 인공와우 엔지니어와 상담할 때 참고 자료로 활용할 수 있습니다.',
       hNotice1: '이 검사는 <b>의학적 진단이 아닙니다.</b> 음성처리기 설정 변경은 반드시 청능사와 상의해 주세요.',
       hNotice2: '이름이나 연락처는 묻지 않습니다. 결과는 이 기기에만 저장되며, 직접 <b>‘결과 파일 저장’</b>을 누르지 않으면 외부로 전송되지 않습니다.',
+      soundSafeWarn: '<b>청력 보호 안내:</b> 처음 재생할 때는 기기 볼륨을 절반 이하로 낮춘 상태에서 시작해 주세요. 소리는 1.5초에 걸쳐 서서히 커지며, 불편하거나 너무 크면 즉시 <b>‘정지’</b>(키보드 Esc)를 눌러 주세요.',
       snd1: '<b>‘소리 재생’</b>을 누르면 10초 동안 ‘쉬—’ 하는 소리가 나옵니다.',
       snd2: '기기 볼륨을 조절해 <b>편안하게 잘 들리는 크기</b>로 맞춰 주세요. 너무 크게 올리지 마세요.',
       demoHint: '떨림이 빠를 때는 ‘거칠게’ 또는 ‘웅웅’ 울리듯 들릴 수 있습니다. 나머지 두 소리와 <b>다르게 들리는 소리</b>를 고르시면 됩니다.',
@@ -2554,6 +2618,7 @@ const UI_TEXT = {
       hSound: 'Set a comfortable volume',
       snd3: 'Once set, please keep the volume the same until the test finishes.',
       noisePlay: 'Play sound', noiseStop: 'Stop', lblOsVol: 'Current device volume number (if known)',
+      volHighWarn: 'Device volume is set high (80% or above). If it feels loud or uncomfortable, stop the sound and lower the volume before continuing.',
       iphoneHint: 'On iPhone, switch off the side silent toggle so sound can play.',
       hDemo: 'Hear an example', demoMod: 'Fluttering sound', demoFlat: 'Steady sound',
       soundBtNote: 'You selected Bluetooth. The quick sound check on the next step can check if the start of sounds is cut off.',
@@ -2562,7 +2627,7 @@ const UI_TEXT = {
       onsetSkip: 'Skip to practice', onReplay: 'Replay', onFirstQ: 'Did the first beep sound softer or shorter than the rest?',
       onTrialNext: 'Next', onKeysHint: 'Keyboard: 0–4, Enter for Next', hOnRes: 'Sound check result',
       onsetBack: 'Back to volume', onsetAgain: 'Check again', onsetStart: 'Start practice',
-      stopBtn: 'Pause', dunno: 'Not sure', resumeAudioBtn: 'Resume sound', keysHint: 'Keyboard: 1 · 2 · 3, Not sure: 0',
+      muteNowBtn: 'Mute now', stopBtn: 'Pause', dunno: 'Not sure', resumeAudioBtn: 'Resume sound', keysHint: 'Keyboard: 1 · 2 · 3, Not sure: 0',
       tGuide: 'It starts easy and gets harder as you get answers right. If you notice even a tiny flutter, pick that number. Only press “Not sure” when all three sounds feel completely identical.',
       onTitle: 'Sound check 1 / 2', bEnd: 'Finish here', bPractice: 'Practice again', bNext: 'Next', endTitle: 'All done! Thank you',
       againBtn: 'Do one more round', finishBtn: 'Finish here',
@@ -2582,6 +2647,7 @@ const UI_TEXT = {
       hLearn4: '<b>Consultation report</b>: Save a <b>specialist report</b> at the end to share as a reference with your audiologist or CI engineer.',
       hNotice1: 'This test is <b>not a medical diagnosis.</b> Talk to your audiologist before changing any sound processor settings.',
       hNotice2: 'We never ask for your name or contact details. Results stay only in this browser and leave <b>only when you tap “Save result file”.</b>',
+      soundSafeWarn: '<b>Hearing safety notice:</b> Start with your device volume at half or lower. The sound fades in gradually over 1.5 s; if it feels loud or uncomfortable, tap <b>“Stop”</b> (or press Esc) immediately.',
       snd1: 'Tap <b>“Play sound”</b> to hear a steady “shh” sound for 10 seconds.',
       snd2: 'Adjust your device volume to a <b>comfortable, clearly audible level</b>. Do not make it too loud.',
       demoHint: 'Faster flutter can sound rough or buzzing. Just pick whichever sound feels <b>different from the other two</b>.',

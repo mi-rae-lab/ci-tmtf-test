@@ -218,7 +218,24 @@ class FakeAudioContext {
   get currentTime() { return this._frozen !== null ? this._frozen : (vnow() - this._t0) / 1000 - this._off; }
   async resume() { if (this.state !== 'running') { this._off = (vnow() - this._t0) / 1000 - this._frozen; this._frozen = null; this.state = 'running'; if (this.onstatechange) this.onstatechange(); } }
   async suspend() { if (this.state === 'running') { this._frozen = this.currentTime; this.state = 'suspended'; if (this.onstatechange) this.onstatechange(); } }
-  createGain() { const n = new FNode(this, 'gain'); n.gain = { value: 1 }; return n; }
+  createGain() {
+    const n = new FNode(this, 'gain');
+    n.ramps = [];
+    n.gain = {
+      value: 1,
+      setValueAtTime(v, t) { n.ramps.push({ op: 'set', v, t }); },
+      linearRampToValueAtTime(v, t) { n.ramps.push({ op: 'linear', v, t }); },
+      cancelScheduledValues(t) { n.ramps.push({ op: 'cancel', t }); },
+    };
+    this._gains = (this._gains || []); this._gains.push(n);
+    return n;
+  }
+  createDynamicsCompressor() {
+    const n = new FNode(this, 'compressor');
+    n.threshold = { value: -24 }; n.knee = { value: 30 }; n.ratio = { value: 12 }; n.attack = { value: 0.003 }; n.release = { value: 0.25 };
+    this._compressors = (this._compressors || []); this._compressors.push(n);
+    return n;
+  }
   createOscillator() { return new FOsc(this); }
   createAnalyser() {
     const c = this, n = new FNode(c, 'analyser');

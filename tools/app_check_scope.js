@@ -888,5 +888,35 @@ globalThis.__scope = (async () => {
     const okAll = cssOk && !firstTap && secondBgTap && secondDisTap && !enabledTap && !pinchTap && dbl.defaultPrevented;
     return [okAll, `css=${cssOk} t1=${firstTap} t2bg=${secondBgTap} t2dis=${secondDisTap} en=${enabledTap} pinch=${pinchTap} dbl=${dbl.defaultPrevented}`];
   });
+  await tryOk('1.2.11 ISO 14971 청력 안전장치: −1 dBFS 리미터 · 비정상 버퍼 가드 · 1.5 s 소프트 스타트 · 80%+ 볼륨 경고 · Esc/즉시 소리 끄기', () => {
+    const lim = ctx && ctx._compressors && ctx._compressors[0];
+    const limOk = !!(lim && lim.threshold.value === -1 && lim.knee.value === 0 && lim.ratio.value === 20 && master.outs.includes(lim) && lim.outs.includes(ctx.destination));
+    const envOk = !!(audioEnv()?.safety?.limiter && audioEnv().safety.limiterThresholdDb === -1 && audioEnv().safety.softStartS === 1.5 && audioEnv().safety.peakGuard === 0.99);
+    const bad = new Float32Array([NaN, Infinity, -Infinity, 2.0, -1.0]);
+    const san = sanitizeAudioBuffer(bad);
+    const sanOk = san.every(x => Number.isFinite(x) && Math.abs(x) <= 0.990001) && san[0] === 0 && san[1] === 0 && san[2] === 0 && Math.abs(san[3] - 0.99) < 1e-5;
+    const good = new Float32Array([0.1, -0.2, 0.05]);
+    const sameRef = sanitizeAudioBuffer(good) === good;
+    const rampOk = !!(ctx._gains && ctx._gains.some(g => g.ramps.length >= 2 && g.ramps[0].op === 'set' && g.ramps[0].v <= 0.01 && g.ramps[1].op === 'linear' && g.ramps[1].v === 1 && Math.abs((g.ramps[1].t - g.ramps[0].t) - 1.5) < 1e-6));
+    showPage('pgSound', { noScroll: true, noFocus: true });
+    $('#osVol').value = '85'; $('#osVol').dispatchEvent({ type: 'input' });
+    const highOn = !$('#volHighWarn').hidden;
+    $('#osVol').value = '50'; $('#osVol').dispatchEvent({ type: 'input' });
+    const highOff = $('#volHighWarn').hidden;
+    $('#noisePlay').click();
+    const playingBeforeEsc = $('#noiseState').textContent !== '';
+    H.key('Escape', $('#osVol'));
+    const escStoppedSound = $('#noiseState').textContent === '';
+    // 검사 중 즉시 소리 끄기(emergencyMute) 확인
+    const prevS = S;
+    S = { session: { events: [] }, cur: { fm: 10, practice: true, phase: 'playing', replays: 0 }, token: {} };
+    showPage('pgTest', { noScroll: true, noFocus: true });
+    $('#muteNowBtn').click();
+    const muteOk = S.cur.phase === 'suspended' && !$('#resumeAudioWrap').hidden && $('#tNote').textContent.includes('즉시 멈췄습니다') && S.session.events.some(e => e.type === 'safety-mute');
+    S = prevS;
+    showPage('pgHome', { noScroll: true, noFocus: true });
+    const allOk = limOk && envOk && sanOk && sameRef && rampOk && highOn && highOff && playingBeforeEsc && escStoppedSound && muteOk;
+    return [allOk, `lim=${limOk} env=${envOk} san=${sanOk} ref=${sameRef} ramp=${rampOk} hi=${highOn}/${highOff} esc=${playingBeforeEsc}/${escStoppedSound} mute=${muteOk}`];
+  });
   clearInterval(KEEPMON_TIMER);
 })();
