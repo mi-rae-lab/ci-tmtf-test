@@ -159,15 +159,15 @@ The stimulus and staircase code (`js/stim.js` · `js/track.js` · `js/protocols.
 - **Lean 4**: `leanprover/lean4:v4.36.0` ([`tools/lean/lean-toolchain`](tools/lean/lean-toolchain))
 - **Mathlib4**: `leanprover-community/mathlib4` tag **`v4.36.0`** (commit `fc4f59e577feb1a4956671bc04ac18aaaf8cd842`, [`tools/lean/lakefile.toml`](tools/lean/lakefile.toml) · [`tools/lean/lake-manifest.json`](tools/lean/lake-manifest.json))
 - **Scope of formal proofs**: 10 core rational/integer/32-bit modules + real (`ℝ`) & complex (`ℂ`) analytic module using Mathlib4 ([`tools/lean/TMTF/RealAnalytic.lean`](tools/lean/TMTF/RealAnalytic.lean), 43 public theorems: real RMS equalization, `10^(D/20)` & `Real.sin` no-overmodulation, arbitrary `K ≥ 3` & random-phase `φ` SAM cycle power `1 + m²/2` with Viemeister `1/√(1 + m²/2)` correction, `cos²` ramp, Butterworth real gain, Box–Muller, conjugate-symmetric IDFT purely real output & Parseval identity, Levitt `1/√2`, and exact phase-invariant `measureDepth` recovery)
-- **Latest 6-step full verification (`2026-11-25`, app `1.2.13`, `build b24266ed985a`, total `111.8 s` — ALL PASS)**:
+- **Latest 6-step full verification (`2026-11-26`, app `1.2.14`, `build f3679b00da17`, total `134.8 s` — ALL PASS)**:
 
 | Step | Check | Status | Time | Summary |
 |---:|---|---|---:|---|
-| 1 | Stimulus & staircase JS = Python | PASS | 6.9 s | 750 stimuli (max RMS diff `2.44e-11` dB) · 210 staircases match |
-| 2 | UI & security check (`app_check.js`) | PASS | 56.3 s | 107 / 107 pass (7 rates · save/resume · CSP/XSS · KO/EN i18n · touch · safety) |
-| 3 | Independent result replay (`verify_result.py`) | PASS | 5.6 s | 16/16 runs · 583 trials / 1,749 intervals match |
+| 1 | Stimulus & staircase JS = Python | PASS | 7.4 s | 750 stimuli (max RMS diff `2.44e-11` dB) · 48 zero-RNG seeds · 210 staircases match |
+| 2 | UI & security check (`app_check.js`) | PASS | 56.8 s | 124 / 124 pass (7 rates · save/resume · 17 regressions for 1.2.14 · CSP/XSS · KO/EN i18n · touch · safety) |
+| 3 | Independent result replay (`verify_result.py` · `verify_result_check.py`) | PASS | 27.9 s | 15/15 runs · 544 trials / 1,632 intervals match · 11/11 verifier self-checks pass |
 | 4 | Lean 4 + Mathlib4 clean rebuild | PASS | 26.2 s | `4198 jobs` succeeded · 0 warnings / errors / `sorry` |
-| 5 | Lean axiom audit (`MyAudit.lean`) | PASS | 13.6 s | `consts=455` · `theorems=333` · `axiomDecls=0` · `UNION {Classical.choice, Quot.sound, propext}` · **`NONSTANDARD 0`** |
+| 5 | Lean axiom audit (`MyAudit.lean`) | PASS | 13.3 s | `consts=455` · `theorems=333` · `axiomDecls=0` · `UNION {Classical.choice, Quot.sound, propext}` · **`NONSTANDARD 0`** |
 | 6 | JS ↔ Lean line-by-line cross-check | PASS | 3.1 s | `RNG 307/307` · `RAMP 120/120` · `GAIN 140/140` · `TRACK 360/360` · `PV 131/131` all match |
 
 - Full report & theorem audit table: [tools/lean/검증_결과.md](tools/lean/검증_결과.md) · Machine-readable pass record: [검증_통과.json](검증_통과.json)
@@ -177,9 +177,9 @@ The stimulus and staircase code (`js/stim.js` · `js/track.js` · `js/protocols.
 - **Formal-proof vs. floating-point boundary:** Lean 4 + Mathlib4 formally proves properties over exact mathematical models (`ℚ`, `ℤ`, `UInt32`, `ℝ`, and `ℂ`); it does **not** formally prove IEEE-754 `Float32`/`Float64` hardware rounding inside the Lean kernel. Instead, actual JS floating-point execution is checked numerically down to IEEE-754 precision limits in Steps 1, 3, and 6.
 - **Arithmetic precision:** FFT, spectral shaping, staircase logic, and binomial tail probabilities in `js/stim.js` and `js/track.js` run in `Float64` (double precision); only the final Web Audio output buffer uses `Float32` as required by the Web Audio API.
 - **Measured floating-point errors (latest full verification):**
-  - **JS vs. independent Python/NumPy (750 stimuli · 210 staircases):** max `Float32` sample difference **`0.00`** (exact match), max peak difference **`3.55 × 10⁻¹⁵ dB`** (`Float64` machine-epsilon level), max RMS difference **`2.44 × 10⁻¹¹ dB`**, max sample-sum difference **`1.49 × 10⁻⁸`**, phase difference `< 10⁻¹² rad`, and exact agreement on staircase thresholds, reversals, and chance flags (`p` relative difference `≤ 10⁻¹²`).
+  - **JS vs. independent Python/NumPy (750 stimuli · 48 zero-RNG seeds · 210 staircases):** max `Float32` sample difference **`0.00`** (exact match), max peak difference **`3.55 × 10⁻¹⁵ dB`** (`Float64` machine-epsilon level), max RMS difference **`2.44 × 10⁻¹¹ dB`**, max sample-sum difference **`1.49 × 10⁻⁸`**, phase difference `< 10⁻¹² rad`, and exact agreement on staircase thresholds, reversals, and chance flags (`p` relative difference `≤ 10⁻¹²`).
   - **JS floating-point vs. exact Lean 4 rationals / 32-bit values:** binomial tail `PV` (131/131) max relative difference **`8.55 × 10⁻¹⁶`** (tolerance `10⁻⁹`, at `Float64` limit), `Float32` output DFT band gain `GAIN` (140/140) max relative difference **`8.42 × 10⁻⁷`** (tolerance `2 × 10⁻⁵`, at `Float32` 24-bit significand limit), and zero-error exact match for `RNG`, `RAMP`, and `TRACK`.
-  - **Independent JSON replay (`verify_result.py`, 1,749 intervals):** all intervals match within the JSON rounding granularity (`0.001 dB` RMS / `0.01 dB` peak; measured max differences `0.00040 dB` RMS and `0.0050 dB` peak).
+  - **Independent JSON replay (`verify_result.py`, 1,632 intervals):** all intervals match within the JSON rounding granularity (`0.001 dB` RMS / `0.01 dB` peak; measured max differences `0.00040 dB` RMS and `0.0050 dB` peak).
 
 ```
 tools\전수검산.bat        (or python -I -X utf8 tools/run_checks.py)

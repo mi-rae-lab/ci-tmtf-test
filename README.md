@@ -159,15 +159,15 @@ ISO 14971 위험관리 관점(설계상 안전 → 방호 수단 → 안전 정�
 - **Lean 4**: `leanprover/lean4:v4.36.0` ([`tools/lean/lean-toolchain`](tools/lean/lean-toolchain))
 - **Mathlib4**: `leanprover-community/mathlib4` 태그 **`v4.36.0`** (커밋 `fc4f59e577feb1a4956671bc04ac18aaaf8cd842`, [`tools/lean/lakefile.toml`](tools/lean/lakefile.toml) · [`tools/lean/lake-manifest.json`](tools/lean/lake-manifest.json))
 - **형식 증명 범위**: core 유리수·정수·32비트 모형 10개 모듈 + Mathlib4 실수(`ℝ`)·복소수(`ℂ`) 해석 모듈([`tools/lean/TMTF/RealAnalytic.lean`](tools/lean/TMTF/RealAnalytic.lean), 공개 정리 43개: 실수 RMS 정규화, `10^(D/20)`·`Real.sin` 과변조 방지, 임의 `K ≥ 3`·무작위 위상 `φ` 의 SAM 세기 `1 + m²/2` 및 Viemeister `1/√(1 + m²/2)` 보정, `cos²` 경사, 버터워스 실수 이득, Box–Muller, 켤레 대칭 IDFT 순수 실수 출력 및 Parseval 항등식, Levitt `1/√2`, `measureDepth` 정확 복원)
-- **최근 6단계 전수 검산 결과 (`2026-11-25`, 앱 `1.2.13`, `build b24266ed985a`, 총 111.8 s — 전체 통과)**:
+- **최근 6단계 전수 검산 결과 (`2026-11-26`, 앱 `1.2.14`, `build f3679b00da17`, 총 134.8 s — 전체 통과)**:
 
 | 단계 | 항목 | 결과 | 소요 | 핵심 수치 |
 |---:|---|---|---:|---|
-| 1 | 자극 · 계단 JS = 파이썬 | 통과 | 6.9 s | 자극 750개(RMS 최대 차 `2.44e-11` dB) · 계단 210개 일치 |
-| 2 | 화면 코드 점검 (`app_check.js`) | 통과 | 56.3 s | 107 / 107 통과 (7개 주파수 · 중간 저장/이어하기 · CSP/XSS · 다국어 · 터치 · 청력 안전) |
-| 3 | 결과 파일 독립 재현 (`verify_result.py`) | 통과 | 5.6 s | 측정 16/16 · 시행 583개 / 구간 1,749개 일치 |
+| 1 | 자극 · 계단 JS = 파이썬 | 통과 | 7.4 s | 자극 750개(RMS 최대 차 `2.44e-11` dB) · 난수 0 씨앗 48개 · 계단 210개 일치 |
+| 2 | 화면 코드 점검 (`app_check.js`) | 통과 | 56.8 s | 124 / 124 통과 (7개 주파수 · 중간 저장/이어하기 · 1.2.14 회귀 17건 · CSP/XSS · 다국어 · 터치 · 청력 안전) |
+| 3 | 결과 파일 독립 재현 (`verify_result.py` · `verify_result_check.py`) | 통과 | 27.9 s | 측정 15/15 · 시행 544개 / 구간 1,632개 일치 · 검산기 자체 점검 11/11 통과 |
 | 4 | Lean 4 + Mathlib4 처음부터 재빌드 | 통과 | 26.2 s | `4198 jobs` 완료 · `warning` · `error` · `sorry` 0건 |
-| 5 | Lean 공리 감사 (`MyAudit.lean`) | 통과 | 13.6 s | `consts=455` · `theorems=333` · `axiomDecls=0` · `UNION {Classical.choice, Quot.sound, propext}` · **`NONSTANDARD 0`** |
+| 5 | Lean 공리 감사 (`MyAudit.lean`) | 통과 | 13.3 s | `consts=455` · `theorems=333` · `axiomDecls=0` · `UNION {Classical.choice, Quot.sound, propext}` · **`NONSTANDARD 0`** |
 | 6 | JS ↔ Lean 줄 단위 대조 | 통과 | 3.1 s | `RNG 307/307` · `RAMP 120/120` · `GAIN 140/140` · `TRACK 360/360` · `PV 131/131` 전 항목 일치 |
 
 - 상세 검증 보고서 및 전체 정리 목록: [tools/lean/검증_결과.md](tools/lean/검증_결과.md) · 원본 통과 기록: [검증_통과.json](검증_통과.json)
@@ -177,9 +177,9 @@ ISO 14971 위험관리 관점(설계상 안전 → 방호 수단 → 안전 정�
 - **형식 증명과 부동소수점의 경계:** Lean 4 + Mathlib4는 수학적 모형(`ℚ`·`ℤ`·`UInt32` 및 `ℝ`·`ℂ`)의 성질을 형식 증명하며, **IEEE-754 `Float32`/`Float64` 반올림 오차 자체를 Lean 커널로 형식 증명하지는 않습니다.** 대신 실제 JS 부동소수점 실행 결과는 1·3·6단계 수치 대조로 IEEE-754 정밀도 한계까지 엄격히 검증합니다.
 - **내부 연산 정밀도:** `js/stim.js`의 FFT·스펙트럼·계단·확률 계산은 `Float64`(64비트 배정밀도)로 수행하며, Web Audio API 출력 버퍼만 표준 규격에 따라 `Float32`(32비트 단정밀도)로 변환합니다.
 - **실측 부동소수점 오차 (전수 검산 실측치):**
-  - **JS ↔ 독립 Python/NumPy 대조 (자극 750개 · 계단 210개):** `Float32` 표본 최대 차 **`0.00`**(완전 일치), 봉우리 최대 차 **`3.55 × 10⁻¹⁵ dB`**(`Float64` 머신 엡실론 수준), RMS 최대 차 **`2.44 × 10⁻¹¹ dB`**, 표본 합 최대 차 **`1.49 × 10⁻⁸`**, 위상 오차 `< 10⁻¹² rad`, 계단 역치·반전·우연 판정 완전 일치(`p` 상대 차 `≤ 10⁻¹²`).
+  - **JS ↔ 독립 Python/NumPy 대조 (자극 750개 · 난수 0 씨앗 48개 · 계단 210개):** `Float32` 표본 최대 차 **`0.00`**(완전 일치), 봉우리 최대 차 **`3.55 × 10⁻¹⁵ dB`**(`Float64` 머신 엡실론 수준), RMS 최대 차 **`2.44 × 10⁻¹¹ dB`**, 표본 합 최대 차 **`1.49 × 10⁻⁸`**, 위상 오차 `< 10⁻¹² rad`, 계단 역치·반전·우연 판정 완전 일치(`p` 상대 차 `≤ 10⁻¹²`).
   - **JS 부동소수점 ↔ Lean 4 정확한 유리수/32비트 대조:** 이항 꼬리 확률 `PV`(131/131) 최대 상대 차 **`8.55 × 10⁻¹⁶`**(허용 `10⁻⁹`, `Float64` 한계 수준), `Float32` 출력 DFT 대역 이득 `GAIN`(140/140) 최대 상대 차 **`8.42 × 10⁻⁷`**(허용 `2 × 10⁻⁵`, `Float32` 24비트 가수 한계 수준), 난수 `RNG`·경사 `RAMP`·계단 `TRACK`은 정수/비트 단위 오차 0 완전 일치.
-  - **결과 JSON 독립 재합성 (`verify_result.py`, 1,749개 구간):** JSON 저장 시 소수 반올림 자릿수(`RMS 0.001 dB` · `봉우리 0.01 dB`) 한계 안에서 전 구간 일치(실측 최대 차 RMS `0.00040 dB`, 봉우리 `0.0050 dB`).
+  - **결과 JSON 독립 재합성 (`verify_result.py`, 1,632개 구간):** JSON 저장 시 소수 반올림 자릿수(`RMS 0.001 dB` · `봉우리 0.01 dB`) 한계 안에서 전 구간 일치(실측 최대 차 RMS `0.00040 dB`, 봉우리 `0.0050 dB`).
 
 ```
 tools\전수검산.bat        (또는 python -I -X utf8 tools/run_checks.py)
