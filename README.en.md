@@ -170,6 +170,15 @@ The stimulus and staircase code (`js/stim.js` · `js/track.js` · `js/protocols.
 
 - Full report & theorem audit table: [tools/lean/검증_결과.md](tools/lean/검증_결과.md) · Machine-readable pass record: [검증_통과.json](검증_통과.json)
 
+### Floating-point precision and verification boundary
+
+- **Formal-proof vs. floating-point boundary:** Lean 4 + Mathlib4 formally proves properties over exact mathematical models (`ℚ`, `ℤ`, `UInt32`, `ℝ`, and `ℂ`); it does **not** formally prove IEEE-754 `Float32`/`Float64` hardware rounding inside the Lean kernel. Instead, actual JS floating-point execution is checked numerically down to IEEE-754 precision limits in Steps 1, 3, and 6.
+- **Arithmetic precision:** FFT, spectral shaping, staircase logic, and binomial tail probabilities in `js/stim.js` and `js/track.js` run in `Float64` (double precision); only the final Web Audio output buffer uses `Float32` as required by the Web Audio API.
+- **Measured floating-point errors (latest full verification):**
+  - **JS vs. independent Python/NumPy (750 stimuli · 210 staircases):** max `Float32` sample difference **`0.00`** (exact match), max peak difference **`3.55 × 10⁻¹⁵ dB`** (`Float64` machine-epsilon level), max RMS difference **`2.44 × 10⁻¹¹ dB`**, max sample-sum difference **`1.49 × 10⁻⁸`**, phase difference `< 10⁻¹² rad`, and exact agreement on staircase thresholds, reversals, and chance flags (`p` relative difference `≤ 10⁻¹²`).
+  - **JS floating-point vs. exact Lean 4 rationals / 32-bit values:** binomial tail `PV` (131/131) max relative difference **`8.55 × 10⁻¹⁶`** (tolerance `10⁻⁹`, at `Float64` limit), `Float32` output DFT band gain `GAIN` (140/140) max relative difference **`8.42 × 10⁻⁷`** (tolerance `2 × 10⁻⁵`, at `Float32` 24-bit significand limit), and zero-error exact match for `RNG`, `RAMP`, and `TRACK`.
+  - **Independent JSON replay (`verify_result.py`, 1,749 intervals):** all intervals match within the JSON rounding granularity (`0.001 dB` RMS / `0.01 dB` peak; measured max differences `0.00040 dB` RMS and `0.0050 dB` peak).
+
 ```
 tools\전수검산.bat        (or python -I -X utf8 tools/run_checks.py)
 ```
