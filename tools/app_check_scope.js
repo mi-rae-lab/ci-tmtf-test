@@ -936,7 +936,7 @@ globalThis.__scope = (async () => {
   const storedDb = () => JSON.parse(H.store.get(STORE_KEY) || '{"sessions":[],"decisions":[]}');
   const db18Now = () => { const m = monitor(true); return m ? m.db18 : null; };   // 가짜 분석기에 지금 실제로 나가는 18 Hz (dBFS · 없으면 null)
   const evN = (s, type) => s.events.filter(e => e.type === type).length;
-  const wrongKey = () => String((awaiting.tg + 1) % 3 + 1);
+  const wrongKey = () => String([2, 3, 1][awaiting.tg]);   // 정답이 아닌 자리의 키 (정답 자리 0 · 1 · 2 → 2 · 3 · 1번)
   async function resetAll() {
     await wait(150);                                   // 진행 중인 시작 · 이어하기 준비가 있으면 끝나게
     if (S) { clearCurTimers(S.cur); S = null; }
