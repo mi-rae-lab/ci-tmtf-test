@@ -80,13 +80,13 @@ theorem rampW_symm {R N j : Nat} (h : 2 * R ≤ N) (hj : j < N) : rampW R N j = 
   · have h2 : ¬ (N - 1 - j < R) := by omega
     have h3 : N - R ≤ N - 1 - j := by omega
     have h4 : N - 1 - (N - 1 - j) = j := by omega
-    simp only [h1, h2, h3, h4, if_true, if_false]
+    simp only [h1, h2, h3, h4, ite_true, ite_false]
   · by_cases h5 : N - R ≤ j
     · have h6 : N - 1 - j < R := by omega
-      simp only [h1, h5, h6, if_true, if_false]
+      simp only [h1, h5, h6, ite_true, ite_false]
     · have h7 : ¬ (N - 1 - j < R) := by omega
       have h8 : ¬ (N - R ≤ N - 1 - j) := by omega
-      simp only [h1, h5, h7, h8, if_false]
+      simp only [h1, h5, h7, h8, ite_false]
 
 theorem rampLen_values :
     rampLen 48000 10 48000 = 480 ∧ rampLen 48000 30 24000 = 1440 ∧ rampLen 44100 10 44100 = 441 ∧ rampLen 44100 30 22050 = 1323 := by

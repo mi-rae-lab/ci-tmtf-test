@@ -215,7 +215,7 @@ theorem finish_trials (P : TrackP) (S : TrackS) : (finish P S).trials = S.trials
 theorem respond_len {P : TrackP} {S : TrackS} {c : Bool} (h : S.done = false) :
     (respond P S c).trials.length = S.trials.length + 1 := by
   unfold respond
-  rw [if_neg (by rw [h]; decide), finish_trials, afterAnswer_trials, tally_trials]
+  rw [ite_eq_right (by rw [h]; decide), finish_trials, afterAnswer_trials, tally_trials]
   simp
 
 /-- 끝났거나, 시행 수가 아직 상한 아래 -/

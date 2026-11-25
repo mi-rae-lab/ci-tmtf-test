@@ -81,10 +81,10 @@ def main (args : List String) : IO Unit := do
   let lines ← IO.FS.lines inPath
   IO.FS.withFile outPath .write fun h => do
     for ln in lines do
-      match ln.trimRight.splitOn " " with
+      match ln.trimAsciiEnd.toString.splitOn " " with
       | ["RNG", seed, cnt] =>
         let s : UInt32 := UInt32.ofNat seed.toNat!
-        let out := (mbOutputs s cnt.toNat!).map (·.toNat)
+        let out := (mbOutputs s cnt.toNat!).map UInt32.toNat
         h.putStrLn s!"RNG {seed} {csvN out}"
       | ["RAMP", fs, rms, n] =>
         h.putStrLn s!"RAMP {fs} {rms} {n} {rampLen fs.toNat! rms.toNat! n.toNat!} 1"
@@ -122,7 +122,7 @@ def main (args : List String) : IO Unit := do
           let ch := match atChanceQ S.k0 S.n0 P.nAFC with
             | some b => b01 b
             | none => "-"
-          h.putStrLn s!"TRACK {id} {pr} {b01 S.done} {b01 S.ceiling} {b01 S.incomplete} {S.depth} {S.run} {S.dir} {S.n0} {S.k0} {S.ceilMiss} {csvI S.reversals} {csvN S.revAt} {csvI (S.trials.map (·.1))} {thr} {ch}"
+          h.putStrLn s!"TRACK {id} {pr} {b01 S.done} {b01 S.ceiling} {b01 S.incomplete} {S.depth} {S.run} {S.dir} {S.n0} {S.k0} {S.ceilMiss} {csvI S.reversals} {csvN S.revAt} {csvI (S.trials.map Prod.fst)} {thr} {ch}"
           if 6 ≤ S.n0 then
             h.putStrLn s!"PV {id} {ratStr (tailQ S.k0 S.n0 (1 / (P.nAFC : Rat)))}"
       | _ => h.putStrLn s!"? {ln}"

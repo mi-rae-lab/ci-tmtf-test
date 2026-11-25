@@ -1,6 +1,6 @@
 Lean 4 형식 검증 — 소리 떨림 검사(TMTF)의 자극 · 계단 (와우TMTF 3.2 에서 가져옴, 2026-10-24 · Claude)
 
-Lean:   %USERPROFILE%\.elan (leanprover/lean4:v4.24.0, core 만 — Mathlib 없음)
+Lean:   %USERPROFILE%\.elan (leanprover/lean4:v4.36.0, core 만 — Mathlib 없음)
         PATH 는 바꾸지 않아도 됨 → %USERPROFILE%\.elan\bin\lake.exe 로 직접 실행 (이 폴더의 lean-toolchain 이 버전을 고름)
 
 무엇을 증명했나 (유리수 · 정수 · 32비트 모형 — JS 실행 자체의 증명이 아님. JS ↔ 이 모형은 아래 대조로)
