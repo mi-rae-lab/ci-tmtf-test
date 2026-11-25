@@ -104,7 +104,7 @@ The page opens in Korean by default; use the `EN` / `KO` button at the top right
 
 ## Test method (summary)
 
-Full details are in [방법.md](방법.md) (Korean only).
+Full details are in [Methods](방법.en.md).
 
 | | |
 |---|---|
@@ -149,7 +149,7 @@ The app is built to web standards, with no build tools or external frameworks.
 
 ## References
 
-A comparison of the stimulus and staircase procedures with the original sources, and the differences, is in [방법.md](방법.md) (Korean only).
+A comparison of the stimulus and staircase procedures with the original sources, and the differences, is in [Methods](방법.en.md).
 
 1. Levitt, H. (1971). Transformed up-down methods in psychoacoustics. *The Journal of the Acoustical Society of America*, 49(2B), 467–477. https://doi.org/10.1121/1.1912375
 2. Viemeister, N. F. (1979). Temporal modulation transfer functions based upon modulation thresholds. *The Journal of the Acoustical Society of America*, 66(5), 1364–1380. https://doi.org/10.1121/1.383531
